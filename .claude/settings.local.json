@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell($env:PATH = \"C:\\\\Program Files\\\\nodejs;\" + $env:PATH; cd \"c:\\\\portal-fast\"; & \"C:\\\\Program Files\\\\nodejs\\\\npm.cmd\" start)"
+    ]
+  }
+}
