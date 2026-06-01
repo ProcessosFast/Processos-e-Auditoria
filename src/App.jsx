@@ -1215,7 +1215,7 @@ ${db.planos.length ? `<table>
                         {" · "}{fmtDate(audsConcluidas[audsConcluidas.length - 1].data)}
                       </div>
                     )}
-                    {!audsConcluidas.length && <div style={{ fontSize: 12, color: F.gray4, marginTop: 5 }}>Nenhuma auditoria</div>}
+                      {!audsConcluidas.length && <div style={{ fontSize: 12, color: F.gray4, marginTop: 5 }}>Nenhuma auditoria</div>}
                   </div>
                   <div style={{ background: "#fff", borderRadius: 10, padding: "16px 18px", border: `1px solid ${F.gray6}`, borderTop: `3px solid ${planosAtrasados.length > 0 ? F.red : F.amber}` }}>
                     <div style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: 1, color: F.gray4, marginBottom: 8, fontFamily: "'Barlow Condensed',sans-serif" }}>Planos em Aberto</div>
@@ -1227,6 +1227,33 @@ ${db.planos.length ? `<table>
                     </div>
                   </div>
                 </div>
+
+                {/* Auditorias aguardando ciência */}
+                {(() => {
+                  const pendentes = auditoriasVisiveis.filter(a => !a.ciencia?.confirmado);
+                  if (!pendentes.length) return null;
+                  return (
+                    <div style={{ marginTop: 14, background: "#fff", border: `1.5px solid ${F.green}`, borderRadius: 10, overflow: "hidden" }}>
+                      <div style={{ padding: "12px 16px", background: F.greenDim, display: "flex", alignItems: "center", gap: 10 }}>
+                        <div style={{ fontFamily: "'Barlow Condensed',sans-serif", fontSize: 13, fontWeight: 800, textTransform: "uppercase", letterSpacing: 0.5, color: F.green, flex: 1 }}>
+                          ✔ Auditorias aguardando sua ciência ({pendentes.length})
+                        </div>
+                        <div style={{ fontSize: 11, color: F.green }}>Registre abaixo ou acesse Auditorias</div>
+                      </div>
+                      {pendentes.map((a, i) => (
+                        <div key={a.id} style={{ padding: "11px 16px", borderTop: i > 0 ? `1px solid ${F.gray6}` : "none", display: "flex", alignItems: "center", gap: 12 }}>
+                          <div style={{ flex: 1 }}>
+                            <div style={{ fontSize: 13, fontWeight: 700, color: F.charcoal }}>{a.areaNome}</div>
+                            <div style={{ fontSize: 11, color: F.gray4 }}>{fmtDate(a.data)} · {a.auditorNome} · <strong style={{ color: scoreColor(a.score) }}>{a.score}%</strong></div>
+                          </div>
+                          <button onClick={() => setCienciaAuditoriaId(a.id)} style={{ background: F.green, color: "#fff", border: "none", borderRadius: 7, padding: "7px 14px", fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "'Barlow',sans-serif" }}>
+                            Registrar Ciência
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  );
+                })()}
               </div>
             )}
 
@@ -1495,7 +1522,20 @@ ${db.planos.length ? `<table>
                         return <>
                           <TD style={{ maxWidth: 220 }}><span style={{ fontSize: 12.5 }}>{p.desc}</span></TD>
                           <TD style={{ color: F.gray3 }}>{p.areaNome}</TD>
-                          <TD>{iniciais ? <div style={{ display: "flex", alignItems: "center", gap: 7 }}><div style={{ width: 24, height: 24, background: F.red, borderRadius: 5, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 9, fontWeight: 700, color: "#fff" }}>{iniciais}</div><span style={{ fontSize: 12 }}>{p.respNome}</span></div> : <span style={{ fontSize: 12, color: F.amber }}>Pendente</span>}</TD>
+                          <TD>
+                            {iniciais
+                              ? <div style={{ display: "flex", alignItems: "center", gap: 7 }}><div style={{ width: 24, height: 24, background: F.red, borderRadius: 5, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 9, fontWeight: 700, color: "#fff" }}>{iniciais}</div><span style={{ fontSize: 12 }}>{p.respNome}</span></div>
+                              : podeExecutar(perfil, "aprovar")
+                                ? <select style={{ ...fi, fontSize: 11.5, padding: "4px 8px", borderColor: F.amber }} value={p.respId || ""} onChange={e => {
+                                    const u = db.usuarios.find(x => x.id === e.target.value);
+                                    upd("planos", arr => arr.map(x => x.id === p.id ? { ...x, respId: u?.id || "", respNome: u?.nome || "" } : x));
+                                  }}>
+                                    <option value="">Atribuir responsável...</option>
+                                    {db.usuarios.map(u => <option key={u.id} value={u.id}>{u.nome}</option>)}
+                                  </select>
+                                : <span style={{ fontSize: 12, color: F.amber }}>⚠ Pendente</span>
+                            }
+                          </TD>
                           <TD style={{ color: F.gray3 }}>{fmtDate(p.prazo)}</TD>
                           <TD><Tag color={cc} bg={cbg}>{clbl}</Tag></TD>
                           <TD><Tag>{p.origem === "auditoria" ? "Auditoria" : "Manual"}</Tag></TD>
