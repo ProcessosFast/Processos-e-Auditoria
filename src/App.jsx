@@ -314,7 +314,7 @@ function TD({ children, style = {} }) {
 
 // ── STEPS ─────────────────────────────────────────────────────────
 function Steps({ step }) {
-  const items = ["Identificação", "Checklist", "Resultado", "Ciência"];
+  const items = ["Identificação", "Checklist", "Resultado"];
   return (
     <div style={{ display: "flex", alignItems: "center", marginBottom: 22 }}>
       {items.map((s, i) => (
@@ -562,6 +562,7 @@ export default function App() {
   const [expandedModulos, setExpandedModulos] = useState(new Set());
   const [historicoPlanId, setHistoricoPlanId] = useState(null);
   const [justificandoPlano, setJustificandoPlano] = useState(null);
+  const [cienciaAuditoriaId, setCienciaAuditoriaId] = useState(null);
   const planosIdsRef = useRef(new Set());
 
   useEffect(() => {
@@ -919,20 +920,13 @@ ${db.planos.length ? `<table>
     const score = calcScore(checklist);
     const ncs = checklist.filter(i => i.resp === "nok");
 
-    const cienciaUser = db.usuarios.find(u => u.id === audForm.cienciaRespId);
     const auditoria = {
       id: uid(), areaNome: area?.nome || "—", areaId: audForm.areaId,
       auditorNome: auditor?.nome || "—", data: audForm.data,
       local: audForm.local, cicloNome: ciclo?.nome || "—",
       score, obs: audForm.obs, status: "concluida",
       ncs: ncs.map(i => ({ q: i.q, clas: i.clas || "obs", evidencia: i.evidencia || "" })),
-      ciencia: audForm.cienciaConfirmado ? {
-        responsavel: cienciaUser?.nome || audForm.cienciaResp || "—",
-        responsavelId: audForm.cienciaRespId || "",
-        data: audForm.cienciaData || new Date().toISOString().split("T")[0],
-        observacoes: audForm.cienciaObs || "",
-        confirmado: true
-      } : null
+      ciencia: null
     };
 
     ncs.filter(i => i.selected !== false).forEach(i => {
@@ -1456,7 +1450,15 @@ ${db.planos.length ? `<table>
                           : <span style={{ color: F.gray4, fontSize: 12 }}>—</span>}
                       </TD>
                       <TD>{ncc > 0 ? <Tag color={F.red} bg={F.redDim}>{ncc} NC</Tag> : "—"}</TD>
-                      <TD>{a.ciencia?.confirmado ? <Pill color={F.green} bg={F.greenDim}>Registrada</Pill> : <Pill color={F.amber} bg={F.amberDim}>Pendente</Pill>}</TD>
+                      <TD>
+                        {a.ciencia?.confirmado
+                          ? <div><Pill color={F.green} bg={F.greenDim}>Registrada</Pill><div style={{ fontSize: 10, color: F.gray4, marginTop: 2 }}>{a.ciencia.responsavel} · {fmtDate(a.ciencia.data)}</div></div>
+                          : <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                              <Pill color={F.amber} bg={F.amberDim}>Pendente</Pill>
+                              {perfil === "gestor" && <button onClick={() => setCienciaAuditoriaId(a.id)} style={{ fontSize: 10.5, color: F.green, background: F.greenDim, border: `1px solid ${F.green}44`, borderRadius: 5, padding: "2px 8px", cursor: "pointer", fontWeight: 700, fontFamily: "'Barlow',sans-serif" }}>Registrar</button>}
+                            </div>
+                        }
+                      </TD>
                       {podeExecutar(perfil, "excluir") && <TD><button onClick={() => upd("auditorias", arr => arr.filter(x => x.id !== a.id))} style={{ background: "none", border: "none", color: F.gray4, cursor: "pointer", fontSize: 16, padding: "2px 6px" }}>✕</button></TD>}
                     </>;
                   })}
@@ -1818,6 +1820,21 @@ ${db.planos.length ? `<table>
       {/* PLANO */}
       <PlanoModal open={!!modals.plano} onClose={() => closeModal("plano")} areas={db.areas} usuarios={db.usuarios} onSave={f => { savePlano(f); }} />
 
+      {/* CIÊNCIA DO AUDITADO */}
+      <CienciaModal
+        open={!!cienciaAuditoriaId}
+        onClose={() => setCienciaAuditoriaId(null)}
+        auditoria={db.auditorias.find(a => a.id === cienciaAuditoriaId) || null}
+        usuarioLogado={usuarioLogado}
+        onSave={f => {
+          upd("auditorias", arr => arr.map(a => a.id === cienciaAuditoriaId ? {
+            ...a, ciencia: { responsavel: usuarioLogado?.nome || "—", responsavelId: usuarioLogado?.id || "", data: f.data, observacoes: f.observacoes, confirmado: true }
+          } : a));
+          setCienciaAuditoriaId(null);
+          showToast("Ciência registrada com sucesso!");
+        }}
+      />
+
       {/* JUSTIFICATIVA */}
       <JustificativaModal
         open={!!justificandoPlano}
@@ -2033,6 +2050,59 @@ function PlanoModal({ open, onClose, areas, usuarios, onSave }) {
   );
 }
 
+function CienciaModal({ open, onClose, auditoria, usuarioLogado, onSave }) {
+  const hoje = new Date().toISOString().split("T")[0];
+  const [f, setF] = useState({ data: hoje, observacoes: "", confirmado: false });
+  useEffect(() => { if (open) setF({ data: hoje, observacoes: "", confirmado: false }); }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
+  if (!auditoria) return null;
+  const ncc = auditoria.ncs?.filter(n => n.clas === "nc").length || 0;
+  const mel = auditoria.ncs?.filter(n => n.clas === "mel").length || 0;
+  return (
+    <Modal open={open} onClose={onClose} title="Registrar Ciência do Auditado" width={520}
+      footer={<><Btn variant="ghost" onClick={onClose}>Cancelar</Btn><Btn onClick={() => { if (!f.confirmado) { alert("Confirme a ciência antes de registrar."); return; } onSave(f); }}>✓ Registrar Ciência</Btn></>}>
+      {/* Resumo */}
+      <div style={{ background: F.offWhite, borderRadius: 10, padding: 14, marginBottom: 18, display: "flex", gap: 14, flexWrap: "wrap" }}>
+        <div style={{ flex: 2 }}>
+          <div style={{ fontSize: 10, fontWeight: 700, color: F.gray4, textTransform: "uppercase", letterSpacing: 1, fontFamily: "'Barlow Condensed',sans-serif" }}>Área Auditada</div>
+          <div style={{ fontSize: 15, fontWeight: 700, color: F.charcoal, marginTop: 2 }}>{auditoria.areaNome}</div>
+          <div style={{ fontSize: 11, color: F.gray4, marginTop: 1 }}>{fmtDate(auditoria.data)} · {auditoria.auditorNome}</div>
+        </div>
+        <div style={{ textAlign: "center" }}>
+          <div style={{ fontSize: 10, fontWeight: 700, color: F.gray4, textTransform: "uppercase", letterSpacing: 1, fontFamily: "'Barlow Condensed',sans-serif" }}>Score</div>
+          <div style={{ fontFamily: "'Barlow Condensed',sans-serif", fontSize: 28, fontWeight: 900, color: scoreColor(auditoria.score), lineHeight: 1.1 }}>{auditoria.score}%</div>
+        </div>
+        <div style={{ textAlign: "center" }}>
+          <div style={{ fontSize: 10, fontWeight: 700, color: F.gray4, textTransform: "uppercase", letterSpacing: 1, fontFamily: "'Barlow Condensed',sans-serif" }}>NCs</div>
+          <div style={{ fontFamily: "'Barlow Condensed',sans-serif", fontSize: 24, fontWeight: 900, color: F.red }}>{ncc}</div>
+        </div>
+        <div style={{ textAlign: "center" }}>
+          <div style={{ fontSize: 10, fontWeight: 700, color: F.gray4, textTransform: "uppercase", letterSpacing: 1, fontFamily: "'Barlow Condensed',sans-serif" }}>Melhorias</div>
+          <div style={{ fontFamily: "'Barlow Condensed',sans-serif", fontSize: 24, fontWeight: 900, color: F.blue }}>{mel}</div>
+        </div>
+      </div>
+
+      <div style={{ background: "#fff", border: `1.5px solid ${F.gray6}`, borderRadius: 8, padding: "10px 14px", marginBottom: 14, fontSize: 12.5 }}>
+        <strong>Responsável pelo registro:</strong> <span style={{ color: F.red }}>{usuarioLogado?.nome || "—"}</span>
+      </div>
+
+      <FG label="Data da Ciência">
+        <input type="date" style={fi} value={f.data} onChange={e => setF({ ...f, data: e.target.value })} />
+      </FG>
+
+      <FG label="Observações (opcional)">
+        <textarea style={{ ...fi, resize: "vertical", minHeight: 70 }} value={f.observacoes} onChange={e => setF({ ...f, observacoes: e.target.value })} placeholder="Registre comentários, discordâncias ou informações adicionais..." />
+      </FG>
+
+      <label style={{ display: "flex", alignItems: "flex-start", gap: 10, cursor: "pointer", marginTop: 4, padding: "12px 14px", background: f.confirmado ? F.greenDim : F.offWhite, border: `1.5px solid ${f.confirmado ? F.green : F.gray6}`, borderRadius: 8, transition: "all 0.15s" }}>
+        <input type="checkbox" checked={f.confirmado} onChange={e => setF({ ...f, confirmado: e.target.checked })} style={{ accentColor: F.green, width: 15, height: 15, marginTop: 2, flexShrink: 0 }} />
+        <span style={{ fontSize: 13, color: F.charcoal, lineHeight: 1.5 }}>
+          <strong>Confirmo que fui informado(a)</strong> sobre os resultados desta auditoria e estou ciente das não conformidades e planos de ação gerados.
+        </span>
+      </label>
+    </Modal>
+  );
+}
+
 function JustificativaModal({ open, onClose, plano, onSave }) {
   const [f, setF] = useState({ motivo: "", novoPrazo: "" });
   useEffect(() => { if (open) setF({ motivo: "", novoPrazo: "" }); }, [open]);
@@ -2197,10 +2267,7 @@ function AuditoriaModal({ open, onClose, step, setStep, form, setForm, checklist
       const missing = checklist.filter(i => i.resp === "nok" && !i.evidencia?.trim());
       if (missing.length > 0) { alert(`${missing.length} item(ns) NOK sem evidência preenchida.`); return; }
     }
-    if (step === 4) {
-      if (!form.cienciaConfirmado) { alert("Confirme a ciência do auditado antes de finalizar."); return; }
-      onFinalizar(); return;
-    }
+    if (step === 3) { onFinalizar(); return; }
     setStep(s => s + 1);
   }
   function prev() { setStep(s => s - 1); }
@@ -2218,13 +2285,13 @@ function AuditoriaModal({ open, onClose, step, setStep, form, setForm, checklist
   const sections = [...new Set(checklist.map(i => i.sec))];
 
   return (
-    <Modal open={open} onClose={onClose} title={["Nova Auditoria","Checklist de Verificação","Resultado e Planos de Ação","Ciência do Auditado"][step-1]} width={640}
+    <Modal open={open} onClose={onClose} title={["Nova Auditoria","Checklist de Verificação","Resultado e Planos de Ação"][step-1]} width={640}
       footer={
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%" }}>
           <Btn variant="ghost" onClick={onClose}>Cancelar</Btn>
           <div style={{ display: "flex", gap: 8 }}>
             {step > 1 && <Btn variant="ghost" onClick={prev}>← Voltar</Btn>}
-            <Btn onClick={next}>{step === 4 ? "✓ Finalizar e Registrar Ciência" : "Próximo →"}</Btn>
+            <Btn onClick={next}>{step === 3 ? "✓ Finalizar Auditoria" : "Próximo →"}</Btn>
           </div>
         </div>
       }>
@@ -2394,66 +2461,6 @@ function AuditoriaModal({ open, onClose, step, setStep, form, setForm, checklist
         </div>
       )}
 
-      {/* STEP 4 — CIÊNCIA DO AUDITADO */}
-      {step === 4 && (
-        <div>
-          {/* Resumo */}
-          <div style={{ background: F.offWhite, borderRadius: 10, padding: 16, marginBottom: 18, display: "flex", gap: 16, flexWrap: "wrap" }}>
-            <div style={{ textAlign: "center", flex: 1 }}>
-              <div style={{ fontSize: 10, fontWeight: 700, color: F.gray4, textTransform: "uppercase", letterSpacing: 1, fontFamily: "'Barlow Condensed',sans-serif" }}>Área</div>
-              <div style={{ fontSize: 15, fontWeight: 700, color: F.charcoal, marginTop: 3 }}>{areas.find(a => a.id === form.areaId)?.nome || "—"}</div>
-            </div>
-            <div style={{ textAlign: "center", flex: 1 }}>
-              <div style={{ fontSize: 10, fontWeight: 700, color: F.gray4, textTransform: "uppercase", letterSpacing: 1, fontFamily: "'Barlow Condensed',sans-serif" }}>Score</div>
-              <div style={{ fontFamily: "'Barlow Condensed',sans-serif", fontSize: 28, fontWeight: 900, color: scoreColor(score), lineHeight: 1, marginTop: 3 }}>{score}%</div>
-            </div>
-            <div style={{ textAlign: "center", flex: 1 }}>
-              <div style={{ fontSize: 10, fontWeight: 700, color: F.gray4, textTransform: "uppercase", letterSpacing: 1, fontFamily: "'Barlow Condensed',sans-serif" }}>NCs</div>
-              <div style={{ fontSize: 22, fontWeight: 900, color: F.red, fontFamily: "'Barlow Condensed',sans-serif", marginTop: 3 }}>{noks.filter(i => i.clas === "nc").length}</div>
-            </div>
-            <div style={{ textAlign: "center", flex: 1 }}>
-              <div style={{ fontSize: 10, fontWeight: 700, color: F.gray4, textTransform: "uppercase", letterSpacing: 1, fontFamily: "'Barlow Condensed',sans-serif" }}>Melhorias</div>
-              <div style={{ fontSize: 22, fontWeight: 900, color: F.blue, fontFamily: "'Barlow Condensed',sans-serif", marginTop: 3 }}>{noks.filter(i => i.clas === "mel").length}</div>
-            </div>
-          </div>
-
-          <FG label="Responsável pela Ciência">
-            <select style={fi} value={form.cienciaRespId || ""} onChange={e => setForm({ ...form, cienciaRespId: e.target.value })}>
-              <option value="">Selecione o responsável da área...</option>
-              {usuarios.filter(u => u.areaId === form.areaId || u.perfil === "gestor").map(u => (
-                <option key={u.id} value={u.id}>{u.nome}</option>
-              ))}
-              {usuarios.filter(u => !u.areaId || u.areaId === "").length > 0 && <>
-                <option disabled>──────────────</option>
-                {usuarios.filter(u => !u.areaId || u.areaId === "").map(u => <option key={u.id} value={u.id}>{u.nome}</option>)}
-              </>}
-            </select>
-          </FG>
-
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-            <FG label="Data da Ciência">
-              <input type="date" style={fi} value={form.cienciaData || new Date().toISOString().split("T")[0]} onChange={e => setForm({ ...form, cienciaData: e.target.value })} />
-            </FG>
-          </div>
-
-          <FG label="Observações do Auditado (opcional)">
-            <textarea style={{ ...fi, resize: "vertical", minHeight: 70 }} value={form.cienciaObs || ""} onChange={e => setForm({ ...form, cienciaObs: e.target.value })} placeholder="O auditado pode registrar comentários ou discordâncias aqui..." />
-          </FG>
-
-          <label style={{ display: "flex", alignItems: "flex-start", gap: 10, cursor: "pointer", marginTop: 6, padding: "12px 14px", background: form.cienciaConfirmado ? F.greenDim : F.offWhite, border: `1.5px solid ${form.cienciaConfirmado ? F.green : F.gray6}`, borderRadius: 8, transition: "all 0.15s" }}>
-            <input type="checkbox" checked={!!form.cienciaConfirmado} onChange={e => setForm({ ...form, cienciaConfirmado: e.target.checked })} style={{ accentColor: F.green, width: 15, height: 15, marginTop: 1, flexShrink: 0 }} />
-            <span style={{ fontSize: 13, color: F.charcoal, lineHeight: 1.5 }}>
-              <strong>Confirmo que fui informado(a)</strong> sobre os resultados desta auditoria e estou ciente das não conformidades e planos de ação gerados.
-            </span>
-          </label>
-
-          {!form.cienciaConfirmado && (
-            <div style={{ fontSize: 11.5, color: F.amber, marginTop: 8, fontWeight: 600 }}>
-              ⚠ Marque a confirmação acima para finalizar a auditoria.
-            </div>
-          )}
-        </div>
-      )}
     </Modal>
   );
 }
