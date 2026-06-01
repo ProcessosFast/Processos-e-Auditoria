@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
-  RadialBarChart, RadialBar, Cell, LineChart, Line,
+  Cell, LineChart, Line,
   PieChart, Pie, Legend
 } from "recharts";
 
@@ -350,7 +350,7 @@ function Steps({ step }) {
 
 // ── TOAST ─────────────────────────────────────────────────────────
 function Toast({ msg, type, onDone }) {
-  useEffect(() => { const t = setTimeout(onDone, 3000); return () => clearTimeout(t); }, []);
+  useEffect(() => { const t = setTimeout(onDone, 3000); return () => clearTimeout(t); }, [onDone]);
   return (
     <div style={{
       position: "fixed", bottom: 24, right: 24, zIndex: 999,
@@ -555,7 +555,7 @@ export default function App() {
   const [audStep, setAudStep] = useState(1);
   const [audForm, setAudForm] = useState({});
   const [checklist, setChecklist] = useState([]);
-  const [planoForm, setPlanoForm] = useState({});
+
   const [notifOpen, setNotifOpen] = useState(false);
   const [idsLidos, setIdsLidos] = useState(new Set());
   const [idsNovos, setIdsNovos] = useState(new Set());
@@ -1934,8 +1934,8 @@ function ModuloModal({ open, onClose, areas, processos, modulo, onSave }) {
   const [f, setF] = useState(empty);
 
   useEffect(() => {
-    if (open) setF(isEdit ? { ...modulo, perguntas: modulo.perguntas?.length ? modulo.perguntas : [{ id: uid(), texto: "" }] } : empty);
-  }, [open]);
+    if (open) setF(isEdit ? { ...modulo, perguntas: modulo.perguntas?.length ? modulo.perguntas : [{ id: uid(), texto: "" }] } : { nome: "", descricao: "", areaIds: [], processoIds: [], perguntas: [{ id: "p1", texto: "" }], ativo: true });
+  }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function toggleArea(id) { setF(x => ({ ...x, areaIds: x.areaIds.includes(id) ? x.areaIds.filter(a => a !== id) : [...x.areaIds, id] })); }
   function toggleProcesso(id) { setF(x => ({ ...x, processoIds: x.processoIds.includes(id) ? x.processoIds.filter(p => p !== id) : [...x.processoIds, id] })); }
