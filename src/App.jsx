@@ -314,7 +314,7 @@ function TD({ children, style = {} }) {
 
 // ── STEPS ─────────────────────────────────────────────────────────
 function Steps({ step }) {
-  const items = ["Identificação", "Checklist", "Resultado"];
+  const items = ["Identificação", "Checklist", "Resultado", "Ciência"];
   return (
     <div style={{ display: "flex", alignItems: "center", marginBottom: 22 }}>
       {items.map((s, i) => (
@@ -560,6 +560,8 @@ export default function App() {
   const [idsLidos, setIdsLidos] = useState(new Set());
   const [idsNovos, setIdsNovos] = useState(new Set());
   const [expandedModulos, setExpandedModulos] = useState(new Set());
+  const [historicoPlanId, setHistoricoPlanId] = useState(null);
+  const [justificandoPlano, setJustificandoPlano] = useState(null);
   const planosIdsRef = useRef(new Set());
 
   useEffect(() => {
@@ -804,12 +806,14 @@ ${db.planos.length ? `<table>
 
   // ── CHECKLIST BUILDER ──
   function buildChecklist(areaId) {
-    const secs = [{ title: "Verificação Geral", items: CL_BASE }];
+    const secs = [
+      { title: "Verificação Geral", items: CL_BASE.map(q => ({ texto: q, peso: 1 })) }
+    ];
     (db.modulos || [])
       .filter(m => m.ativo && m.areaIds?.includes(areaId))
-      .forEach(m => secs.push({ title: m.nome, items: m.perguntas.map(p => p.texto) }));
+      .forEach(m => secs.push({ title: m.nome, items: m.perguntas.map(p => ({ texto: p.texto, peso: p.peso || 1 })) }));
     return secs.flatMap(sec =>
-      sec.items.map(q => ({ id: uid(), sec: sec.title, q, resp: null, clas: null, obs: "" }))
+      sec.items.map(item => ({ id: uid(), sec: sec.title, q: item.texto, peso: item.peso || 1, resp: null, clas: null, obs: "", evidencia: "" }))
     );
   }
 
@@ -829,8 +833,10 @@ ${db.planos.length ? `<table>
 
   function calcScore(cl) {
     const applicable = cl.filter(i => i.resp !== "na");
-    const ok = applicable.filter(i => i.resp === "ok").length;
-    return applicable.length > 0 ? Math.round((ok / applicable.length) * 100) : 0;
+    if (!applicable.length) return 0;
+    const total = applicable.reduce((s, i) => s + (i.peso || 1), 0);
+    const ok = applicable.filter(i => i.resp === "ok").reduce((s, i) => s + (i.peso || 1), 0);
+    return Math.round((ok / total) * 100);
   }
 
   // ── SAVE AREA ──
@@ -878,12 +884,32 @@ ${db.planos.length ? `<table>
   // ── SAVE PLANO ──
   function savePlano(form, auto = false) {
     if (!form.desc?.trim()) { if (!auto) showToast("Informe a descrição.", "err"); return; }
-    upd("planos", p => [...p, { id: uid(), status: "aberto", aprovacao: "pendente", origem: auto ? "auditoria" : "manual", ...form }]);
+    if (!auto && !form.respId) { showToast("Selecione um responsável.", "err"); return; }
+    const evt = { data: new Date().toISOString(), acao: "Plano criado", autor: auto ? "Sistema (Auditoria)" : usuarioLogado?.nome || "Sistema" };
+    upd("planos", p => [...p, { id: uid(), status: "aberto", aprovacao: "pendente", historico: [evt], origem: auto ? "auditoria" : "manual", ...form }]);
     if (!auto) { closeModal("plano"); showToast("Plano criado! Aguardando aprovação do administrador."); }
   }
 
-  function aprovarPlano(id) { upd("planos", arr => arr.map(p => p.id === id ? { ...p, aprovacao: "aprovado" } : p)); showToast("Plano aprovado!"); }
-  function rejeitarPlano(id) { upd("planos", arr => arr.map(p => p.id === id ? { ...p, aprovacao: "rejeitado" } : p)); showToast("Plano rejeitado.", "err"); }
+  function aprovarPlano(id) {
+    const evt = { data: new Date().toISOString(), acao: "Plano aprovado", autor: usuarioLogado?.nome || "Sistema" };
+    upd("planos", arr => arr.map(p => p.id === id ? { ...p, aprovacao: "aprovado", aprovadoPor: usuarioLogado?.nome || "—", aprovadoEm: new Date().toISOString(), historico: [...(p.historico || []), evt] } : p));
+    showToast("Plano aprovado!");
+  }
+  function rejeitarPlano(id) {
+    const evt = { data: new Date().toISOString(), acao: "Plano rejeitado", autor: usuarioLogado?.nome || "Sistema" };
+    upd("planos", arr => arr.map(p => p.id === id ? { ...p, aprovacao: "rejeitado", rejeitadoPor: usuarioLogado?.nome || "—", rejeitadoEm: new Date().toISOString(), historico: [...(p.historico || []), evt] } : p));
+    showToast("Plano rejeitado.", "err");
+  }
+  function aprovarExtensao(id) {
+    const evt = { data: new Date().toISOString(), acao: "Extensão de prazo aprovada", autor: usuarioLogado?.nome || "Sistema" };
+    upd("planos", arr => arr.map(p => p.id === id && p.extensao ? { ...p, prazo: p.extensao.novoPrazo, extensao: { ...p.extensao, status: "aprovada", aprovadoPor: usuarioLogado?.nome || "—", aprovadoEm: new Date().toISOString() }, historico: [...(p.historico || []), evt] } : p));
+    showToast("Extensão aprovada!");
+  }
+  function rejeitarExtensao(id) {
+    const evt = { data: new Date().toISOString(), acao: "Extensão de prazo rejeitada", autor: usuarioLogado?.nome || "Sistema" };
+    upd("planos", arr => arr.map(p => p.id === id ? { ...p, extensao: { ...p.extensao, status: "rejeitada" }, historico: [...(p.historico || []), evt] } : p));
+    showToast("Extensão rejeitada.", "err");
+  }
 
   // ── FINALIZAR AUDITORIA ──
   function finalizarAuditoria() {
@@ -893,12 +919,20 @@ ${db.planos.length ? `<table>
     const score = calcScore(checklist);
     const ncs = checklist.filter(i => i.resp === "nok");
 
+    const cienciaUser = db.usuarios.find(u => u.id === audForm.cienciaRespId);
     const auditoria = {
       id: uid(), areaNome: area?.nome || "—", areaId: audForm.areaId,
       auditorNome: auditor?.nome || "—", data: audForm.data,
       local: audForm.local, cicloNome: ciclo?.nome || "—",
       score, obs: audForm.obs, status: "concluida",
-      ncs: ncs.map(i => ({ q: i.q, clas: i.clas || "obs" }))
+      ncs: ncs.map(i => ({ q: i.q, clas: i.clas || "obs", evidencia: i.evidencia || "" })),
+      ciencia: audForm.cienciaConfirmado ? {
+        responsavel: cienciaUser?.nome || audForm.cienciaResp || "—",
+        responsavelId: audForm.cienciaRespId || "",
+        data: audForm.cienciaData || new Date().toISOString().split("T")[0],
+        observacoes: audForm.cienciaObs || "",
+        confirmado: true
+      } : null
     };
 
     ncs.filter(i => i.selected !== false).forEach(i => {
@@ -907,7 +941,8 @@ ${db.planos.length ? `<table>
       prazo.setDate(prazo.getDate() + (prazoMap[i.clas || "obs"] || 30));
       savePlano({
         desc: i.q, areaId: audForm.areaId, areaNome: area?.nome || "—",
-        resp: "", prio: i.clas === "nc" ? "high" : i.clas === "mel" ? "mid" : "low",
+        respId: "", respNome: "", resp: "",
+        prio: i.clas === "nc" ? "high" : i.clas === "mel" ? "mid" : "low",
         prazo: prazo.toISOString().split("T")[0], clas: i.clas || "obs",
       }, true);
     });
@@ -1397,7 +1432,7 @@ ${db.planos.length ? `<table>
             {view === "auditorias" && (
               <Card>
                 <DataTable
-                  cols={["Área", "Auditor", "Data", "Ciclo", "Score Individual", "Média do Ciclo", "NCs", ...(podeExecutar(perfil, "excluir") ? [""] : [])]}
+                  cols={["Área", "Auditor", "Data", "Ciclo", "Score Individual", "Média do Ciclo", "NCs", "Ciência", ...(podeExecutar(perfil, "excluir") ? [""] : [])]}
                   rows={auditoriasVisiveis.map(a => {
                     const ncc = a.ncs?.filter(n => n.clas === "nc").length || 0;
                     const parceirosCiclo = a.cicloNome && a.cicloNome !== "—"
@@ -1421,6 +1456,7 @@ ${db.planos.length ? `<table>
                           : <span style={{ color: F.gray4, fontSize: 12 }}>—</span>}
                       </TD>
                       <TD>{ncc > 0 ? <Tag color={F.red} bg={F.redDim}>{ncc} NC</Tag> : "—"}</TD>
+                      <TD>{a.ciencia?.confirmado ? <Pill color={F.green} bg={F.greenDim}>Registrada</Pill> : <Pill color={F.amber} bg={F.amberDim}>Pendente</Pill>}</TD>
                       {podeExecutar(perfil, "excluir") && <TD><button onClick={() => upd("auditorias", arr => arr.filter(x => x.id !== a.id))} style={{ background: "none", border: "none", color: F.gray4, cursor: "pointer", fontSize: 16, padding: "2px 6px" }}>✕</button></TD>}
                     </>;
                   })}
@@ -1453,10 +1489,11 @@ ${db.planos.length ? `<table>
                       rows={planosPendAprov.map(p => {
                         const cmap = { nc: [F.red, F.redDim, "NC"], mel: [F.blue, F.blueDim, "Melhoria"], obs: [F.gray3, F.gray6, "Obs"] };
                         const [cc, cbg, clbl] = cmap[p.clas] || [F.gray3, F.gray6, "—"];
+                        const iniciais = p.respNome ? p.respNome.split(" ").map(w => w[0]).join("").slice(0,2).toUpperCase() : null;
                         return <>
                           <TD style={{ maxWidth: 220 }}><span style={{ fontSize: 12.5 }}>{p.desc}</span></TD>
                           <TD style={{ color: F.gray3 }}>{p.areaNome}</TD>
-                          <TD style={{ color: F.gray3 }}>{p.resp || "—"}</TD>
+                          <TD>{iniciais ? <div style={{ display: "flex", alignItems: "center", gap: 7 }}><div style={{ width: 24, height: 24, background: F.red, borderRadius: 5, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 9, fontWeight: 700, color: "#fff" }}>{iniciais}</div><span style={{ fontSize: 12 }}>{p.respNome}</span></div> : <span style={{ fontSize: 12, color: F.amber }}>Pendente</span>}</TD>
                           <TD style={{ color: F.gray3 }}>{fmtDate(p.prazo)}</TD>
                           <TD><Tag color={cc} bg={cbg}>{clbl}</Tag></TD>
                           <TD><Tag>{p.origem === "auditoria" ? "Auditoria" : "Manual"}</Tag></TD>
@@ -1483,21 +1520,50 @@ ${db.planos.length ? `<table>
                     </div>
                   )}
                   <DataTable
-                    cols={["Ação", "Área", "Responsável", "Prazo", "Clas.", "Status", ...(podeExecutar(perfil, "excluir") ? [""] : [])]}
+                    cols={["Ação", "Área", "Responsável", "Prazo", "Clas.", "Status", "", ...(podeExecutar(perfil, "excluir") ? [""] : [])]}
                     rows={[
                       ...planosAprovados.map(p => {
                         const at = isAtrasado(p);
                         const cmap = { nc: [F.red, F.redDim, "NC"], mel: [F.blue, F.blueDim, "Melhoria"], obs: [F.gray3, F.gray6, "Obs"] };
                         const [cc, cbg, clbl] = cmap[p.clas] || [F.gray3, F.gray6, "—"];
+                        const temExtPendente = p.extensao?.status === "pendente";
+                        const iniciais = p.respNome ? p.respNome.split(" ").map(w => w[0]).join("").slice(0,2).toUpperCase() : null;
                         return <>
-                          <TD style={{ maxWidth: 200 }}><span style={{ fontSize: 12.5 }}>{p.desc}</span>{p.origem === "auditoria" && <div style={{ fontSize: 10, color: F.gray4 }}>via auditoria</div>}</TD>
+                          <TD style={{ maxWidth: 200 }}>
+                            <span style={{ fontSize: 12.5 }}>{p.desc}</span>
+                            {p.origem === "auditoria" && <div style={{ fontSize: 10, color: F.gray4 }}>via auditoria</div>}
+                            {!p.respId && <div style={{ fontSize: 10, color: F.amber, fontWeight: 700 }}>⚠ Responsável pendente</div>}
+                            {temExtPendente && (podeExecutar(perfil, "aprovar") || perfil === "comite") && (
+                              <div style={{ marginTop: 4, display: "flex", gap: 5 }}>
+                                <Tag color={F.amber} bg={F.amberDim}>Extensão Pendente</Tag>
+                                <button onClick={() => aprovarExtensao(p.id)} style={{ fontSize: 10, background: F.green, color: "#fff", border: "none", borderRadius: 4, padding: "1px 7px", cursor: "pointer", fontWeight: 700 }}>✓</button>
+                                <button onClick={() => rejeitarExtensao(p.id)} style={{ fontSize: 10, background: F.red, color: "#fff", border: "none", borderRadius: 4, padding: "1px 7px", cursor: "pointer", fontWeight: 700 }}>✕</button>
+                              </div>
+                            )}
+                            {temExtPendente && !podeExecutar(perfil, "aprovar") && perfil !== "comite" && <Tag color={F.amber} bg={F.amberDim}>Extensão Pendente</Tag>}
+                          </TD>
                           <TD style={{ color: F.gray3 }}>{p.areaNome}</TD>
-                          <TD style={{ color: F.gray3 }}>{p.resp || "—"}</TD>
-                          <TD style={{ color: at ? F.red : F.charcoal }}>{fmtDate(p.prazo)}{at && <div style={{ fontSize: 10, color: F.red, fontWeight: 600 }}>Atrasado</div>}</TD>
+                          <TD>
+                            {iniciais ? (
+                              <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
+                                <div style={{ width: 26, height: 26, background: F.red, borderRadius: 6, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 9, fontWeight: 700, color: "#fff", flexShrink: 0 }}>{iniciais}</div>
+                                <span style={{ fontSize: 12.5, color: F.charcoal }}>{p.respNome}</span>
+                              </div>
+                            ) : <span style={{ fontSize: 12, color: F.gray4 }}>—</span>}
+                          </TD>
+                          <TD style={{ color: at ? F.red : F.charcoal }}>
+                            {fmtDate(p.extensao?.status === "aprovada" ? p.prazo : p.prazo)}
+                            {at && <div style={{ fontSize: 10, color: F.red, fontWeight: 600 }}>Atrasado</div>}
+                          </TD>
                           <TD><Tag color={cc} bg={cbg}>{clbl}</Tag></TD>
                           <TD>
                             {podeExecutar(perfil, "atualizar-status") ? (
-                              <select value={p.status} onChange={e => upd("planos", arr => arr.map(x => x.id === p.id ? { ...x, status: e.target.value } : x))} style={{ background: F.offWhite, border: `1.5px solid ${F.gray6}`, borderRadius: 5, color: F.charcoal, fontSize: 12, padding: "3px 7px", cursor: "pointer", fontFamily: "'Barlow',sans-serif" }}>
+                              <select value={p.status} onChange={e => {
+                                const ns = e.target.value;
+                                const nomes = { aberto: "Aberto", andamento: "Em Andamento", concluido: "Concluído" };
+                                const evt = { data: new Date().toISOString(), acao: `Status alterado para ${nomes[ns]}`, autor: usuarioLogado?.nome || "Sistema" };
+                                upd("planos", arr => arr.map(x => x.id === p.id ? { ...x, status: ns, historico: [...(x.historico || []), evt] } : x));
+                              }} style={{ background: F.offWhite, border: `1.5px solid ${F.gray6}`, borderRadius: 5, color: F.charcoal, fontSize: 12, padding: "3px 7px", cursor: "pointer", fontFamily: "'Barlow',sans-serif" }}>
                                 <option value="aberto">Aberto</option>
                                 <option value="andamento">Em Andamento</option>
                                 <option value="concluido">Concluído</option>
@@ -1506,6 +1572,14 @@ ${db.planos.length ? `<table>
                               <span style={{ fontSize: 12, color: F.gray3 }}>{{ aberto: "Aberto", andamento: "Em Andamento", concluido: "Concluído" }[p.status]}</span>
                             )}
                           </TD>
+                          <TD>
+                            <div style={{ display: "flex", gap: 5, alignItems: "center" }}>
+                              {at && podeExecutar(perfil, "atualizar-status") && (
+                                <button onClick={() => setJustificandoPlano(p)} style={{ fontSize: 10.5, color: F.amber, background: F.amberDim, border: `1px solid ${F.amber}44`, borderRadius: 5, padding: "3px 8px", cursor: "pointer", fontWeight: 600, fontFamily: "'Barlow',sans-serif", whiteSpace: "nowrap" }}>Justificar Atraso</button>
+                              )}
+                              <button onClick={() => setHistoricoPlanId(p.id)} style={{ fontSize: 11, color: F.gray4, background: "none", border: "none", cursor: "pointer", fontFamily: "'Barlow',sans-serif" }}>⊙</button>
+                            </div>
+                          </TD>
                           {podeExecutar(perfil, "excluir") && <TD><button onClick={() => upd("planos", arr => arr.filter(x => x.id !== p.id))} style={{ background: "none", border: "none", color: F.gray4, cursor: "pointer", fontSize: 16, padding: "2px 6px" }}>✕</button></TD>}
                         </>;
                       }),
@@ -1513,12 +1587,13 @@ ${db.planos.length ? `<table>
                         const cmap = { nc: [F.red, F.redDim, "NC"], mel: [F.blue, F.blueDim, "Melhoria"], obs: [F.gray3, F.gray6, "Obs"] };
                         const [cc, cbg, clbl] = cmap[p.clas] || [F.gray3, F.gray6, "—"];
                         return <>
-                          <TD style={{ maxWidth: 200, opacity: 0.5 }}><span style={{ fontSize: 12.5, textDecoration: "line-through" }}>{p.desc}</span></TD>
+                          <TD style={{ maxWidth: 200, opacity: 0.5 }}><span style={{ fontSize: 12.5, textDecoration: "line-through" }}>{p.desc}</span>{p.rejeitadoPor && <div style={{ fontSize: 10, color: F.gray4 }}>Rejeitado por {p.rejeitadoPor} · {fmtDate(p.rejeitadoEm?.split("T")[0])}</div>}</TD>
                           <TD style={{ color: F.gray4 }}>{p.areaNome}</TD>
-                          <TD style={{ color: F.gray4 }}>—</TD>
+                          <TD style={{ color: F.gray4 }}>{p.respNome || "—"}</TD>
                           <TD style={{ color: F.gray4 }}>{fmtDate(p.prazo)}</TD>
                           <TD><Tag color={cc} bg={cbg}>{clbl}</Tag></TD>
                           <TD><Pill color={F.red} bg={F.redDim}>Rejeitado</Pill></TD>
+                          <TD><button onClick={() => setHistoricoPlanId(p.id)} style={{ fontSize: 11, color: F.gray4, background: "none", border: "none", cursor: "pointer" }}>⊙</button></TD>
                           {podeExecutar(perfil, "excluir") && <TD><button onClick={() => upd("planos", arr => arr.filter(x => x.id !== p.id))} style={{ background: "none", border: "none", color: F.gray4, cursor: "pointer", fontSize: 16, padding: "2px 6px" }}>✕</button></TD>}
                         </>;
                       })
@@ -1620,7 +1695,7 @@ ${db.planos.length ? `<table>
             {view === "ncs" && (
               <Card>
                 <DataTable
-                  cols={["Item", "Área", "Tipo", "Data"]}
+                  cols={["Item", "Área", "Tipo", "Evidência", "Data"]}
                   rows={db.auditorias.flatMap(a => (a.ncs || []).map(n => {
                     const cmap = { nc: [F.red, F.redDim, "NC"], mel: [F.blue, F.blueDim, "Melhoria"], obs: [F.gray3, F.gray6, "Obs"] };
                     const [cc, cbg, lbl] = cmap[n.clas] || [F.gray3, F.gray6, "—"];
@@ -1628,6 +1703,9 @@ ${db.planos.length ? `<table>
                       <TD>{n.q}</TD>
                       <TD style={{ color: F.gray3 }}>{a.areaNome}</TD>
                       <TD><Tag color={cc} bg={cbg}>{lbl}</Tag></TD>
+                      <TD style={{ maxWidth: 200, fontSize: 12, color: n.evidencia ? F.charcoal : F.gray5 }}>
+                        {n.evidencia ? (n.evidencia.startsWith("http") ? <a href={n.evidencia} target="_blank" rel="noreferrer" style={{ color: F.red, fontWeight: 600 }}>↗ Link</a> : n.evidencia) : "—"}
+                      </TD>
                       <TD style={{ color: F.gray4 }}>{fmtDate(a.data)}</TD>
                     </>;
                   }))}
@@ -1738,7 +1816,27 @@ ${db.planos.length ? `<table>
       <MembroModal open={!!modals.membro} onClose={() => closeModal("membro")} areas={db.areas} usuarios={db.usuarios} onSave={saveMembro} />
 
       {/* PLANO */}
-      <PlanoModal open={!!modals.plano} onClose={() => closeModal("plano")} areas={db.areas} onSave={f => { savePlano(f); }} />
+      <PlanoModal open={!!modals.plano} onClose={() => closeModal("plano")} areas={db.areas} usuarios={db.usuarios} onSave={f => { savePlano(f); }} />
+
+      {/* JUSTIFICATIVA */}
+      <JustificativaModal
+        open={!!justificandoPlano}
+        onClose={() => setJustificandoPlano(null)}
+        plano={justificandoPlano}
+        onSave={f => {
+          const evt = { data: new Date().toISOString(), acao: `Extensão solicitada — novo prazo: ${fmtDate(f.novoPrazo)}`, autor: usuarioLogado?.nome || "Sistema" };
+          upd("planos", arr => arr.map(p => p.id === justificandoPlano.id ? { ...p, extensao: { motivo: f.motivo, novoPrazo: f.novoPrazo, solicitadoEm: new Date().toISOString(), status: "pendente" }, historico: [...(p.historico || []), evt] } : p));
+          setJustificandoPlano(null);
+          showToast("Extensão solicitada!");
+        }}
+      />
+
+      {/* HISTÓRICO */}
+      <HistoricoModal
+        open={!!historicoPlanId}
+        onClose={() => setHistoricoPlanId(null)}
+        plano={db.planos.find(p => p.id === historicoPlanId) || null}
+      />
 
       {/* AUDITORIA */}
       <AuditoriaModal
@@ -1891,12 +1989,14 @@ function MembroModal({ open, onClose, areas, usuarios, onSave }) {
   );
 }
 
-function PlanoModal({ open, onClose, areas, onSave }) {
-  const [f, setF] = useState({ desc: "", areaId: "", resp: "", prio: "high", prazo: "", clas: "nc" });
+function PlanoModal({ open, onClose, areas, usuarios, onSave }) {
+  const empty = { desc: "", areaId: "", respId: "", respNome: "", prio: "high", prazo: "", clas: "nc" };
+  const [f, setF] = useState(empty);
   function save() {
     const area = areas.find(a => a.id === f.areaId);
-    onSave({ ...f, areaNome: area?.nome || "—" });
-    setF({ desc: "", areaId: "", resp: "", prio: "high", prazo: "", clas: "nc" });
+    const resp = usuarios.find(u => u.id === f.respId);
+    onSave({ ...f, areaNome: area?.nome || "—", respNome: resp?.nome || f.respNome });
+    setF(empty);
   }
   return (
     <Modal open={open} onClose={onClose} title="Novo Plano de Ação" width={500}
@@ -1909,7 +2009,12 @@ function PlanoModal({ open, onClose, areas, onSave }) {
             {areas.map(a => <option key={a.id} value={a.id}>{a.nome}</option>)}
           </select>
         </FG>
-        <FG label="Responsável"><input style={fi} value={f.resp} onChange={e => setF({ ...f, resp: e.target.value })} placeholder="Nome" /></FG>
+        <FG label="Responsável *">
+          <select style={{ ...fi, borderColor: !f.respId ? F.amber : F.gray6 }} value={f.respId} onChange={e => setF({ ...f, respId: e.target.value })}>
+            <option value="">Selecione o responsável...</option>
+            {usuarios.map(u => <option key={u.id} value={u.id}>{u.nome}</option>)}
+          </select>
+        </FG>
       </div>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
         <FG label="Prioridade">
@@ -1924,6 +2029,57 @@ function PlanoModal({ open, onClose, areas, onSave }) {
           </select>
         </FG>
       </div>
+    </Modal>
+  );
+}
+
+function JustificativaModal({ open, onClose, plano, onSave }) {
+  const [f, setF] = useState({ motivo: "", novoPrazo: "" });
+  useEffect(() => { if (open) setF({ motivo: "", novoPrazo: "" }); }, [open]);
+  function save() {
+    if (!f.motivo.trim()) { alert("Informe o motivo do atraso."); return; }
+    if (!f.novoPrazo) { alert("Informe o novo prazo solicitado."); return; }
+    onSave(f);
+  }
+  return (
+    <Modal open={open} onClose={onClose} title="Justificar Atraso" width={480}
+      footer={<><Btn variant="ghost" onClick={onClose}>Cancelar</Btn><Btn onClick={save}>Solicitar Extensão</Btn></>}>
+      {plano && (
+        <div style={{ background: F.amberDim, border: `1px solid ${F.amber}44`, borderRadius: 7, padding: "10px 12px", marginBottom: 16, fontSize: 12.5, color: F.charcoal }}>
+          <strong>{plano.desc}</strong><br/>
+          <span style={{ color: F.gray3 }}>{plano.areaNome} · Prazo original: {fmtDate(plano.prazo)}</span>
+        </div>
+      )}
+      <FG label="Motivo do Atraso *">
+        <textarea style={{ ...fi, resize: "vertical", minHeight: 80 }} value={f.motivo} onChange={e => setF({ ...f, motivo: e.target.value })} placeholder="Descreva o motivo do atraso..." />
+      </FG>
+      <FG label="Novo Prazo Solicitado *">
+        <input type="date" style={fi} value={f.novoPrazo} onChange={e => setF({ ...f, novoPrazo: e.target.value })} />
+      </FG>
+    </Modal>
+  );
+}
+
+function HistoricoModal({ open, onClose, plano }) {
+  if (!plano) return null;
+  const eventos = [...(plano.historico || [])].reverse();
+  return (
+    <Modal open={open} onClose={onClose} title={`Histórico — ${plano.desc?.slice(0, 40)}${plano.desc?.length > 40 ? "…" : ""}`} width={520}>
+      {eventos.length === 0 ? (
+        <div style={{ textAlign: "center", padding: "30px 0", color: F.gray4, fontSize: 13 }}>Nenhum evento registrado.</div>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
+          {eventos.map((e, i) => (
+            <div key={i} style={{ display: "flex", gap: 14, padding: "11px 0", borderBottom: i < eventos.length - 1 ? `1px solid ${F.gray6}` : "none" }}>
+              <div style={{ width: 8, height: 8, borderRadius: "50%", background: F.red, flexShrink: 0, marginTop: 5 }} />
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 13, fontWeight: 600, color: F.charcoal }}>{e.acao}</div>
+                <div style={{ fontSize: 11, color: F.gray4, marginTop: 2 }}>{e.autor} · {fmtDate(e.data?.split("T")[0])} {e.data ? new Date(e.data).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }) : ""}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </Modal>
   );
 }
@@ -2008,6 +2164,11 @@ function ModuloModal({ open, onClose, areas, processos, modulo, onSave }) {
             <div key={p.id} style={{ display: "flex", gap: 6, alignItems: "center" }}>
               <span style={{ fontSize: 11, color: F.gray5, fontWeight: 700, minWidth: 20, textAlign: "right" }}>{i + 1}.</span>
               <input style={{ ...fi, flex: 1 }} value={p.texto} onChange={e => editPergunta(p.id, e.target.value)} placeholder="Digite a pergunta..." />
+              <select value={p.peso || 1} onChange={e => setF(x => ({ ...x, perguntas: x.perguntas.map(q => q.id === p.id ? { ...q, peso: Number(e.target.value) } : q) }))} style={{ background: F.offWhite, border: `1.5px solid ${F.gray6}`, borderRadius: 5, fontSize: 11.5, padding: "6px 6px", color: F.charcoal, flexShrink: 0 }}>
+                <option value={1}>Normal</option>
+                <option value={2}>Importante</option>
+                <option value={3}>Crítico</option>
+              </select>
               <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
                 <button onClick={() => moverPergunta(i, -1)} disabled={i === 0} style={{ background: "none", border: "none", cursor: i === 0 ? "default" : "pointer", fontSize: 10, color: i === 0 ? F.gray6 : F.gray4, padding: "0 3px", lineHeight: 1 }}>▲</button>
                 <button onClick={() => moverPergunta(i, 1)} disabled={i === f.perguntas.length - 1} style={{ background: "none", border: "none", cursor: i === f.perguntas.length - 1 ? "default" : "pointer", fontSize: 10, color: i === f.perguntas.length - 1 ? F.gray6 : F.gray4, padding: "0 3px", lineHeight: 1 }}>▼</button>
@@ -2032,7 +2193,14 @@ function AuditoriaModal({ open, onClose, step, setStep, form, setForm, checklist
       if (!form.areaId) { alert("Selecione uma área."); return; }
       setChecklist(buildChecklist(form.areaId));
     }
-    if (step === 3) { onFinalizar(); return; }
+    if (step === 2) {
+      const missing = checklist.filter(i => i.resp === "nok" && !i.evidencia?.trim());
+      if (missing.length > 0) { alert(`${missing.length} item(ns) NOK sem evidência preenchida.`); return; }
+    }
+    if (step === 4) {
+      if (!form.cienciaConfirmado) { alert("Confirme a ciência do auditado antes de finalizar."); return; }
+      onFinalizar(); return;
+    }
     setStep(s => s + 1);
   }
   function prev() { setStep(s => s - 1); }
@@ -2050,13 +2218,13 @@ function AuditoriaModal({ open, onClose, step, setStep, form, setForm, checklist
   const sections = [...new Set(checklist.map(i => i.sec))];
 
   return (
-    <Modal open={open} onClose={onClose} title={["Nova Auditoria","Checklist de Verificação","Resultado e Planos de Ação"][step-1]} width={640}
+    <Modal open={open} onClose={onClose} title={["Nova Auditoria","Checklist de Verificação","Resultado e Planos de Ação","Ciência do Auditado"][step-1]} width={640}
       footer={
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%" }}>
           <Btn variant="ghost" onClick={onClose}>Cancelar</Btn>
           <div style={{ display: "flex", gap: 8 }}>
             {step > 1 && <Btn variant="ghost" onClick={prev}>← Voltar</Btn>}
-            <Btn onClick={next}>{step === 3 ? "✓ Finalizar Auditoria" : "Próximo →"}</Btn>
+            <Btn onClick={next}>{step === 4 ? "✓ Finalizar e Registrar Ciência" : "Próximo →"}</Btn>
           </div>
         </div>
       }>
@@ -2116,7 +2284,11 @@ function AuditoriaModal({ open, onClose, step, setStep, form, setForm, checklist
               {checklist.filter(i => i.sec === sec).map(item => (
                 <div key={item.id} style={{ padding: "10px 0", borderBottom: `1px solid ${F.offWhite}` }}>
                   <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
-                    <div style={{ flex: 1, fontSize: 13, lineHeight: 1.5, paddingTop: 2 }}>{item.q}</div>
+                    <div style={{ flex: 1, fontSize: 13, lineHeight: 1.5, paddingTop: 2 }}>
+                      {item.q}
+                      {item.peso === 3 && <span style={{ marginLeft: 7, fontSize: 9.5, fontWeight: 700, background: F.redDim, color: F.red, padding: "1px 6px", borderRadius: 3, fontFamily: "'Barlow Condensed',sans-serif", textTransform: "uppercase", letterSpacing: 0.5 }}>Crítico</span>}
+                      {item.peso === 2 && <span style={{ marginLeft: 7, fontSize: 9.5, fontWeight: 700, background: F.amberDim, color: F.amber, padding: "1px 6px", borderRadius: 3, fontFamily: "'Barlow Condensed',sans-serif", textTransform: "uppercase", letterSpacing: 0.5 }}>Importante</span>}
+                    </div>
                     <div style={{ display: "flex", gap: 4, flexShrink: 0 }}>
                       {[["ok","✓ Sim",F.green,F.greenDim],["nok","✗ Não",F.red,F.redDim],["na","N/A",F.gray3,F.gray6]].map(([v,l,c,bg]) => (
                         <button key={v} onClick={() => setChecklist(cl => cl.map(x => x.id === item.id ? { ...x, resp: v } : x))} style={{
@@ -2129,10 +2301,22 @@ function AuditoriaModal({ open, onClose, step, setStep, form, setForm, checklist
                       ))}
                     </div>
                   </div>
+                  {/* Evidência — sempre visível */}
+                  <div style={{ marginTop: 7 }}>
+                    <input
+                      style={{ ...fi, fontSize: 12, borderColor: item.resp === "nok" && !item.evidencia?.trim() ? F.amber : F.gray6 }}
+                      value={item.evidencia || ""}
+                      onChange={e => setChecklist(cl => cl.map(x => x.id === item.id ? { ...x, evidencia: e.target.value } : x))}
+                      placeholder={item.resp === "nok" ? "Evidência obrigatória — descreva ou informe o link do documento..." : "Evidência ou link do documento (opcional)..."}
+                    />
+                    {item.resp === "nok" && !item.evidencia?.trim() && (
+                      <div style={{ fontSize: 10, color: F.amber, fontWeight: 700, marginTop: 3 }}>Evidência obrigatória</div>
+                    )}
+                  </div>
                   {item.resp === "nok" && (
-                    <div style={{ marginTop: 10, background: F.offWhite, borderRadius: 7, border: `1px solid ${F.gray6}`, padding: 12 }}>
+                    <div style={{ marginTop: 8, background: F.offWhite, borderRadius: 7, border: `1px solid ${F.gray6}`, padding: 12 }}>
                       <div style={{ fontSize: 10, fontWeight: 700, color: F.gray4, textTransform: "uppercase", letterSpacing: 1, marginBottom: 7, fontFamily: "'Barlow Condensed',sans-serif" }}>Classificação</div>
-                      <div style={{ display: "flex", gap: 6, marginBottom: 8, flexWrap: "wrap" }}>
+                      <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
                         {[["obs","Observação",F.gray3,F.gray6],["mel","Oportunidade de Melhoria",F.blue,F.blueDim],["nc","Não Conformidade",F.red,F.redDim]].map(([v,l,c,bg]) => (
                           <button key={v} onClick={() => setChecklist(cl => cl.map(x => x.id === item.id ? { ...x, clas: v } : x))} style={{
                             padding: "3px 10px", borderRadius: 5, fontSize: 11, fontWeight: 600,
@@ -2143,7 +2327,6 @@ function AuditoriaModal({ open, onClose, step, setStep, form, setForm, checklist
                           }}>{l}</button>
                         ))}
                       </div>
-                      <input style={{ ...fi, fontSize: 12.5 }} value={item.obs} onChange={e => setChecklist(cl => cl.map(x => x.id === item.id ? { ...x, obs: e.target.value } : x))} placeholder="Descreva o que foi encontrado..." />
                     </div>
                   )}
                 </div>
@@ -2180,16 +2363,20 @@ function AuditoriaModal({ open, onClose, step, setStep, form, setForm, checklist
               {noks.map(item => {
                 const cmap = { nc: [F.red, F.redDim, "Não Conformidade"], mel: [F.blue, F.blueDim, "Oportunidade"], obs: [F.gray3, F.gray6, "Observação"] };
                 const [c, bg, lbl] = cmap[item.clas || "obs"];
+                const isCritical = item.peso === 3 && item.clas === "nc";
                 return (
                   <div key={item.id} style={{
                     display: "flex", alignItems: "flex-start", gap: 10,
                     padding: "9px 12px", borderRadius: 7, marginBottom: 6,
-                    background: bg, border: `1px solid ${c}33`
+                    background: bg, border: `2px solid ${isCritical ? F.red : `${c}33`}`
                   }}>
                     <input type="checkbox" defaultChecked={item.clas === "nc"} onChange={e => setChecklist(cl => cl.map(x => x.id === item.id ? { ...x, selected: e.target.checked } : x))} style={{ accentColor: F.red, width: 13, height: 13, marginTop: 2, flexShrink: 0 }} />
                     <div style={{ flex: 1, fontSize: 12.5, lineHeight: 1.5 }}>
-                      {item.q}
-                      {item.obs && <div style={{ fontSize: 11, color: F.gray4, marginTop: 2 }}>{item.obs}</div>}
+                      <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+                        <span>{item.q}</span>
+                        {isCritical && <span style={{ fontSize: 9.5, fontWeight: 700, background: F.red, color: "#fff", padding: "1px 6px", borderRadius: 3, fontFamily: "'Barlow Condensed',sans-serif", textTransform: "uppercase" }}>Item Crítico</span>}
+                      </div>
+                      {item.evidencia && <div style={{ fontSize: 11, color: F.gray3, marginTop: 2 }}>Evidência: {item.evidencia}</div>}
                     </div>
                     <span style={{ fontSize: 9.5, fontWeight: 700, padding: "2px 7px", borderRadius: 3, background: `${c}22`, color: c, whiteSpace: "nowrap", fontFamily: "'Barlow Condensed',sans-serif", textTransform: "uppercase", letterSpacing: 0.5 }}>{lbl}</span>
                   </div>
@@ -2204,6 +2391,67 @@ function AuditoriaModal({ open, onClose, step, setStep, form, setForm, checklist
           <FG label="Observações gerais">
             <textarea style={{ ...fi, resize: "vertical", minHeight: 70 }} value={form.obs || ""} onChange={e => setForm({ ...form, obs: e.target.value })} placeholder="Pontos positivos, contexto adicional, destaques..." />
           </FG>
+        </div>
+      )}
+
+      {/* STEP 4 — CIÊNCIA DO AUDITADO */}
+      {step === 4 && (
+        <div>
+          {/* Resumo */}
+          <div style={{ background: F.offWhite, borderRadius: 10, padding: 16, marginBottom: 18, display: "flex", gap: 16, flexWrap: "wrap" }}>
+            <div style={{ textAlign: "center", flex: 1 }}>
+              <div style={{ fontSize: 10, fontWeight: 700, color: F.gray4, textTransform: "uppercase", letterSpacing: 1, fontFamily: "'Barlow Condensed',sans-serif" }}>Área</div>
+              <div style={{ fontSize: 15, fontWeight: 700, color: F.charcoal, marginTop: 3 }}>{areas.find(a => a.id === form.areaId)?.nome || "—"}</div>
+            </div>
+            <div style={{ textAlign: "center", flex: 1 }}>
+              <div style={{ fontSize: 10, fontWeight: 700, color: F.gray4, textTransform: "uppercase", letterSpacing: 1, fontFamily: "'Barlow Condensed',sans-serif" }}>Score</div>
+              <div style={{ fontFamily: "'Barlow Condensed',sans-serif", fontSize: 28, fontWeight: 900, color: scoreColor(score), lineHeight: 1, marginTop: 3 }}>{score}%</div>
+            </div>
+            <div style={{ textAlign: "center", flex: 1 }}>
+              <div style={{ fontSize: 10, fontWeight: 700, color: F.gray4, textTransform: "uppercase", letterSpacing: 1, fontFamily: "'Barlow Condensed',sans-serif" }}>NCs</div>
+              <div style={{ fontSize: 22, fontWeight: 900, color: F.red, fontFamily: "'Barlow Condensed',sans-serif", marginTop: 3 }}>{noks.filter(i => i.clas === "nc").length}</div>
+            </div>
+            <div style={{ textAlign: "center", flex: 1 }}>
+              <div style={{ fontSize: 10, fontWeight: 700, color: F.gray4, textTransform: "uppercase", letterSpacing: 1, fontFamily: "'Barlow Condensed',sans-serif" }}>Melhorias</div>
+              <div style={{ fontSize: 22, fontWeight: 900, color: F.blue, fontFamily: "'Barlow Condensed',sans-serif", marginTop: 3 }}>{noks.filter(i => i.clas === "mel").length}</div>
+            </div>
+          </div>
+
+          <FG label="Responsável pela Ciência">
+            <select style={fi} value={form.cienciaRespId || ""} onChange={e => setForm({ ...form, cienciaRespId: e.target.value })}>
+              <option value="">Selecione o responsável da área...</option>
+              {usuarios.filter(u => u.areaId === form.areaId || u.perfil === "gestor").map(u => (
+                <option key={u.id} value={u.id}>{u.nome}</option>
+              ))}
+              {usuarios.filter(u => !u.areaId || u.areaId === "").length > 0 && <>
+                <option disabled>──────────────</option>
+                {usuarios.filter(u => !u.areaId || u.areaId === "").map(u => <option key={u.id} value={u.id}>{u.nome}</option>)}
+              </>}
+            </select>
+          </FG>
+
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+            <FG label="Data da Ciência">
+              <input type="date" style={fi} value={form.cienciaData || new Date().toISOString().split("T")[0]} onChange={e => setForm({ ...form, cienciaData: e.target.value })} />
+            </FG>
+          </div>
+
+          <FG label="Observações do Auditado (opcional)">
+            <textarea style={{ ...fi, resize: "vertical", minHeight: 70 }} value={form.cienciaObs || ""} onChange={e => setForm({ ...form, cienciaObs: e.target.value })} placeholder="O auditado pode registrar comentários ou discordâncias aqui..." />
+          </FG>
+
+          <label style={{ display: "flex", alignItems: "flex-start", gap: 10, cursor: "pointer", marginTop: 6, padding: "12px 14px", background: form.cienciaConfirmado ? F.greenDim : F.offWhite, border: `1.5px solid ${form.cienciaConfirmado ? F.green : F.gray6}`, borderRadius: 8, transition: "all 0.15s" }}>
+            <input type="checkbox" checked={!!form.cienciaConfirmado} onChange={e => setForm({ ...form, cienciaConfirmado: e.target.checked })} style={{ accentColor: F.green, width: 15, height: 15, marginTop: 1, flexShrink: 0 }} />
+            <span style={{ fontSize: 13, color: F.charcoal, lineHeight: 1.5 }}>
+              <strong>Confirmo que fui informado(a)</strong> sobre os resultados desta auditoria e estou ciente das não conformidades e planos de ação gerados.
+            </span>
+          </label>
+
+          {!form.cienciaConfirmado && (
+            <div style={{ fontSize: 11.5, color: F.amber, marginTop: 8, fontWeight: 600 }}>
+              ⚠ Marque a confirmação acima para finalizar a auditoria.
+            </div>
+          )}
         </div>
       )}
     </Modal>
