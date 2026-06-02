@@ -820,15 +820,15 @@ ${db.planos.length ? `<table>
   }
 
   function saveModulo(form, editId = null) {
-    if (!form.nome?.trim()) { showToast("Informe o nome do módulo.", "err"); return; }
+    if (!form.nome?.trim()) { showToast("Informe o nome da categoria.", "err"); return; }
     if (!form.perguntas?.filter(p => p.texto?.trim()).length) { showToast("Adicione ao menos uma pergunta.", "err"); return; }
     const clean = { ...form, perguntas: form.perguntas.filter(p => p.texto?.trim()) };
     if (editId) {
       upd("modulos", arr => arr.map(m => m.id === editId ? { ...m, ...clean } : m));
-      showToast("Módulo atualizado!");
+      showToast("Categoria de avaliação atualizada!");
     } else {
       upd("modulos", arr => [...arr, { id: uid(), ativo: true, areaIds: [], processoIds: [], ...clean }]);
-      showToast("Módulo criado!");
+      showToast("Categoria de avaliação criada!");
     }
     closeModal("modulo");
   }
@@ -971,7 +971,7 @@ ${db.planos.length ? `<table>
     { id: "planos", icon: "◷", label: "Relatórios de Conclusão", badge: planosPendAprov.length || planosAtrasados.length, section: "Melhoria" },
     { id: "ncs", icon: "⚑", label: "Não Conformidades" },
     { id: "ciclos", icon: "◈", label: "Ciclos", section: "Gestão" },
-    { id: "modulos", icon: "⊞", label: "Módulos" },
+    { id: "modulos", icon: "⊞", label: "Categorias de Avaliação" },
     { id: "comite", icon: "◐", label: "Comitê" },
     { id: "usuarios", icon: "○", label: "Usuários" },
   ].filter(item => podeAcessar(perfil, item.id));
@@ -1086,7 +1086,7 @@ ${db.planos.length ? `<table>
               )}
               {view === "planos" && podeExecutar(perfil, "criar") && <Btn onClick={() => openModal("plano")}>+ Novo Relatório</Btn>}
               {view === "ciclos" && (podeExecutar(perfil, "criar") || podeExecutar(perfil, "gerir-ciclos")) && <Btn onClick={() => openModal("ciclo")}>+ Novo Ciclo</Btn>}
-              {view === "modulos" && podeExecutar(perfil, "gerir-modulos") && <Btn onClick={() => openModal("modulo", {})}>+ Novo Módulo</Btn>}
+              {view === "modulos" && podeExecutar(perfil, "gerir-modulos") && <Btn onClick={() => openModal("modulo", {})}>+ Nova Categoria</Btn>}
               {view === "comite" && (podeExecutar(perfil, "criar") || podeExecutar(perfil, "gerir-comite")) && <Btn onClick={() => openModal("membro")}>+ Adicionar Membro</Btn>}
               {view === "usuarios" && podeExecutar(perfil, "criar") && <Btn onClick={() => openModal("usuario")}>+ Novo Usuário</Btn>}
               <div style={{ position: "relative" }}>
@@ -1402,7 +1402,7 @@ ${db.planos.length ? `<table>
             {view === "areas" && (
               <Card>
                 <DataTable
-                  cols={["Área", "Grupo", "Responsável", "Módulos", "Status", ...(podeExecutar(perfil, "excluir") ? [""] : [])]}
+                  cols={["Área", "Grupo", "Responsável", "Categorias", "Status", ...(podeExecutar(perfil, "excluir") ? [""] : [])]}
                   rows={db.areas.map(a => (
                     <>
                       <TD><strong>{a.nome}</strong></TD>
@@ -1732,9 +1732,9 @@ ${db.planos.length ? `<table>
                 {(db.modulos || []).length === 0 && (
                   <div style={{ background: "#fff", border: `1px solid ${F.gray6}`, borderRadius: 10, padding: "40px 20px", textAlign: "center" }}>
                     <div style={{ fontSize: 28, opacity: 0.18, marginBottom: 8 }}>⊞</div>
-                    <div style={{ fontSize: 14, fontWeight: 600, color: F.gray3, marginBottom: 6 }}>Nenhum módulo customizado</div>
-                    <div style={{ fontSize: 12.5, color: F.gray4, marginBottom: 16 }}>Crie módulos para adicionar perguntas específicas por área.</div>
-                    {podeExecutar(perfil, "gerir-modulos") && <Btn onClick={() => openModal("modulo", {})}>+ Criar Primeiro Módulo</Btn>}
+                    <div style={{ fontSize: 14, fontWeight: 600, color: F.gray3, marginBottom: 6 }}>Nenhuma categoria criada</div>
+                    <div style={{ fontSize: 12.5, color: F.gray4, marginBottom: 16 }}>Crie categorias de avaliação para adicionar perguntas específicas por área.</div>
+                    {podeExecutar(perfil, "gerir-modulos") && <Btn onClick={() => openModal("modulo", {})}>+ Criar Primeira Categoria</Btn>}
                   </div>
                 )}
 
@@ -1991,7 +1991,7 @@ function AreaModal({ open, onClose, onSave }) {
         </label>
       </FG>
       <div style={{ fontSize: 12, color: F.gray4, background: F.offWhite, borderRadius: 7, padding: "10px 12px", lineHeight: 1.7 }}>
-        Para adicionar módulos de checklist a esta área, acesse <strong>Gestão → Módulos</strong>.
+        Para adicionar categorias de avaliação a esta área, acesse <strong>Gestão → Categorias de Avaliação</strong>.
       </div>
     </Modal>
   );
@@ -2268,25 +2268,25 @@ function ModuloModal({ open, onClose, areas, processos, modulo, onSave }) {
   }
 
   return (
-    <Modal open={open} onClose={onClose} title={isEdit ? "Editar Módulo" : "Novo Módulo"} width={640}
+    <Modal open={open} onClose={onClose} title={isEdit ? "Editar Categoria de Avaliação" : "Nova Categoria de Avaliação"} width={640}
       footer={
         <div style={{ display: "flex", justifyContent: "space-between", width: "100%", alignItems: "center" }}>
           <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, cursor: "pointer", color: F.gray3 }}>
             <input type="checkbox" checked={f.ativo} onChange={e => setF({ ...f, ativo: e.target.checked })} style={{ accentColor: F.red, width: 14, height: 14 }} />
-            Módulo ativo
+            Categoria ativa
           </label>
           <div style={{ display: "flex", gap: 8 }}>
             <Btn variant="ghost" onClick={onClose}>Cancelar</Btn>
-            <Btn onClick={() => onSave(f, isEdit ? modulo.id : null)}>{isEdit ? "Salvar alterações" : "Criar Módulo"}</Btn>
+            <Btn onClick={() => onSave(f, isEdit ? modulo.id : null)}>{isEdit ? "Salvar alterações" : "Criar Categoria"}</Btn>
           </div>
         </div>
       }>
 
-      <FG label="Nome do módulo">
-        <input style={fi} value={f.nome} onChange={e => setF({ ...f, nome: e.target.value })} placeholder="ex: Módulo Financeiro" />
+      <FG label="Nome da categoria">
+        <input style={fi} value={f.nome} onChange={e => setF({ ...f, nome: e.target.value })} placeholder="ex: Financeiro" />
       </FG>
       <FG label="Descrição (opcional)">
-        <textarea style={{ ...fi, resize: "vertical", minHeight: 54 }} value={f.descricao} onChange={e => setF({ ...f, descricao: e.target.value })} placeholder="Contexto ou objetivo deste módulo..." />
+        <textarea style={{ ...fi, resize: "vertical", minHeight: 54 }} value={f.descricao} onChange={e => setF({ ...f, descricao: e.target.value })} placeholder="Contexto ou objetivo desta categoria..." />
       </FG>
 
       <FG label="Vincular a áreas">
@@ -2317,7 +2317,7 @@ function ModuloModal({ open, onClose, areas, processos, modulo, onSave }) {
         </FG>
       )}
 
-      <FG label="Perguntas do módulo">
+      <FG label="Perguntas da categoria">
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
           {f.perguntas.map((p, i) => (
             <div key={p.id} style={{ display: "flex", gap: 6, alignItems: "center" }}>
@@ -2366,7 +2366,7 @@ function AuditoriaModal({ open, onClose, step, setStep, form, setForm, checklist
 
   const area = areas.find(a => a.id === form.areaId);
   const mods = area ? [
-    area.fin && { l: "💰 Módulo Financeiro", c: F.amber, bg: F.amberDim },
+    area.fin && { l: "💰 Financeiro", c: F.amber, bg: F.amberDim },
     area.cli && { l: "👤 Impacto no Cliente", c: F.blue, bg: F.blueDim },
     area.cus && { l: "🏪 Checklist Específico", c: "#9b6dff", bg: "rgba(155,109,255,0.1)" },
   ].filter(Boolean) : [];
@@ -2415,7 +2415,7 @@ function AuditoriaModal({ open, onClose, step, setStep, form, setForm, checklist
           </div>
           {mods.length > 0 && (
             <div style={{ marginTop: 8 }}>
-              <div style={{ fontSize: 10, fontWeight: 700, color: F.gray4, textTransform: "uppercase", letterSpacing: 1, marginBottom: 8, fontFamily: "'Barlow Condensed',sans-serif" }}>Módulos incluídos automaticamente</div>
+              <div style={{ fontSize: 10, fontWeight: 700, color: F.gray4, textTransform: "uppercase", letterSpacing: 1, marginBottom: 8, fontFamily: "'Barlow Condensed',sans-serif" }}>Categorias incluídas automaticamente</div>
               <div style={{ display: "flex", gap: 7, flexWrap: "wrap" }}>
                 {mods.map((m, i) => (
                   <span key={i} style={{ fontSize: 11, fontWeight: 600, padding: "3px 10px", borderRadius: 6, background: m.bg, border: `1px solid ${m.c}44`, color: m.c }}>{m.l}</span>
