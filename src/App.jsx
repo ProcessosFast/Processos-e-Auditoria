@@ -37,6 +37,7 @@ const css = `
   ::-webkit-scrollbar-track { background:${F.gray6}; }
   ::-webkit-scrollbar-thumb { background:${F.red}; border-radius:3px; }
   input,select,textarea { font-family:'Barlow',sans-serif; }
+  input:not([type="date"]):not([type="url"]):not([type="email"]), textarea { text-transform: uppercase; }
   button { font-family:'Barlow',sans-serif; }
   @keyframes slideIn { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:translateY(0); } }
   @keyframes fadeIn { from { opacity:0; } to { opacity:1; } }
@@ -228,7 +229,7 @@ function FG({ label, children }) {
 const fi = {
   width: "100%", background: F.offWhite, border: `1.5px solid ${F.gray6}`,
   borderRadius: 7, color: F.charcoal, fontSize: 13.5, padding: "8px 12px",
-  outline: "none", transition: "border-color 0.15s"
+  outline: "none", transition: "border-color 0.15s", textTransform: "uppercase"
 };
 
 // ── CARD ──────────────────────────────────────────────────────────
@@ -2012,7 +2013,7 @@ function ProcessoModal({ open, onClose, areas, onSave }) {
         </FG>
         <FG label="Responsável"><input style={fi} value={f.resp} onChange={e => setF({ ...f, resp: e.target.value })} placeholder="Nome" /></FG>
       </div>
-      <FG label="Link SharePoint"><input style={fi} value={f.link} onChange={e => setF({ ...f, link: e.target.value })} placeholder="https://..." /></FG>
+      <FG label="Link SharePoint"><input style={{ ...fi, textTransform: "none" }} value={f.link} onChange={e => setF({ ...f, link: e.target.value })} placeholder="https://..." /></FG>
       <FG label="Status">
         <select style={fi} value={f.status} onChange={e => setF({ ...f, status: e.target.value })}>
           <option value="conforme">Conforme</option>
@@ -2459,7 +2460,7 @@ function AuditoriaModal({ open, onClose, step, setStep, form, setForm, checklist
                   {/* Evidência — sempre visível */}
                   <div style={{ marginTop: 7 }}>
                     <input
-                      style={{ ...fi, fontSize: 12, borderColor: item.resp === "nok" && !item.evidencia?.trim() ? F.amber : F.gray6 }}
+                      style={{ ...fi, fontSize: 12, textTransform: "none", borderColor: item.resp === "nok" && !item.evidencia?.trim() ? F.amber : F.gray6 }}
                       value={item.evidencia || ""}
                       onChange={e => setChecklist(cl => cl.map(x => x.id === item.id ? { ...x, evidencia: e.target.value } : x))}
                       placeholder={item.resp === "nok" ? "Evidência obrigatória — descreva ou informe o link do documento..." : "Evidência ou link do documento (opcional)..."}
