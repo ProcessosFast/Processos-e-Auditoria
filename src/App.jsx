@@ -380,7 +380,7 @@ function AreaSelectionScreen({ areas, usuario, onSelect, onBack }) {
         Olá, <strong>{usuario.nome}</strong> — escolha a área que você gerencia
       </div>
 
-      {areas.filter(a => !a.noa).length === 0 ? (
+      {areas.filter(a => !a.naoAuditada && !a.noa).length === 0 ? (
         <div style={{ background: "#fff", borderRadius: 12, padding: 28, maxWidth: 380, border: `1.5px solid ${F.redBorder}`, textAlign: "center" }}>
           <div style={{ fontSize: 13, color: F.gray3, lineHeight: 1.8 }}>
             Nenhuma área auditável cadastrada.<br/>Peça ao administrador para cadastrar as áreas primeiro.
@@ -388,15 +388,15 @@ function AreaSelectionScreen({ areas, usuario, onSelect, onBack }) {
         </div>
       ) : (
         <div style={{ display: "flex", flexWrap: "wrap", gap: 12, justifyContent: "center", maxWidth: 640 }}>
-          {areas.filter(a => !a.noa).map((a, i) => (
+          {areas.filter(a => !a.naoAuditada && !a.noa).map((a, i) => (
             <div key={a.id} className="anim" onClick={() => onSelect(a)}
               style={{ animationDelay: `${i * 0.05}s`, background: "#fff", borderRadius: 10, padding: "16px 20px", border: `1.5px solid ${F.gray6}`, cursor: "pointer", minWidth: 160, transition: "border-color 0.15s, box-shadow 0.15s" }}
               onMouseEnter={e => { e.currentTarget.style.borderColor = F.red; e.currentTarget.style.boxShadow = "0 4px 16px rgba(232,0,29,0.1)"; }}
               onMouseLeave={e => { e.currentTarget.style.borderColor = F.gray6; e.currentTarget.style.boxShadow = "none"; }}
             >
               <div style={{ fontFamily: "'Barlow Condensed',sans-serif", fontSize: 15, fontWeight: 800, color: F.charcoal, marginBottom: 4 }}>{a.nome}</div>
-              {a.grupo && <div style={{ fontSize: 11, color: F.gray4 }}>{a.grupo}</div>}
-              {a.resp && <div style={{ fontSize: 11, color: F.gray4, marginTop: 2 }}>{a.resp}</div>}
+              {(a.categoria || a.grupo) && <div style={{ fontSize: 11, color: F.gray4 }}>{a.categoria || a.grupo}</div>}
+              {(a.diretor?.nome || a.resp) && <div style={{ fontSize: 11, color: F.gray4, marginTop: 2 }}>{a.diretor?.nome || a.resp}</div>}
             </div>
           ))}
         </div>
@@ -627,10 +627,10 @@ export default function App() {
       : null;
     const atrasados = db.planos.filter(p => p.status !== "concluido" && p.prazo && new Date(p.prazo) < new Date());
 
-    const confPorArea = db.areas.filter(a => !a.noa).map(a => {
+    const confPorArea = db.areas.filter(a => !a.naoAuditada && !a.noa).map(a => {
       const auds = db.auditorias.filter(x => x.areaId === a.id);
       const score = auds.length ? Math.round(auds.reduce((s, x) => s + x.score, 0) / auds.length) : null;
-      return { nome: a.nome, grupo: a.grupo || "—", auds: auds.length, score, resp: a.resp || "—" };
+      return { nome: a.nome, grupo: a.categoria || a.grupo || "—", auds: auds.length, score, resp: a.diretor?.nome || a.resp || "—" };
     });
 
     const scoreClr = s => s >= 85 ? "#00B050" : s >= 65 ? "#FF8C00" : "#E8001D";
@@ -680,7 +680,7 @@ export default function App() {
 <div class="stats">
   <div class="stat">
     <div class="stat-label">Áreas Auditáveis</div>
-    <div class="stat-value">${db.areas.filter(a => !a.noa).length || "—"}</div>
+    <div class="stat-value">${db.areas.filter(a => !a.naoAuditada && !a.noa).length || "—"}</div>
     <div class="stat-sub">${db.areas.length} área(s) cadastrada(s)</div>
   </div>
   <div class="stat">
@@ -773,7 +773,7 @@ ${db.planos.length ? `<table>
     : db.auditorias;
 
   // ── STATS ──
-  const areasAuditaveis = db.areas.filter(a => !a.noa);
+  const areasAuditaveis = db.areas.filter(a => !a.naoAuditada && !a.noa);
   const audsConcluidas = auditoriasVisiveis.filter(a => a.status === "concluida");
   const planosAprovados = planosVisiveis.filter(p => p.aprovacao === "aprovado");
   const planosPendAprov = planosVisiveis.filter(p => p.aprovacao === "pendente");
@@ -808,11 +808,12 @@ ${db.planos.length ? `<table>
 
   // ── CHECKLIST BUILDER ──
   function buildChecklist(areaId) {
+    const area = db.areas.find(a => a.id === areaId);
     const secs = [
       { title: "Verificação Geral", items: CL_BASE.map(q => ({ texto: q, peso: 1 })) }
     ];
     (db.modulos || [])
-      .filter(m => m.ativo && m.areaIds?.includes(areaId))
+      .filter(m => m.ativo && (m.areaIds?.includes(areaId) || area?.blocoPerguntas?.includes(m.id)))
       .forEach(m => secs.push({ title: m.nome, items: m.perguntas.map(p => ({ texto: p.texto, peso: p.peso || 1 })) }));
     return secs.flatMap(sec =>
       sec.items.map(item => ({ id: uid(), sec: sec.title, q: item.texto, peso: item.peso || 1, resp: null, clas: null, obs: "", evidencia: "" }))
@@ -1402,13 +1403,14 @@ ${db.planos.length ? `<table>
             {view === "areas" && (
               <Card>
                 <DataTable
-                  cols={["Área", "Grupo", "Responsável", "Status", ...(podeExecutar(perfil, "excluir") ? [""] : [])]}
+                  cols={["Área", "Categoria", "Diretor", "Subáreas", "Status", ...(podeExecutar(perfil, "excluir") ? [""] : [])]}
                   rows={db.areas.map(a => (
                     <>
                       <TD><strong>{a.nome}</strong></TD>
-                      <TD>{a.grupo ? <Tag>{a.grupo}</Tag> : "—"}</TD>
-                      <TD style={{ color: F.gray3 }}>{a.resp || "—"}</TD>
-                      <TD>{a.noa ? <Pill color={F.gray3} bg={F.gray6}>Não auditada</Pill> : <Pill color={F.green} bg={F.greenDim}>Ativa</Pill>}</TD>
+                      <TD>{(a.categoria || a.grupo) ? <Tag>{a.categoria || a.grupo}</Tag> : "—"}</TD>
+                      <TD style={{ color: F.gray3 }}>{a.diretor?.nome || a.resp || "—"}</TD>
+                      <TD>{a.subareas?.length > 0 ? <Tag>{a.subareas.length} subárea{a.subareas.length !== 1 ? "s" : ""}</Tag> : "—"}</TD>
+                      <TD>{(a.naoAuditada || a.noa) ? <Pill color={F.gray3} bg={F.gray6}>Não auditada</Pill> : <Pill color={F.green} bg={F.greenDim}>Ativa</Pill>}</TD>
                       {podeExecutar(perfil, "excluir") && <TD><button onClick={() => upd("areas", arr => arr.filter(x => x.id !== a.id))} style={{ background: "none", border: "none", color: F.gray4, cursor: "pointer", fontSize: 16, padding: "2px 6px" }}>✕</button></TD>}
                     </>
                   ))}
@@ -1886,7 +1888,7 @@ ${db.planos.length ? `<table>
       <ModuloModal open={!!modals.modulo} onClose={() => closeModal("modulo")} areas={db.areas} processos={db.processos} modulo={modals.modulo} onSave={saveModulo} />
 
       {/* ÁREA */}
-      <AreaModal open={!!modals.area} onClose={() => closeModal("area")} areas={db.areas} onSave={saveArea} />
+      <AreaModal open={!!modals.area} onClose={() => closeModal("area")} modulos={db.modulos} onSave={saveArea} />
 
       {/* PROCESSO */}
       <ProcessoModal open={!!modals.processo} onClose={() => closeModal("processo")} areas={db.areas} onSave={saveProcesso} />
@@ -1944,9 +1946,10 @@ ${db.planos.length ? `<table>
         step={audStep} setStep={setAudStep}
         form={audForm} setForm={setAudForm}
         checklist={checklist} setChecklist={setChecklist}
-        areas={db.areas.filter(a => !a.noa)}
+        areas={db.areas.filter(a => !a.naoAuditada && !a.noa)}
         usuarios={db.usuarios}
         ciclos={db.ciclos}
+        modulos={db.modulos}
         buildChecklist={buildChecklist}
         calcScore={calcScore}
         onFinalizar={finalizarAuditoria}
@@ -1962,31 +1965,105 @@ ${db.planos.length ? `<table>
 // MODAL COMPONENTS
 // ══════════════════════════════════════════════════════════════════
 
-function AreaModal({ open, onClose, onSave }) {
-  const [f, setF] = useState({ nome: "", grupo: "", resp: "", noa: false });
-  function save() { onSave(f); setF({ nome: "", grupo: "", resp: "", noa: false }); }
+function AreaModal({ open, onClose, modulos, onSave }) {
+  const emptyF = { nome: "", categoria: "", diretor: { nome: "", email: "" }, blocoPerguntas: [], naoAuditada: false, subareas: [] };
+  const [f, setF] = useState(emptyF);
+
+  function addSubarea() {
+    setF(x => ({ ...x, subareas: [...x.subareas, { id: uid(), nome: "", responsaveis: [] }] }));
+  }
+  function removeSubarea(sid) { setF(x => ({ ...x, subareas: x.subareas.filter(s => s.id !== sid) })); }
+  function updSubarea(sid, val) { setF(x => ({ ...x, subareas: x.subareas.map(s => s.id === sid ? { ...s, nome: val } : s) })); }
+  function addResp(sid) {
+    setF(x => ({ ...x, subareas: x.subareas.map(s => s.id === sid ? { ...s, responsaveis: [...s.responsaveis, { id: uid(), nome: "", email: "", cargo: "" }] } : s) }));
+  }
+  function removeResp(sid, rid) {
+    setF(x => ({ ...x, subareas: x.subareas.map(s => s.id === sid ? { ...s, responsaveis: s.responsaveis.filter(r => r.id !== rid) } : s) }));
+  }
+  function updResp(sid, rid, campo, val) {
+    setF(x => ({ ...x, subareas: x.subareas.map(s => s.id === sid ? { ...s, responsaveis: s.responsaveis.map(r => r.id === rid ? { ...r, [campo]: val } : r) } : s) }));
+  }
+  function toggleBloco(mid) {
+    setF(x => ({ ...x, blocoPerguntas: x.blocoPerguntas.includes(mid) ? x.blocoPerguntas.filter(id => id !== mid) : [...x.blocoPerguntas, mid] }));
+  }
+
+  function save() {
+    if (!f.nome?.trim()) { alert("Informe o nome da área."); return; }
+    onSave(f); setF(emptyF);
+  }
+
+  const categOptions = ["Comercial","Franquias","Unidades de Negócio","Financeiro / Admin","Operações","Suporte","Controle"];
+  const cargoOptions = [["gerente","Gerente"],["supervisor","Supervisor"],["coordenador","Coordenador"],["analista","Analista"],["operador","Operador"]];
+  const modulosAtivos = (modulos || []).filter(m => m.ativo);
+
   return (
-    <Modal open={open} onClose={onClose} title="Nova Área" width={500}
+    <Modal open={open} onClose={onClose} title="Nova Área" width={620}
       footer={<><Btn variant="ghost" onClick={onClose}>Cancelar</Btn><Btn onClick={save}>Salvar Área</Btn></>}>
-      <FG label="Nome da Área"><input style={fi} value={f.nome} onChange={e => setF({ ...f, nome: e.target.value })} placeholder="ex: Comercial Varejo" /></FG>
+
+      <FG label="Nome da Área">
+        <input style={fi} value={f.nome} onChange={e => setF({ ...f, nome: e.target.value })} placeholder="ex: Comercial Varejo" />
+      </FG>
+
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-        <FG label="Grupo">
-          <select style={fi} value={f.grupo} onChange={e => setF({ ...f, grupo: e.target.value })}>
+        <FG label="Categoria">
+          <select style={fi} value={f.categoria} onChange={e => setF({ ...f, categoria: e.target.value })}>
             <option value="">Selecione...</option>
-            {["Comercial","Franquias","Unidades de Negócio","Financeiro / Admin","Operações","Suporte","Controle"].map(g => <option key={g}>{g}</option>)}
+            {categOptions.map(g => <option key={g}>{g}</option>)}
           </select>
         </FG>
-        <FG label="Responsável"><input style={fi} value={f.resp} onChange={e => setF({ ...f, resp: e.target.value })} placeholder="Nome do gestor" /></FG>
+        <FG label="Configuração">
+          <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, cursor: "pointer", paddingTop: 9 }}>
+            <input type="checkbox" checked={f.naoAuditada} onChange={e => setF({ ...f, naoAuditada: e.target.checked })} style={{ accentColor: F.red, width: 14, height: 14 }} />
+            Excluir de auditorias
+          </label>
+        </FG>
       </div>
-      <FG label="Configuração">
-        <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, cursor: "pointer" }}>
-          <input type="checkbox" checked={f.noa} onChange={e => setF({ ...f, noa: e.target.checked })} style={{ accentColor: F.red, width: 14, height: 14 }} />
-          Excluir desta área de auditorias
-        </label>
-      </FG>
-      <div style={{ fontSize: 12, color: F.gray4, background: F.offWhite, borderRadius: 7, padding: "10px 12px", lineHeight: 1.7 }}>
-        Para adicionar categorias de avaliação a esta área, acesse <strong>Gestão → Categorias de Avaliação</strong>.
+
+      <div style={{ fontFamily: "'Barlow Condensed',sans-serif", fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: 1, color: F.gray4, marginBottom: 8 }}>Diretor da Área</div>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 16 }}>
+        <FG label="Nome"><input style={fi} value={f.diretor.nome} onChange={e => setF({ ...f, diretor: { ...f.diretor, nome: e.target.value } })} placeholder="Nome do diretor" /></FG>
+        <FG label="E-mail"><input type="email" style={{ ...fi, textTransform: "none" }} value={f.diretor.email} onChange={e => setF({ ...f, diretor: { ...f.diretor, email: e.target.value } })} placeholder="email@fast.com.br" /></FG>
       </div>
+
+      {modulosAtivos.length > 0 && (
+        <FG label="Categorias de Avaliação">
+          <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
+            {modulosAtivos.map(m => (
+              <label key={m.id} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, cursor: "pointer" }}>
+                <input type="checkbox" checked={f.blocoPerguntas.includes(m.id)} onChange={() => toggleBloco(m.id)} style={{ accentColor: F.red, width: 14, height: 14 }} />
+                {m.nome} <span style={{ fontSize: 11, color: F.gray4 }}>({m.perguntas?.length || 0} perguntas)</span>
+              </label>
+            ))}
+          </div>
+        </FG>
+      )}
+
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8, marginTop: 4 }}>
+        <div style={{ fontFamily: "'Barlow Condensed',sans-serif", fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: 1, color: F.gray4 }}>Subáreas</div>
+        <button onClick={addSubarea} style={{ fontSize: 11.5, color: F.red, background: "none", border: `1px dashed ${F.redBorder}`, borderRadius: 5, padding: "3px 10px", cursor: "pointer", fontWeight: 600, fontFamily: "'Barlow',sans-serif" }}>+ Adicionar Subárea</button>
+      </div>
+      {f.subareas.length === 0 && <div style={{ fontSize: 12, color: F.gray4, marginBottom: 4 }}>Nenhuma subárea adicionada.</div>}
+      {f.subareas.map(s => (
+        <div key={s.id} style={{ background: F.offWhite, borderRadius: 8, padding: 12, marginBottom: 10, border: `1px solid ${F.gray6}` }}>
+          <div style={{ display: "flex", gap: 8, marginBottom: 10, alignItems: "center" }}>
+            <input style={{ ...fi, flex: 1 }} value={s.nome} onChange={e => updSubarea(s.id, e.target.value)} placeholder="Nome da subárea..." />
+            <button onClick={() => removeSubarea(s.id)} style={{ background: "none", border: "none", color: F.gray4, cursor: "pointer", fontSize: 16 }}>✕</button>
+          </div>
+          <div style={{ fontSize: 10, fontWeight: 700, color: F.gray4, textTransform: "uppercase", letterSpacing: 1, marginBottom: 7, fontFamily: "'Barlow Condensed',sans-serif" }}>Responsáveis</div>
+          {s.responsaveis.map(r => (
+            <div key={r.id} style={{ display: "grid", gridTemplateColumns: "2fr 2fr 1fr auto", gap: 6, marginBottom: 6, alignItems: "center" }}>
+              <input style={fi} value={r.nome} onChange={e => updResp(s.id, r.id, "nome", e.target.value)} placeholder="Nome" />
+              <input type="email" style={{ ...fi, textTransform: "none" }} value={r.email} onChange={e => updResp(s.id, r.id, "email", e.target.value)} placeholder="email@fast.com.br" />
+              <select style={fi} value={r.cargo} onChange={e => updResp(s.id, r.id, "cargo", e.target.value)}>
+                <option value="">Cargo</option>
+                {cargoOptions.map(([v,l]) => <option key={v} value={v}>{l}</option>)}
+              </select>
+              <button onClick={() => removeResp(s.id, r.id)} style={{ background: "none", border: "none", color: F.gray4, cursor: "pointer", fontSize: 15 }}>✕</button>
+            </div>
+          ))}
+          <button onClick={() => addResp(s.id)} style={{ fontSize: 11.5, color: F.gray3, background: "none", border: `1px dashed ${F.gray5}`, borderRadius: 5, padding: "3px 10px", cursor: "pointer", fontFamily: "'Barlow',sans-serif", marginTop: 4 }}>+ Adicionar Responsável</button>
+        </div>
+      ))}
     </Modal>
   );
 }
@@ -2284,14 +2361,14 @@ function ModuloModal({ open, onClose, areas, processos, modulo, onSave }) {
       </FG>
 
       <FG label="Vincular a áreas">
-        {areas.filter(a => !a.noa).length === 0
+        {areas.filter(a => !a.naoAuditada && !a.noa).length === 0
           ? <div style={{ fontSize: 12, color: F.gray4 }}>Nenhuma área cadastrada.</div>
           : <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
-              {areas.filter(a => !a.noa).map(a => (
+              {areas.filter(a => !a.naoAuditada && !a.noa).map(a => (
                 <label key={a.id} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, cursor: "pointer" }}>
                   <input type="checkbox" checked={f.areaIds.includes(a.id)} onChange={() => toggleArea(a.id)} style={{ accentColor: F.red, width: 14, height: 14 }} />
                   <span>{a.nome}</span>
-                  {a.grupo && <Tag style={{ marginLeft: 2 }}>{a.grupo}</Tag>}
+                  {(a.categoria || a.grupo) && <Tag style={{ marginLeft: 2 }}>{a.categoria || a.grupo}</Tag>}
                 </label>
               ))}
             </div>
@@ -2340,7 +2417,7 @@ function ModuloModal({ open, onClose, areas, processos, modulo, onSave }) {
   );
 }
 
-function AuditoriaModal({ open, onClose, step, setStep, form, setForm, checklist, setChecklist, areas, usuarios, ciclos, buildChecklist, calcScore, onFinalizar }) {
+function AuditoriaModal({ open, onClose, step, setStep, form, setForm, checklist, setChecklist, areas, usuarios, ciclos, modulos, buildChecklist, calcScore, onFinalizar }) {
   function next() {
     if (step === 1) {
       if (!form.areaId) { alert("Selecione uma área."); return; }
@@ -2359,11 +2436,11 @@ function AuditoriaModal({ open, onClose, step, setStep, form, setForm, checklist
   const noks = checklist.filter(i => i.resp === "nok");
 
   const area = areas.find(a => a.id === form.areaId);
-  const mods = area ? [
-    area.fin && { l: "💰 Financeiro", c: F.amber, bg: F.amberDim },
-    area.cli && { l: "👤 Impacto no Cliente", c: F.blue, bg: F.blueDim },
-    area.cus && { l: "🏪 Checklist Específico", c: "#9b6dff", bg: "rgba(155,109,255,0.1)" },
-  ].filter(Boolean) : [];
+  const modCores = [F.amber, F.blue, "#9b6dff", F.green, F.red];
+  const modBgs = [F.amberDim, F.blueDim, "rgba(155,109,255,0.1)", F.greenDim, F.redDim];
+  const mods = area && modulos ? modulos.filter(m =>
+    m.ativo && (m.areaIds?.includes(form.areaId) || area?.blocoPerguntas?.includes(m.id))
+  ).map((m, i) => ({ l: m.nome, c: modCores[i % modCores.length], bg: modBgs[i % modBgs.length] })) : [];
 
   const sections = [...new Set(checklist.map(i => i.sec))];
 
