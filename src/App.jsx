@@ -1230,7 +1230,10 @@ ${db.planos.length ? `<table>
 
                 {/* Auditorias aguardando ciência */}
                 {(() => {
-                  const pendentes = auditoriasVisiveis.filter(a => !a.ciencia?.confirmado);
+                  const pendentes = db.auditorias.filter(a =>
+                    (a.areaId === usuarioLogado.areaId || a.areaNome === usuarioLogado.areaNome)
+                    && !a.ciencia?.confirmado
+                  );
                   if (!pendentes.length) return null;
                   return (
                     <div style={{ marginTop: 14, background: "#fff", border: `1.5px solid ${F.green}`, borderRadius: 10, overflow: "hidden" }}>
@@ -1501,6 +1504,51 @@ ${db.planos.length ? `<table>
             {/* ── PLANOS ── */}
             {view === "planos" && (
               <div>
+
+                {/* ── CIÊNCIA PENDENTE (gestor) ── */}
+                {perfil === "gestor" && (() => {
+                  const pendentes = db.auditorias.filter(a =>
+                    (a.areaId === usuarioLogado.areaId || a.areaNome === usuarioLogado.areaNome)
+                    && !a.ciencia?.confirmado
+                  );
+                  if (!pendentes.length) return null;
+                  return (
+                    <Card style={{ marginBottom: 16, border: `2px solid ${F.green}` }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
+                        <div style={{ width: 32, height: 32, background: F.green, borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, color: "#fff", flexShrink: 0 }}>✔</div>
+                        <div>
+                          <div style={{ fontFamily: "'Barlow Condensed',sans-serif", fontSize: 14, fontWeight: 800, textTransform: "uppercase", letterSpacing: 0.5, color: F.green }}>
+                            Sua área foi auditada — registre sua ciência
+                          </div>
+                          <div style={{ fontSize: 11.5, color: F.gray3, marginTop: 2 }}>
+                            {pendentes.length} auditoria{pendentes.length !== 1 ? "s" : ""} aguardando confirmação de ciência
+                          </div>
+                        </div>
+                      </div>
+                      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                        {pendentes.map(a => {
+                          const ncc = a.ncs?.filter(n => n.clas === "nc").length || 0;
+                          return (
+                            <div key={a.id} style={{ background: F.offWhite, borderRadius: 8, padding: "12px 14px", display: "flex", alignItems: "center", gap: 14 }}>
+                              <div style={{ flex: 1 }}>
+                                <div style={{ fontSize: 13, fontWeight: 700, color: F.charcoal }}>{a.areaNome}</div>
+                                <div style={{ fontSize: 11.5, color: F.gray4, marginTop: 2 }}>
+                                  Auditado em {fmtDate(a.data)} por {a.auditorNome}
+                                  {" · "}Score: <strong style={{ color: scoreColor(a.score) }}>{a.score}%</strong>
+                                  {ncc > 0 && <span style={{ color: F.red }}>{" · "}{ncc} NC{ncc !== 1 ? "s" : ""}</span>}
+                                </div>
+                              </div>
+                              <Btn onClick={() => setCienciaAuditoriaId(a.id)} style={{ background: F.green, border: "none", flexShrink: 0 }}>
+                                ✔ Registrar Ciência
+                              </Btn>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </Card>
+                  );
+                })()}
+
                 {/* Pendentes de aprovação */}
                 {planosPendAprov.length > 0 && (
                   <Card style={{ marginBottom: 16, border: `1.5px solid ${F.amber}` }}>
