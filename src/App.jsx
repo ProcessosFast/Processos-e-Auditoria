@@ -733,7 +733,7 @@ ${db.auditorias.length ? `<table>
   </tbody>
 </table>` : `<p class="empty">Nenhuma auditoria registrada.</p>`}
 
-<h2>Planos de Ação</h2>
+<h2>Relatórios de Conclusão</h2>
 ${db.planos.length ? `<table>
   <thead><tr><th>Descrição</th><th>Área</th><th>Responsável</th><th>Prazo</th><th>Classificação</th><th>Status</th></tr></thead>
   <tbody>
@@ -749,7 +749,7 @@ ${db.planos.length ? `<table>
       </tr>`;
     }).join("")}
   </tbody>
-</table>` : `<p class="empty">Nenhum plano de ação cadastrado.</p>`}
+</table>` : `<p class="empty">Nenhum relatório de conclusão cadastrado.</p>`}
 
 <div class="footer">Fast Sistemas Construtivos — Portal de Gestão Interno — ${hoje}</div>
 
@@ -788,7 +788,7 @@ ${db.planos.length ? `<table>
   const notificacoes = [
     ...db.planos
       .filter(p => idsNovos.has(p.id))
-      .map(p => ({ key: `novo-${p.id}`, tipo: "aprovacao", titulo: "Novo plano — aprovação pendente", desc: p.desc, area: p.areaNome, prazo: p.prazo })),
+      .map(p => ({ key: `novo-${p.id}`, tipo: "aprovacao", titulo: "Novo relatório — aprovação pendente", desc: p.desc, area: p.areaNome, prazo: p.prazo })),
     ...db.planos
       .filter(p => {
         if (p.status === "concluido" || p.aprovacao !== "aprovado" || !p.prazo) return false;
@@ -887,20 +887,20 @@ ${db.planos.length ? `<table>
   function savePlano(form, auto = false) {
     if (!form.desc?.trim()) { if (!auto) showToast("Informe a descrição.", "err"); return; }
     if (!auto && !form.respId) { showToast("Selecione um responsável.", "err"); return; }
-    const evt = { data: new Date().toISOString(), acao: "Plano criado", autor: auto ? "Sistema (Auditoria)" : usuarioLogado?.nome || "Sistema" };
+    const evt = { data: new Date().toISOString(), acao: "Relatório criado", autor: auto ? "Sistema (Auditoria)" : usuarioLogado?.nome || "Sistema" };
     upd("planos", p => [...p, { id: uid(), status: "aberto", aprovacao: "pendente", historico: [evt], origem: auto ? "auditoria" : "manual", ...form }]);
-    if (!auto) { closeModal("plano"); showToast("Plano criado! Aguardando aprovação do administrador."); }
+    if (!auto) { closeModal("plano"); showToast("Relatório criado! Aguardando aprovação do administrador."); }
   }
 
   function aprovarPlano(id) {
-    const evt = { data: new Date().toISOString(), acao: "Plano aprovado", autor: usuarioLogado?.nome || "Sistema" };
+    const evt = { data: new Date().toISOString(), acao: "Relatório aprovado", autor: usuarioLogado?.nome || "Sistema" };
     upd("planos", arr => arr.map(p => p.id === id ? { ...p, aprovacao: "aprovado", aprovadoPor: usuarioLogado?.nome || "—", aprovadoEm: new Date().toISOString(), historico: [...(p.historico || []), evt] } : p));
-    showToast("Plano aprovado!");
+    showToast("Relatório aprovado!");
   }
   function rejeitarPlano(id) {
-    const evt = { data: new Date().toISOString(), acao: "Plano rejeitado", autor: usuarioLogado?.nome || "Sistema" };
+    const evt = { data: new Date().toISOString(), acao: "Relatório rejeitado", autor: usuarioLogado?.nome || "Sistema" };
     upd("planos", arr => arr.map(p => p.id === id ? { ...p, aprovacao: "rejeitado", rejeitadoPor: usuarioLogado?.nome || "—", rejeitadoEm: new Date().toISOString(), historico: [...(p.historico || []), evt] } : p));
-    showToast("Plano rejeitado.", "err");
+    showToast("Relatório rejeitado.", "err");
   }
   function aprovarExtensao(id) {
     const evt = { data: new Date().toISOString(), acao: "Extensão de prazo aprovada", autor: usuarioLogado?.nome || "Sistema" };
@@ -968,7 +968,7 @@ ${db.planos.length ? `<table>
     { id: "areas", icon: "◉", label: "Áreas", section: "Operação" },
     { id: "processos", icon: "⬡", label: "Processos" },
     { id: "auditorias", icon: "◎", label: "Auditorias", badge: auditoriasVisiveis.filter(a => a.status === "aberta").length },
-    { id: "planos", icon: "◷", label: "Planos de Ação", badge: planosPendAprov.length || planosAtrasados.length, section: "Melhoria" },
+    { id: "planos", icon: "◷", label: "Relatórios de Conclusão", badge: planosPendAprov.length || planosAtrasados.length, section: "Melhoria" },
     { id: "ncs", icon: "⚑", label: "Não Conformidades" },
     { id: "ciclos", icon: "◈", label: "Ciclos", section: "Gestão" },
     { id: "modulos", icon: "⊞", label: "Módulos" },
@@ -1084,7 +1084,7 @@ ${db.planos.length ? `<table>
                   setChecklist([]); openModal("auditoria");
                 }}>+ Nova Auditoria</Btn>
               )}
-              {view === "planos" && podeExecutar(perfil, "criar") && <Btn onClick={() => openModal("plano")}>+ Novo Plano</Btn>}
+              {view === "planos" && podeExecutar(perfil, "criar") && <Btn onClick={() => openModal("plano")}>+ Novo Relatório</Btn>}
               {view === "ciclos" && (podeExecutar(perfil, "criar") || podeExecutar(perfil, "gerir-ciclos")) && <Btn onClick={() => openModal("ciclo")}>+ Novo Ciclo</Btn>}
               {view === "modulos" && podeExecutar(perfil, "gerir-modulos") && <Btn onClick={() => openModal("modulo", {})}>+ Novo Módulo</Btn>}
               {view === "comite" && (podeExecutar(perfil, "criar") || podeExecutar(perfil, "gerir-comite")) && <Btn onClick={() => openModal("membro")}>+ Adicionar Membro</Btn>}
@@ -1175,7 +1175,7 @@ ${db.planos.length ? `<table>
                           <button onClick={() => { setView("planos"); setNotifOpen(false); }} style={{
                             fontSize: 12, color: F.red, background: "none", border: "none",
                             cursor: "pointer", fontWeight: 600, fontFamily: "'Barlow',sans-serif"
-                          }}>Ver todos os planos de ação →</button>
+                          }}>Ver todos os relatórios de conclusão →</button>
                         </div>
                       )}
                     </div>
@@ -1316,7 +1316,7 @@ ${db.planos.length ? `<table>
                       fontFamily: "'Barlow Condensed',sans-serif", fontSize: 14,
                       fontWeight: 800, textTransform: "uppercase", letterSpacing: 0.5,
                       marginBottom: 16, color: F.charcoal
-                    }}>Planos de Ação</div>
+                    }}>Relatórios de Conclusão</div>
                     {chartPlanos.length > 0 ? (
                       <ResponsiveContainer width="100%" height={200}>
                         <PieChart>
@@ -1559,7 +1559,7 @@ ${db.planos.length ? `<table>
                         <div style={{ fontFamily: "'Barlow Condensed',sans-serif", fontSize: 14, fontWeight: 800, textTransform: "uppercase", letterSpacing: 0.5, color: F.amber }}>
                           Aguardando Aprovação do Administrador
                         </div>
-                        <div style={{ fontSize: 11.5, color: F.gray3 }}>{planosPendAprov.length} plano{planosPendAprov.length !== 1 ? "s" : ""} pendente{planosPendAprov.length !== 1 ? "s" : ""}</div>
+                        <div style={{ fontSize: 11.5, color: F.gray3 }}>{planosPendAprov.length} relatório{planosPendAprov.length !== 1 ? "s" : ""} pendente{planosPendAprov.length !== 1 ? "s" : ""}</div>
                       </div>
                     </div>
                     <DataTable
@@ -1690,9 +1690,9 @@ ${db.planos.length ? `<table>
                       })
                     ]}
                     empty={{
-                      icon: "◷", title: "Nenhum plano de ação",
+                      icon: "◷", title: "Nenhum relatório de conclusão",
                       sub: "Os planos são gerados pelas auditorias ou criados manualmente.",
-                      action: <Btn style={{ marginTop: 10 }} onClick={() => openModal("plano")}>+ Criar Plano Manual</Btn>
+                      action: <Btn style={{ marginTop: 10 }} onClick={() => openModal("plano")}>+ Criar Relatório Manual</Btn>
                     }}
                   />
                 </Card>
@@ -2105,8 +2105,8 @@ function PlanoModal({ open, onClose, areas, usuarios, onSave }) {
     setF(empty);
   }
   return (
-    <Modal open={open} onClose={onClose} title="Novo Plano de Ação" width={500}
-      footer={<><Btn variant="ghost" onClick={onClose}>Cancelar</Btn><Btn onClick={save}>Criar Plano</Btn></>}>
+    <Modal open={open} onClose={onClose} title="Novo Relatório de Conclusão" width={500}
+      footer={<><Btn variant="ghost" onClick={onClose}>Cancelar</Btn><Btn onClick={save}>Criar Relatório</Btn></>}>
       <FG label="Descrição da Ação"><textarea style={{ ...fi, resize: "vertical", minHeight: 70 }} value={f.desc} onChange={e => setF({ ...f, desc: e.target.value })} placeholder="Descreva a ação..." /></FG>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
         <FG label="Área">
@@ -2185,7 +2185,7 @@ function CienciaModal({ open, onClose, auditoria, usuarioLogado, onSave }) {
       <label style={{ display: "flex", alignItems: "flex-start", gap: 10, cursor: "pointer", marginTop: 4, padding: "12px 14px", background: f.confirmado ? F.greenDim : F.offWhite, border: `1.5px solid ${f.confirmado ? F.green : F.gray6}`, borderRadius: 8, transition: "all 0.15s" }}>
         <input type="checkbox" checked={f.confirmado} onChange={e => setF({ ...f, confirmado: e.target.checked })} style={{ accentColor: F.green, width: 15, height: 15, marginTop: 2, flexShrink: 0 }} />
         <span style={{ fontSize: 13, color: F.charcoal, lineHeight: 1.5 }}>
-          <strong>Confirmo que fui informado(a)</strong> sobre os resultados desta auditoria e estou ciente das não conformidades e planos de ação gerados.
+          <strong>Confirmo que fui informado(a)</strong> sobre os resultados desta auditoria e estou ciente das não conformidades e relatórios de conclusão gerados.
         </span>
       </label>
     </Modal>
@@ -2374,7 +2374,7 @@ function AuditoriaModal({ open, onClose, step, setStep, form, setForm, checklist
   const sections = [...new Set(checklist.map(i => i.sec))];
 
   return (
-    <Modal open={open} onClose={onClose} title={["Nova Auditoria","Checklist de Verificação","Resultado e Planos de Ação"][step-1]} width={640}
+    <Modal open={open} onClose={onClose} title={["Nova Auditoria","Checklist de Verificação","Resultado e Relatórios de Conclusão"][step-1]} width={640}
       footer={
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%" }}>
           <Btn variant="ghost" onClick={onClose}>Cancelar</Btn>
@@ -2514,7 +2514,7 @@ function AuditoriaModal({ open, onClose, step, setStep, form, setForm, checklist
           {noks.length > 0 && (
             <div style={{ marginBottom: 18 }}>
               <div style={{ fontSize: 10, fontWeight: 700, color: F.gray4, textTransform: "uppercase", letterSpacing: 1, marginBottom: 10, fontFamily: "'Barlow Condensed',sans-serif" }}>
-                Itens não conformes — selecione para gerar planos de ação
+                Itens não conformes — selecione para gerar relatórios de conclusão
               </div>
               {noks.map(item => {
                 const cmap = { nc: [F.red, F.redDim, "Não Conformidade"], mel: [F.blue, F.blueDim, "Oportunidade"], obs: [F.gray3, F.gray6, "Observação"] };
@@ -2539,7 +2539,7 @@ function AuditoriaModal({ open, onClose, step, setStep, form, setForm, checklist
                 );
               })}
               <div style={{ fontSize: 12, color: F.gray3, background: F.redDim, border: `1px solid ${F.redBorder}`, borderRadius: 7, padding: "9px 12px", marginTop: 8, lineHeight: 1.6 }}>
-                Não Conformidades geram plano de ação obrigatório. Oportunidades ficam a critério do gestor.
+                Não Conformidades geram relatório de conclusão obrigatório. Oportunidades ficam a critério do gestor.
               </div>
             </div>
           )}
