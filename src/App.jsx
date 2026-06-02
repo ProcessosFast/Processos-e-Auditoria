@@ -845,8 +845,13 @@ ${db.planos.length ? `<table>
   // ── SAVE AREA ──
   function saveArea(form) {
     if (!form.nome?.trim()) { showToast("Informe o nome da área.", "err"); return; }
-    upd("areas", a => [...a, { id: uid(), ...form }]);
-    closeModal("area"); showToast("Área cadastrada!");
+    if (form.id) {
+      upd("areas", arr => arr.map(a => a.id === form.id ? { ...a, ...form } : a));
+      closeModal("area"); showToast("Área atualizada!");
+    } else {
+      upd("areas", a => [...a, { id: uid(), ...form }]);
+      closeModal("area"); showToast("Área cadastrada!");
+    }
   }
 
   // ── SAVE PROCESSO ──
@@ -1403,7 +1408,7 @@ ${db.planos.length ? `<table>
             {view === "areas" && (
               <Card>
                 <DataTable
-                  cols={["Área", "Categoria", "Diretor", "Subáreas", "Status", ...(podeExecutar(perfil, "excluir") ? [""] : [])]}
+                  cols={["Área", "Categoria", "Diretor", "Subáreas", "Status", ...(podeExecutar(perfil, "criar") || podeExecutar(perfil, "excluir") ? [""] : [])]}
                   rows={db.areas.map(a => (
                     <>
                       <TD><strong>{a.nome}</strong></TD>
@@ -1411,7 +1416,18 @@ ${db.planos.length ? `<table>
                       <TD style={{ color: F.gray3 }}>{a.diretor?.nome || a.resp || "—"}</TD>
                       <TD>{a.subareas?.length > 0 ? <Tag>{a.subareas.length} subárea{a.subareas.length !== 1 ? "s" : ""}</Tag> : "—"}</TD>
                       <TD>{(a.naoAuditada || a.noa) ? <Pill color={F.gray3} bg={F.gray6}>Não auditada</Pill> : <Pill color={F.green} bg={F.greenDim}>Ativa</Pill>}</TD>
-                      {podeExecutar(perfil, "excluir") && <TD><button onClick={() => upd("areas", arr => arr.filter(x => x.id !== a.id))} style={{ background: "none", border: "none", color: F.gray4, cursor: "pointer", fontSize: 16, padding: "2px 6px" }}>✕</button></TD>}
+                      {(podeExecutar(perfil, "criar") || podeExecutar(perfil, "excluir")) && (
+                        <TD>
+                          <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
+                            {podeExecutar(perfil, "criar") && (
+                              <button onClick={() => openModal("area", a)} style={{ background: F.offWhite, border: `1px solid ${F.gray6}`, borderRadius: 5, color: F.gray3, cursor: "pointer", fontSize: 13, padding: "3px 8px" }}>✎</button>
+                            )}
+                            {podeExecutar(perfil, "excluir") && (
+                              <button onClick={() => upd("areas", arr => arr.filter(x => x.id !== a.id))} style={{ background: "none", border: "none", color: F.gray4, cursor: "pointer", fontSize: 16, padding: "2px 6px" }}>✕</button>
+                            )}
+                          </div>
+                        </TD>
+                      )}
                     </>
                   ))}
                   empty={{
@@ -1888,7 +1904,7 @@ ${db.planos.length ? `<table>
       <ModuloModal open={!!modals.modulo} onClose={() => closeModal("modulo")} areas={db.areas} processos={db.processos} modulo={modals.modulo} onSave={saveModulo} />
 
       {/* ÁREA */}
-      <AreaModal open={!!modals.area} onClose={() => closeModal("area")} modulos={db.modulos} onSave={saveArea} />
+      <AreaModal open={!!modals.area} onClose={() => closeModal("area")} modulos={db.modulos} area={modals.area} onSave={saveArea} />
 
       {/* PROCESSO */}
       <ProcessoModal open={!!modals.processo} onClose={() => closeModal("processo")} areas={db.areas} onSave={saveProcesso} />
@@ -1965,9 +1981,14 @@ ${db.planos.length ? `<table>
 // MODAL COMPONENTS
 // ══════════════════════════════════════════════════════════════════
 
-function AreaModal({ open, onClose, modulos, onSave }) {
+function AreaModal({ open, onClose, modulos, area, onSave }) {
   const emptyF = { nome: "", categoria: "", diretor: { nome: "", email: "" }, blocoPerguntas: [], naoAuditada: false, subareas: [] };
   const [f, setF] = useState(emptyF);
+  const isEdit = !!(area && area.id);
+
+  useEffect(() => {
+    if (open) setF(isEdit ? { ...emptyF, ...area, diretor: area.diretor || { nome: area.resp || "", email: "" }, blocoPerguntas: area.blocoPerguntas || [], subareas: area.subareas || [], naoAuditada: area.naoAuditada || area.noa || false } : emptyF);
+  }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function addSubarea() {
     setF(x => ({ ...x, subareas: [...x.subareas, { id: uid(), nome: "", responsaveis: [] }] }));
@@ -1997,8 +2018,8 @@ function AreaModal({ open, onClose, modulos, onSave }) {
   const modulosAtivos = (modulos || []).filter(m => m.ativo);
 
   return (
-    <Modal open={open} onClose={onClose} title="Nova Área" width={620}
-      footer={<><Btn variant="ghost" onClick={onClose}>Cancelar</Btn><Btn onClick={save}>Salvar Área</Btn></>}>
+    <Modal open={open} onClose={onClose} title={isEdit ? "Editar Área" : "Nova Área"} width={620}
+      footer={<><Btn variant="ghost" onClick={onClose}>Cancelar</Btn><Btn onClick={save}>{isEdit ? "Salvar Alterações" : "Salvar Área"}</Btn></>}>
 
       <FG label="Nome da Área">
         <input style={fi} value={f.nome} onChange={e => setF({ ...f, nome: e.target.value })} placeholder="ex: Comercial Varejo" />
