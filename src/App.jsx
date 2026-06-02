@@ -1402,18 +1402,12 @@ ${db.planos.length ? `<table>
             {view === "areas" && (
               <Card>
                 <DataTable
-                  cols={["Área", "Grupo", "Responsável", "Categorias", "Status", ...(podeExecutar(perfil, "excluir") ? [""] : [])]}
+                  cols={["Área", "Grupo", "Responsável", "Status", ...(podeExecutar(perfil, "excluir") ? [""] : [])]}
                   rows={db.areas.map(a => (
                     <>
                       <TD><strong>{a.nome}</strong></TD>
                       <TD>{a.grupo ? <Tag>{a.grupo}</Tag> : "—"}</TD>
                       <TD style={{ color: F.gray3 }}>{a.resp || "—"}</TD>
-                      <TD><div style={{ display: "flex", gap: 3, flexWrap: "wrap" }}>
-                        {a.fin && <Tag color={F.amber} bg={F.amberDim}>Fin</Tag>}
-                        {a.cli && <Tag color={F.blue} bg={F.blueDim}>CLI</Tag>}
-                        {a.cus && <Tag color="#9b6dff" bg="rgba(155,109,255,0.1)">Custom</Tag>}
-                        {a.noa && <Tag>N/A</Tag>}
-                      </div></TD>
                       <TD>{a.noa ? <Pill color={F.gray3} bg={F.gray6}>Não auditada</Pill> : <Pill color={F.green} bg={F.greenDim}>Ativa</Pill>}</TD>
                       {podeExecutar(perfil, "excluir") && <TD><button onClick={() => upd("areas", arr => arr.filter(x => x.id !== a.id))} style={{ background: "none", border: "none", color: F.gray4, cursor: "pointer", fontSize: 16, padding: "2px 6px" }}>✕</button></TD>}
                     </>
