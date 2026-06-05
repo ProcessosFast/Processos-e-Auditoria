@@ -95,15 +95,19 @@ function scoreAreaCiclo(areaId, auditorias) {
 const PERMISSOES = {
   administrador: {
     views: ["dashboard","areas","processos","auditorias","planos","ncs","ciclos","comite","usuarios","modulos"],
-    acoes: new Set(["criar","excluir","aprovar","exportar","auditar","atualizar-status","gerir-modulos","gerir-ciclos","gerir-comite"])
+    acoes: new Set(["criar","excluir","aprovar","exportar","auditar","atualizar-status","gerir-modulos","gerir-ciclos","gerir-comite","liberar-relatorios","agendar-reuniao"])
   },
   "auditor-lider": {
     views: ["dashboard","areas","processos","auditorias","planos","ncs","ciclos","comite","modulos"],
-    acoes: new Set(["auditar","exportar","gerir-ciclos","gerir-comite"])
+    acoes: new Set(["auditar","exportar","gerir-ciclos","gerir-comite","agendar-reuniao"])
   },
   auditor: {
     views: ["dashboard","areas","processos","auditorias","planos","ncs","ciclos","comite","modulos"],
     acoes: new Set(["auditar","exportar"])
+  },
+  comite: {
+    views: ["dashboard","auditorias","planos","comite"],
+    acoes: new Set(["exportar"])
   },
   gestor: {
     views: ["planos","auditorias"],
@@ -564,6 +568,7 @@ export default function App() {
   const [historicoPlanId, setHistoricoPlanId] = useState(null);
   const [justificandoPlano, setJustificandoPlano] = useState(null);
   const [cienciaAuditoriaId, setCienciaAuditoriaId] = useState(null);
+  const [comiteAba, setComiteAba] = useState("reunioes");
   const planosIdsRef = useRef(new Set());
 
   useEffect(() => {
@@ -766,8 +771,8 @@ ${db.planos.length ? `<table>
 
   // ── DADOS FILTRADOS POR PERFIL ──
   const planosVisiveis = perfil === "gestor"
-    ? db.planos.filter(p => p.areaId === usuarioLogado.areaId)
-    : db.planos;
+    ? db.planos.filter(p => p.areaId === usuarioLogado.areaId && !p.aguardaComite)
+    : db.planos.filter(p => !p.aguardaComite);
   const auditoriasVisiveis = perfil === "gestor"
     ? db.auditorias.filter(a => a.areaId === usuarioLogado.areaId)
     : db.auditorias;
@@ -908,6 +913,20 @@ ${db.planos.length ? `<table>
     upd("planos", arr => arr.map(p => p.id === id ? { ...p, aprovacao: "rejeitado", rejeitadoPor: usuarioLogado?.nome || "—", rejeitadoEm: new Date().toISOString(), historico: [...(p.historico || []), evt] } : p));
     showToast("Relatório rejeitado.", "err");
   }
+  function agendarReuniaoComite(audId, dataReuniao) {
+    upd("auditorias", arr => arr.map(a => a.id === audId ? { ...a, comite: { ...(a.comite || {}), dataReuniao } } : a));
+    showToast("Reunião agendada!");
+  }
+  function marcarReuniaoRealizada(audId, obs) {
+    upd("auditorias", arr => arr.map(a => a.id === audId ? { ...a, comite: { ...(a.comite || {}), status: "realizada", realizadaEm: new Date().toISOString(), observacoes: obs || "" } } : a));
+    showToast("Reunião marcada como realizada!");
+  }
+  function liberarRelatoriosGestor(audId) {
+    const evt = { data: new Date().toISOString(), acao: "Liberado pelo administrador após reunião do comitê", autor: usuarioLogado?.nome || "Sistema" };
+    upd("planos", arr => arr.map(p => p.auditoriaId === audId ? { ...p, aguardaComite: false, aprovacao: "aprovado", historico: [...(p.historico || []), evt] } : p));
+    showToast("Relatórios liberados para o gestor!");
+  }
+
   function aprovarExtensao(id) {
     const evt = { data: new Date().toISOString(), acao: "Extensão de prazo aprovada", autor: usuarioLogado?.nome || "Sistema" };
     upd("planos", arr => arr.map(p => p.id === id && p.extensao ? { ...p, prazo: p.extensao.novoPrazo, extensao: { ...p.extensao, status: "aprovada", aprovadoPor: usuarioLogado?.nome || "—", aprovadoEm: new Date().toISOString() }, historico: [...(p.historico || []), evt] } : p));
@@ -927,13 +946,15 @@ ${db.planos.length ? `<table>
     const score = calcScore(checklist);
     const ncs = checklist.filter(i => i.resp === "nok");
 
+    const audId = uid();
     const auditoria = {
-      id: uid(), areaNome: area?.nome || "—", areaId: audForm.areaId,
+      id: audId, areaNome: area?.nome || "—", areaId: audForm.areaId,
       auditorNome: auditor?.nome || "—", data: audForm.data,
       local: audForm.local, cicloNome: ciclo?.nome || "—",
       score, obs: audForm.obs, status: "concluida",
       ncs: ncs.map(i => ({ q: i.q, clas: i.clas || "obs", evidencia: i.evidencia || "" })),
-      ciencia: null
+      ciencia: null,
+      comite: { dataReuniao: null, status: "aguardando", observacoes: "" }
     };
 
     ncs.filter(i => i.selected !== false).forEach(i => {
@@ -945,6 +966,7 @@ ${db.planos.length ? `<table>
         respId: "", respNome: "", resp: "",
         prio: i.clas === "nc" ? "high" : i.clas === "mel" ? "mid" : "low",
         prazo: prazo.toISOString().split("T")[0], clas: i.clas || "obs",
+        auditoriaId: audId, aguardaComite: true,
       }, true);
     });
 
@@ -1844,24 +1866,155 @@ ${db.planos.length ? `<table>
 
             {/* ── COMITÊ ── */}
             {view === "comite" && (
-              <Card>
-                <div style={{
-                  fontSize: 12.5, color: F.gray3, background: F.redDim,
-                  border: `1px solid ${F.redBorder}`, borderRadius: 7,
-                  padding: "10px 14px", marginBottom: 16, lineHeight: 1.6
-                }}>
-                  Um representante por área operacional. O representante da área auditada é excluído automaticamente — recebe acesso ao resultado após publicação oficial.
+              <div>
+                {/* Tabs */}
+                <div style={{ display: "flex", gap: 4, marginBottom: 16 }}>
+                  {[["reunioes","Reuniões de Auditoria"],["membros","Membros"]].map(([id, label]) => (
+                    <button key={id} onClick={() => setComiteAba(id)} style={{
+                      padding: "8px 18px", borderRadius: 7, border: "none", cursor: "pointer",
+                      fontSize: 13, fontWeight: 600, fontFamily: "'Barlow',sans-serif",
+                      background: comiteAba === id ? F.red : "#fff",
+                      color: comiteAba === id ? "#fff" : F.gray3,
+                      boxShadow: comiteAba === id ? "none" : `0 0 0 1.5px ${F.gray6}`,
+                      transition: "all 0.15s"
+                    }}>{label}</button>
+                  ))}
                 </div>
-                <DataTable
-                  cols={["Membro", "Representa", ...(podeExecutar(perfil, "excluir") ? [""] : [])]}
-                  rows={db.comite.map(m => <>
-                    <TD><strong>{m.uNome}</strong></TD>
-                    <TD style={{ color: F.gray3 }}>{m.aNome}</TD>
-                    {(podeExecutar(perfil, "excluir") || podeExecutar(perfil, "gerir-comite")) && <TD><button onClick={() => upd("comite", arr => arr.filter(x => x.id !== m.id))} style={{ background: "none", border: "none", color: F.gray4, cursor: "pointer", fontSize: 16, padding: "2px 6px" }}>✕</button></TD>}
-                  </>)}
-                  empty={{ icon: "◐", title: "Nenhum membro cadastrado", sub: "Adicione os representantes de cada área ao comitê." }}
-                />
-              </Card>
+
+                {/* Aba: Reuniões */}
+                {comiteAba === "reunioes" && (() => {
+                  const audsPendentes = db.auditorias.filter(a => a.comite);
+                  if (!audsPendentes.length) return (
+                    <Card>
+                      <div style={{ textAlign: "center", padding: "40px 0" }}>
+                        <div style={{ fontSize: 32, opacity: 0.18, marginBottom: 8 }}>◐</div>
+                        <div style={{ fontSize: 14, fontWeight: 600, color: F.gray3 }}>Nenhuma auditoria aguardando comitê</div>
+                        <div style={{ fontSize: 12.5, color: F.gray4, marginTop: 4 }}>As auditorias finalizadas aparecerão aqui para revisão.</div>
+                      </div>
+                    </Card>
+                  );
+                  return (
+                    <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+                      {audsPendentes.map(a => {
+                        const status = a.comite?.status || "aguardando";
+                        const planosPend = db.planos.filter(p => p.auditoriaId === a.id);
+                        return (
+                          <Card key={a.id} style={{ border: `1.5px solid ${status === "realizada" ? F.green : status === "aguardando" && a.comite?.dataReuniao ? F.amber : F.gray6}` }}>
+                            {/* Cabeçalho */}
+                            <div style={{ display: "flex", alignItems: "flex-start", gap: 14, marginBottom: 16 }}>
+                              <div style={{ flex: 1 }}>
+                                <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+                                  <div style={{ fontFamily: "'Barlow Condensed',sans-serif", fontSize: 18, fontWeight: 900, color: F.charcoal }}>{a.areaNome}</div>
+                                  <Pill color={status === "realizada" ? F.green : F.amber} bg={status === "realizada" ? F.greenDim : F.amberDim}>
+                                    {status === "realizada" ? "Reunião Realizada" : a.comite?.dataReuniao ? "Reunião Agendada" : "Aguardando Agendamento"}
+                                  </Pill>
+                                </div>
+                                <div style={{ fontSize: 12, color: F.gray4, marginTop: 4 }}>
+                                  Auditado em {fmtDate(a.data)} por {a.auditorNome}
+                                  {a.cicloNome !== "—" && ` · Ciclo: ${a.cicloNome}`}
+                                  {a.local && ` · ${a.local}`}
+                                </div>
+                              </div>
+                              <div style={{ textAlign: "center" }}>
+                                <div style={{ fontFamily: "'Barlow Condensed',sans-serif", fontSize: 40, fontWeight: 900, color: scoreColor(a.score), lineHeight: 1 }}>{a.score}%</div>
+                                <div style={{ fontSize: 11, color: scoreColor(a.score), fontWeight: 700, textTransform: "uppercase" }}>{scoreLabel(a.score)}</div>
+                              </div>
+                            </div>
+
+                            {/* Não Conformidades + Evidências */}
+                            {a.ncs?.length > 0 && (
+                              <div style={{ marginBottom: 16 }}>
+                                <div style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: 1, color: F.gray4, marginBottom: 8, fontFamily: "'Barlow Condensed',sans-serif" }}>
+                                  Não Conformidades e Evidências ({a.ncs.length})
+                                </div>
+                                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                                  {a.ncs.map((n, i) => {
+                                    const cmap = { nc: [F.red, F.redDim, "NC"], mel: [F.blue, F.blueDim, "Melhoria"], obs: [F.gray3, F.gray6, "Obs"] };
+                                    const [c, bg, lbl] = cmap[n.clas] || [F.gray3, F.gray6, "—"];
+                                    return (
+                                      <div key={i} style={{ background: bg, border: `1px solid ${c}33`, borderRadius: 7, padding: "10px 12px" }}>
+                                        <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
+                                          <span style={{ fontSize: 9.5, fontWeight: 700, padding: "2px 7px", borderRadius: 3, background: `${c}22`, color: c, fontFamily: "'Barlow Condensed',sans-serif", textTransform: "uppercase", whiteSpace: "nowrap", marginTop: 1 }}>{lbl}</span>
+                                          <span style={{ fontSize: 13, color: F.charcoal, flex: 1, lineHeight: 1.5 }}>{n.q}</span>
+                                        </div>
+                                        {n.evidencia && (
+                                          <div style={{ marginTop: 7, paddingTop: 7, borderTop: `1px solid ${c}22`, fontSize: 12, color: F.gray3 }}>
+                                            <span style={{ fontWeight: 700, color: F.gray4 }}>Evidência: </span>
+                                            {n.evidencia.startsWith("http") ? <a href={n.evidencia} target="_blank" rel="noreferrer" style={{ color: F.red, fontWeight: 600 }}>↗ Acessar documento</a> : n.evidencia}
+                                          </div>
+                                        )}
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Agendamento e ações */}
+                            {status !== "realizada" && (
+                              <div style={{ background: F.offWhite, borderRadius: 8, padding: "12px 14px", display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
+                                <div style={{ flex: 1, minWidth: 180 }}>
+                                  <div style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: 1, color: F.gray4, marginBottom: 5, fontFamily: "'Barlow Condensed',sans-serif" }}>Data da Reunião do Comitê</div>
+                                  {podeExecutar(perfil, "agendar-reuniao") ? (
+                                    <input type="date" style={{ ...fi, fontSize: 12.5 }} value={a.comite?.dataReuniao || ""} onChange={e => agendarReuniaoComite(a.id, e.target.value)} />
+                                  ) : (
+                                    <div style={{ fontSize: 13, fontWeight: 600, color: a.comite?.dataReuniao ? F.charcoal : F.gray4 }}>{a.comite?.dataReuniao ? fmtDate(a.comite.dataReuniao) : "Não agendada"}</div>
+                                  )}
+                                </div>
+                                {podeExecutar(perfil, "agendar-reuniao") && a.comite?.dataReuniao && (
+                                  <Btn onClick={() => marcarReuniaoRealizada(a.id, "")} style={{ background: F.amber, border: "none", color: "#fff" }}>✓ Reunião Realizada</Btn>
+                                )}
+                              </div>
+                            )}
+
+                            {/* Reunião realizada — liberar relatórios */}
+                            {status === "realizada" && (
+                              <div style={{ background: F.greenDim, border: `1px solid ${F.green}44`, borderRadius: 8, padding: "12px 14px" }}>
+                                <div style={{ fontSize: 12, color: F.green, fontWeight: 700, marginBottom: 8 }}>
+                                  ✓ Reunião realizada em {fmtDate(a.comite?.realizadaEm?.split("T")[0])}
+                                </div>
+                                {planosPend.length > 0 && podeExecutar(perfil, "liberar-relatorios") && (
+                                  <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+                                    <div style={{ fontSize: 12.5, color: F.gray3, flex: 1 }}>
+                                      {planosPend.length} relatório{planosPend.length !== 1 ? "s" : ""} de conclusão aguardando liberação para o gestor da área.
+                                    </div>
+                                    <Btn onClick={() => liberarRelatoriosGestor(a.id)} style={{ background: F.green, border: "none", color: "#fff" }}>
+                                      ▶ Liberar Relatórios para o Gestor
+                                    </Btn>
+                                  </div>
+                                )}
+                                {planosPend.length === 0 && (
+                                  <div style={{ fontSize: 12, color: F.green }}>Todos os relatórios já foram liberados.</div>
+                                )}
+                              </div>
+                            )}
+
+                            {a.obs && <div style={{ marginTop: 12, fontSize: 12, color: F.gray3, borderTop: `1px solid ${F.gray6}`, paddingTop: 10 }}><strong>Obs. do auditor:</strong> {a.obs}</div>}
+                          </Card>
+                        );
+                      })}
+                    </div>
+                  );
+                })()}
+
+                {/* Aba: Membros */}
+                {comiteAba === "membros" && (
+                  <Card>
+                    <div style={{ fontSize: 12.5, color: F.gray3, background: F.redDim, border: `1px solid ${F.redBorder}`, borderRadius: 7, padding: "10px 14px", marginBottom: 16, lineHeight: 1.6 }}>
+                      Um representante por área operacional. O representante da área auditada é excluído automaticamente — recebe acesso ao resultado após publicação oficial.
+                    </div>
+                    <DataTable
+                      cols={["Membro", "Representa", ...(podeExecutar(perfil, "excluir") || podeExecutar(perfil, "gerir-comite") ? [""] : [])]}
+                      rows={db.comite.map(m => <>
+                        <TD><strong>{m.uNome}</strong></TD>
+                        <TD style={{ color: F.gray3 }}>{m.aNome}</TD>
+                        {(podeExecutar(perfil, "excluir") || podeExecutar(perfil, "gerir-comite")) && <TD><button onClick={() => upd("comite", arr => arr.filter(x => x.id !== m.id))} style={{ background: "none", border: "none", color: F.gray4, cursor: "pointer", fontSize: 16, padding: "2px 6px" }}>✕</button></TD>}
+                      </>)}
+                      empty={{ icon: "◐", title: "Nenhum membro cadastrado", sub: "Adicione os representantes de cada área ao comitê." }}
+                    />
+                  </Card>
+                )}
+              </div>
             )}
 
             {/* ── USUÁRIOS ── */}
