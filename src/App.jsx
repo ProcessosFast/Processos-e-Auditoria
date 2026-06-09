@@ -2563,12 +2563,163 @@ function PlanoModal({ open, onClose, areas, usuarios, onSave }) {
   );
 }
 
+async function gerarPDFRelatorioFinal(auditoria) {
+  const r = auditoria.relatorioFinal;
+  let logoSrc = "";
+  try {
+    const resp = await fetch("/logo-fast-sistemas-construtivos.svg");
+    const svgText = await resp.text();
+    logoSrc = `data:image/svg+xml;base64,${btoa(unescape(encodeURIComponent(svgText)))}`;
+  } catch {}
+
+  const scoreClr = s => s >= 85 ? "#00B050" : s >= 65 ? "#FF8C00" : "#E8001D";
+  const scoreLbl = s => s >= 90 ? "Excelente" : s >= 75 ? "Conforme" : s >= 60 ? "Em Atenção" : "Crítico";
+  const ncc = auditoria.ncs?.filter(n => n.clas === "nc").length || 0;
+  const mel = auditoria.ncs?.filter(n => n.clas === "mel").length || 0;
+  const obs = auditoria.ncs?.filter(n => n.clas === "obs").length || 0;
+
+  const secao = (titulo, conteudo) => conteudo ? `
+    <div class="secao">
+      <div class="sec-titulo">${titulo}</div>
+      <div class="sec-corpo">${conteudo}</div>
+    </div>` : "";
+
+  const html = `<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"/>
+<title>Relatório Final — ${auditoria.areaNome}</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family: Arial, sans-serif; font-size: 13px; color: #1A1A1A; background: #fff; padding: 40px; }
+  @media print { body { padding: 20px; } .no-print { display:none; } }
+  .header { display:flex; align-items:center; justify-content:space-between; border-bottom: 3px solid #E8001D; padding-bottom: 18px; margin-bottom: 28px; }
+  .header img { height: 48px; }
+  .header-right { text-align:right; color:#888; font-size:12px; line-height:1.8; }
+  .titulo-doc { font-size: 22px; font-weight: 900; font-family: Arial Black, sans-serif; color: #1A1A1A; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 1px; }
+  .resumo { display:flex; gap:16px; background:#F5F4F2; border-radius:10px; padding:20px; margin-bottom:28px; flex-wrap:wrap; }
+  .resumo-bloco { flex:1; min-width:120px; }
+  .resumo-label { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:1px; color:#888; margin-bottom:6px; }
+  .resumo-valor { font-size:32px; font-weight:900; line-height:1; }
+  .resumo-sub { font-size:11px; margin-top:4px; }
+  .ncs-grid { display:flex; gap:12px; flex-wrap:wrap; margin-bottom:28px; }
+  .nc-box { flex:1; min-width:100px; border-radius:8px; padding:14px; text-align:center; }
+  .nc-box-num { font-size:28px; font-weight:900; line-height:1; }
+  .nc-box-lbl { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:0.5px; margin-top:4px; }
+  .secao { margin-bottom:22px; }
+  .sec-titulo { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:1.5px; color:#888; margin-bottom:8px; border-bottom:2px solid #E5E5E5; padding-bottom:5px; }
+  .sec-corpo { font-size:13.5px; line-height:1.8; color:#1A1A1A; background:#F5F4F2; border-radius:8px; padding:14px 16px; white-space:pre-wrap; }
+  .ncs-lista { margin-bottom:28px; }
+  .nc-item { padding:10px 14px; border-radius:7px; margin-bottom:8px; }
+  .nc-tag { display:inline-block; font-size:9px; font-weight:700; text-transform:uppercase; padding:2px 7px; border-radius:3px; margin-right:8px; }
+  .evidencia { font-size:11.5px; margin-top:6px; color:#555; }
+  .elaborador { font-size:11.5px; color:#888; margin-bottom:22px; padding:10px 14px; background:#F5F4F2; border-radius:7px; }
+  .footer { margin-top:40px; padding-top:14px; border-top:1px solid #E5E5E5; font-size:11px; color:#aaa; text-align:center; }
+  .print-btn { position:fixed; bottom:24px; right:24px; background:#E8001D; color:#fff; border:none; padding:11px 22px; border-radius:7px; font-size:13px; font-weight:700; cursor:pointer; box-shadow:0 4px 16px rgba(232,0,29,0.35); }
+  .reuniao-box { background:#FFF3CD; border:1px solid #FFC107; border-radius:8px; padding:14px 16px; margin-bottom:22px; font-size:13px; color:#856404; }
+</style>
+</head>
+<body>
+<div class="header">
+  ${logoSrc ? `<img src="${logoSrc}" alt="Fast Sistemas Construtivos"/>` : `<strong style="font-size:24px">FAST</strong>`}
+  <div class="header-right">
+    <div class="titulo-doc">Relatório Final de Auditoria</div>
+    <div>Emitido em ${new Date().toLocaleDateString("pt-BR", { day:"2-digit", month:"long", year:"numeric" })}</div>
+  </div>
+</div>
+
+${auditoria.comite?.dataReuniao ? `<div class="reuniao-box">📅 <strong>Reunião do Comitê agendada para ${new Date(auditoria.comite.dataReuniao + "T00:00").toLocaleDateString("pt-BR", { day:"2-digit", month:"long", year:"numeric" })}</strong></div>` : ""}
+
+<div class="resumo">
+  <div class="resumo-bloco">
+    <div class="resumo-label">Área Auditada</div>
+    <div style="font-size:18px; font-weight:800; margin-top:4px">${auditoria.areaNome}</div>
+    <div class="resumo-sub" style="color:#888">${auditoria.cicloNome && auditoria.cicloNome !== "—" ? `Ciclo: ${auditoria.cicloNome}` : ""} ${auditoria.local ? `· ${auditoria.local}` : ""}</div>
+  </div>
+  <div class="resumo-bloco" style="text-align:center">
+    <div class="resumo-label">Score</div>
+    <div class="resumo-valor" style="color:${scoreClr(auditoria.score)}">${auditoria.score}%</div>
+    <div class="resumo-sub" style="color:${scoreClr(auditoria.score)};font-weight:700">${scoreLbl(auditoria.score)}</div>
+  </div>
+  <div class="resumo-bloco" style="text-align:center">
+    <div class="resumo-label">Data</div>
+    <div style="font-size:15px;font-weight:700;margin-top:4px">${new Date(auditoria.data + "T00:00").toLocaleDateString("pt-BR")}</div>
+    <div class="resumo-sub" style="color:#888">${auditoria.auditorNome}</div>
+  </div>
+</div>
+
+<div class="ncs-grid">
+  <div class="nc-box" style="background:#FFEBEB;border:1px solid #E8001D33">
+    <div class="nc-box-num" style="color:#E8001D">${ncc}</div>
+    <div class="nc-box-lbl" style="color:#E8001D">Não Conformidades</div>
+  </div>
+  <div class="nc-box" style="background:#E8F4FF;border:1px solid #0066CC33">
+    <div class="nc-box-num" style="color:#0066CC">${mel}</div>
+    <div class="nc-box-lbl" style="color:#0066CC">Oportunidades de Melhoria</div>
+  </div>
+  <div class="nc-box" style="background:#F5F4F2;border:1px solid #88888833">
+    <div class="nc-box-num" style="color:#555">${obs}</div>
+    <div class="nc-box-lbl" style="color:#555">Observações</div>
+  </div>
+</div>
+
+<div class="elaborador">
+  Relatório elaborado por <strong>${r.auditorNome}</strong> em ${new Date(r.data).toLocaleDateString("pt-BR", { day:"2-digit", month:"long", year:"numeric" })}
+</div>
+
+${secao("Conclusões da Auditoria", r.conclusoes)}
+${secao("Recomendações", r.recomendacoes)}
+${secao("Observações Adicionais", r.observacoes)}
+
+${auditoria.ncs?.length > 0 ? `
+<div class="secao">
+  <div class="sec-titulo">Não Conformidades e Evidências (${auditoria.ncs.length})</div>
+  <div class="ncs-lista">
+    ${auditoria.ncs.map(n => {
+      const cores = { nc: ["#FFEBEB","#E8001D"], mel: ["#E8F4FF","#0066CC"], obs: ["#F5F4F2","#555555"] };
+      const [bg, c] = cores[n.clas] || cores.obs;
+      const lbls = { nc: "NC", mel: "Melhoria", obs: "Obs" };
+      return `<div class="nc-item" style="background:${bg};border:1px solid ${c}33">
+        <span class="nc-tag" style="background:${c}22;color:${c}">${lbls[n.clas] || "—"}</span>${n.q}
+        ${n.evidencia ? `<div class="evidencia"><strong>Evidência:</strong> ${n.evidencia}</div>` : ""}
+      </div>`;
+    }).join("")}
+  </div>
+</div>` : ""}
+
+${auditoria.comentarios?.length > 0 ? `
+<div class="secao">
+  <div class="sec-titulo">Comentários do Comitê (${auditoria.comentarios.length})</div>
+  ${auditoria.comentarios.map(c => `
+    <div style="padding:10px 14px;background:#F5F4F2;border-radius:7px;margin-bottom:8px">
+      <div style="font-size:11px;font-weight:700;color:#888;margin-bottom:4px">${c.usuarioNome} · ${new Date(c.data).toLocaleDateString("pt-BR")}</div>
+      <div style="font-size:13px">${c.texto}</div>
+    </div>`).join("")}
+</div>` : ""}
+
+<div class="footer">Fast Sistemas Construtivos — Relatório Final de Auditoria — Uso Interno</div>
+<button class="print-btn no-print" onclick="window.print()">🖨 Imprimir / Salvar PDF</button>
+</body>
+</html>`;
+
+  const blob = new Blob([html], { type: "text/html;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const win = window.open(url, "_blank");
+  setTimeout(() => URL.revokeObjectURL(url), 60000);
+  if (!win) alert("Permita pop-ups para gerar o PDF.");
+}
+
 function RelatorioFinalViewModal({ open, onClose, auditoria }) {
   if (!auditoria?.relatorioFinal) return null;
   const r = auditoria.relatorioFinal;
   return (
     <Modal open={open} onClose={onClose} title="Relatório Final de Auditoria" width={560}
-      footer={<Btn variant="ghost" onClick={onClose}>Fechar</Btn>}>
+      footer={
+        <div style={{ display: "flex", justifyContent: "space-between", width: "100%", alignItems: "center" }}>
+          <Btn variant="ghost" onClick={onClose}>Fechar</Btn>
+          <Btn onClick={() => gerarPDFRelatorioFinal(auditoria)} style={{ background: F.red, border: "none", color: "#fff" }}>🖨 Gerar PDF</Btn>
+        </div>
+      }>
       <div style={{ background: F.offWhite, borderRadius: 8, padding: "10px 14px", marginBottom: 18, display: "flex", gap: 16, flexWrap: "wrap", alignItems: "center" }}>
         <div style={{ flex: 1 }}>
           <div style={{ fontFamily: "'Barlow Condensed',sans-serif", fontSize: 16, fontWeight: 800, color: F.charcoal }}>{auditoria.areaNome}</div>
@@ -2580,6 +2731,12 @@ function RelatorioFinalViewModal({ open, onClose, auditoria }) {
         </div>
       </div>
 
+      {auditoria.comite?.dataReuniao && (
+        <div style={{ background: "#FFF3CD", border: "1px solid #FFC10744", borderRadius: 7, padding: "8px 12px", marginBottom: 14, fontSize: 12.5, color: "#856404" }}>
+          📅 Reunião do Comitê agendada para <strong>{fmtDate(auditoria.comite.dataReuniao)}</strong>
+        </div>
+      )}
+
       <div style={{ fontSize: 11, color: F.gray4, marginBottom: 16 }}>
         Elaborado por <strong style={{ color: F.charcoal }}>{r.auditorNome}</strong> em {fmtDate(r.data?.split("T")[0])}
       </div>
@@ -2590,6 +2747,18 @@ function RelatorioFinalViewModal({ open, onClose, auditoria }) {
           <div style={{ fontSize: 13.5, color: F.charcoal, lineHeight: 1.7, background: F.offWhite, borderRadius: 7, padding: "10px 14px" }}>{valor}</div>
         </div>
       ))}
+
+      {auditoria.comentarios?.length > 0 && (
+        <div>
+          <div style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: 1, color: F.gray4, fontFamily: "'Barlow Condensed',sans-serif", marginBottom: 8 }}>Comentários do Comitê ({auditoria.comentarios.length})</div>
+          {auditoria.comentarios.map(c => (
+            <div key={c.id} style={{ background: F.offWhite, borderRadius: 6, padding: "8px 10px", marginBottom: 6 }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: F.gray3, marginBottom: 2 }}>{c.usuarioNome} · {fmtDate(c.data?.split("T")[0])}</div>
+              <div style={{ fontSize: 12.5, color: F.charcoal }}>{c.texto}</div>
+            </div>
+          ))}
+        </div>
+      )}
     </Modal>
   );
 }
