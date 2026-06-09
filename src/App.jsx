@@ -550,6 +550,7 @@ export default function App() {
       { id: "u-admin", nome: "Administrador", ini: "AD", email: "admin@fastdrywall.com.br", perfil: "administrador", areaId: "", areaNome: "—" },
       { id: "u-auditor-lider", nome: "Auditor Líder", ini: "AL", email: "auditor.lider@fastdrywall.com.br", perfil: "auditor-lider", areaId: "", areaNome: "—" },
       { id: "u-auditor", nome: "Auditor", ini: "AU", email: "auditor@fastdrywall.com.br", perfil: "auditor", areaId: "", areaNome: "—" },
+      { id: "u-comite", nome: "Comitê", ini: "CO", email: "comite@fastdrywall.com.br", perfil: "comite", areaId: "", areaNome: "—" },
       { id: "u-gestor", nome: "Gestor da Área", ini: "GA", email: "gestor@fastdrywall.com.br", perfil: "gestor", areaId: "", areaNome: "—" },
     ];
     try {
@@ -558,6 +559,9 @@ export default function App() {
       if (!base.usuarios || base.usuarios.length === 0) base.usuarios = USUARIOS_PADRAO;
       if (!base.modulos) base.modulos = [];
       if (!base.notificacoes) base.notificacoes = [];
+      if (!base.usuarios.find(u => u.perfil === "comite")) {
+        base.usuarios.push({ id: "u-comite", nome: "Comitê", ini: "CO", email: "comite@fastdrywall.com.br", perfil: "comite", areaId: "", areaNome: "—" });
+      }
       return base;
     } catch {
       return { areas: [], processos: [], auditorias: [], planos: [], ciclos: [], comite: [], usuarios: USUARIOS_PADRAO, modulos: [] };
