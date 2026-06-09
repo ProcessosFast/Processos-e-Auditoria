@@ -1597,7 +1597,11 @@ ${db.planos.length ? `<table>
                       <TD>
                         {podeExecutar(perfil, "relatorio-final") && (
                           a.relatorioFinal?.status === "enviado"
-                            ? <div><Pill color={F.green} bg={F.greenDim}>Enviado</Pill><div style={{ fontSize: 10, color: F.gray4, marginTop: 2 }}>{a.relatorioFinal.auditorNome}</div></div>
+                            ? <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                                <Pill color={F.green} bg={F.greenDim}>Enviado</Pill>
+                                <div style={{ fontSize: 10, color: F.gray4 }}>{a.relatorioFinal.auditorNome}</div>
+                                <button onClick={() => setViewRelatorioAudId(a.id)} style={{ background: F.greenDim, color: F.green, border: `1px solid ${F.green}44`, borderRadius: 5, padding: "2px 8px", cursor: "pointer", fontSize: 10.5, fontWeight: 700, fontFamily: "'Barlow',sans-serif" }}>📄 Ver</button>
+                              </div>
                             : <button onClick={() => setRelatorioFinalAudId(a.id)} style={{ fontSize: 11, color: F.blue, background: F.blueDim, border: `1px solid ${F.blue}44`, borderRadius: 5, padding: "3px 9px", cursor: "pointer", fontWeight: 700, fontFamily: "'Barlow',sans-serif" }}>Elaborar</button>
                         )}
                         {!podeExecutar(perfil, "relatorio-final") && (
