@@ -586,6 +586,7 @@ export default function App() {
   const [cienciaAuditoriaId, setCienciaAuditoriaId] = useState(null);
   const [comiteAba, setComiteAba] = useState("reunioes");
   const [relatorioFinalAudId, setRelatorioFinalAudId] = useState(null);
+  const [viewRelatorioAudId, setViewRelatorioAudId] = useState(null);
   const planosIdsRef = useRef(new Set());
 
   useEffect(() => {
@@ -1599,7 +1600,11 @@ ${db.planos.length ? `<table>
                             ? <div><Pill color={F.green} bg={F.greenDim}>Enviado</Pill><div style={{ fontSize: 10, color: F.gray4, marginTop: 2 }}>{a.relatorioFinal.auditorNome}</div></div>
                             : <button onClick={() => setRelatorioFinalAudId(a.id)} style={{ fontSize: 11, color: F.blue, background: F.blueDim, border: `1px solid ${F.blue}44`, borderRadius: 5, padding: "3px 9px", cursor: "pointer", fontWeight: 700, fontFamily: "'Barlow',sans-serif" }}>Elaborar</button>
                         )}
-                        {!podeExecutar(perfil, "relatorio-final") && (a.relatorioFinal?.status === "enviado" ? <Pill color={F.green} bg={F.greenDim}>Disponível</Pill> : <span style={{ color: F.gray5, fontSize: 12 }}>—</span>)}
+                        {!podeExecutar(perfil, "relatorio-final") && (
+                          a.relatorioFinal?.status === "enviado"
+                            ? <button onClick={() => setViewRelatorioAudId(a.id)} style={{ background: F.greenDim, color: F.green, border: `1px solid ${F.green}44`, borderRadius: 5, padding: "3px 9px", cursor: "pointer", fontSize: 11, fontWeight: 700, fontFamily: "'Barlow',sans-serif" }}>📄 Ver Relatório</button>
+                            : <span style={{ color: F.gray5, fontSize: 12 }}>—</span>
+                        )}
                       </TD>
                       {podeExecutar(perfil, "excluir") && <TD><button onClick={() => upd("auditorias", arr => arr.filter(x => x.id !== a.id))} style={{ background: "none", border: "none", color: F.gray4, cursor: "pointer", fontSize: 16, padding: "2px 6px" }}>✕</button></TD>}
                     </>;
@@ -2229,6 +2234,13 @@ ${db.planos.length ? `<table>
       {/* PLANO */}
       <PlanoModal open={!!modals.plano} onClose={() => closeModal("plano")} areas={db.areas} usuarios={db.usuarios} onSave={f => { savePlano(f); }} />
 
+      {/* VISUALIZAR RELATÓRIO FINAL */}
+      <RelatorioFinalViewModal
+        open={!!viewRelatorioAudId}
+        onClose={() => setViewRelatorioAudId(null)}
+        auditoria={db.auditorias.find(a => a.id === viewRelatorioAudId) || null}
+      />
+
       {/* RELATÓRIO FINAL */}
       <RelatorioFinalModal
         open={!!relatorioFinalAudId}
@@ -2543,6 +2555,37 @@ function PlanoModal({ open, onClose, areas, usuarios, onSave }) {
           </select>
         </FG>
       </div>
+    </Modal>
+  );
+}
+
+function RelatorioFinalViewModal({ open, onClose, auditoria }) {
+  if (!auditoria?.relatorioFinal) return null;
+  const r = auditoria.relatorioFinal;
+  return (
+    <Modal open={open} onClose={onClose} title="Relatório Final de Auditoria" width={560}
+      footer={<Btn variant="ghost" onClick={onClose}>Fechar</Btn>}>
+      <div style={{ background: F.offWhite, borderRadius: 8, padding: "10px 14px", marginBottom: 18, display: "flex", gap: 16, flexWrap: "wrap", alignItems: "center" }}>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontFamily: "'Barlow Condensed',sans-serif", fontSize: 16, fontWeight: 800, color: F.charcoal }}>{auditoria.areaNome}</div>
+          <div style={{ fontSize: 11.5, color: F.gray4, marginTop: 2 }}>Auditado em {fmtDate(auditoria.data)} · {auditoria.auditorNome}</div>
+        </div>
+        <div style={{ textAlign: "center" }}>
+          <div style={{ fontFamily: "'Barlow Condensed',sans-serif", fontSize: 32, fontWeight: 900, color: scoreColor(auditoria.score), lineHeight: 1 }}>{auditoria.score}%</div>
+          <div style={{ fontSize: 10, color: scoreColor(auditoria.score), fontWeight: 700, textTransform: "uppercase" }}>{scoreLabel(auditoria.score)}</div>
+        </div>
+      </div>
+
+      <div style={{ fontSize: 11, color: F.gray4, marginBottom: 16 }}>
+        Elaborado por <strong style={{ color: F.charcoal }}>{r.auditorNome}</strong> em {fmtDate(r.data?.split("T")[0])}
+      </div>
+
+      {[["Conclusões", r.conclusoes], ["Recomendações", r.recomendacoes], ["Observações Adicionais", r.observacoes]].filter(([, v]) => v).map(([label, valor]) => (
+        <div key={label} style={{ marginBottom: 16 }}>
+          <div style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: 1, color: F.gray4, fontFamily: "'Barlow Condensed',sans-serif", marginBottom: 6 }}>{label}</div>
+          <div style={{ fontSize: 13.5, color: F.charcoal, lineHeight: 1.7, background: F.offWhite, borderRadius: 7, padding: "10px 14px" }}>{valor}</div>
+        </div>
+      ))}
     </Modal>
   );
 }
