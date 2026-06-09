@@ -95,19 +95,19 @@ function scoreAreaCiclo(areaId, auditorias) {
 const PERMISSOES = {
   administrador: {
     views: ["dashboard","areas","processos","auditorias","planos","ncs","ciclos","comite","usuarios","modulos"],
-    acoes: new Set(["criar","excluir","aprovar","exportar","auditar","atualizar-status","gerir-modulos","gerir-ciclos","gerir-comite","liberar-relatorios","agendar-reuniao"])
+    acoes: new Set(["criar","excluir","aprovar","exportar","auditar","atualizar-status","gerir-modulos","gerir-ciclos","gerir-comite","liberar-relatorios","agendar-reuniao","comentar-auditoria","relatorio-final"])
   },
   "auditor-lider": {
     views: ["dashboard","areas","processos","auditorias","planos","ncs","ciclos","comite","modulos"],
-    acoes: new Set(["auditar","exportar","gerir-ciclos","gerir-comite","agendar-reuniao"])
+    acoes: new Set(["auditar","exportar","gerir-ciclos","gerir-comite","agendar-reuniao","relatorio-final","comentar-auditoria"])
   },
   auditor: {
     views: ["dashboard","areas","processos","auditorias","planos","ncs","ciclos","comite","modulos"],
     acoes: new Set(["auditar","exportar"])
   },
   comite: {
-    views: ["dashboard","auditorias","planos","comite"],
-    acoes: new Set(["exportar"])
+    views: ["dashboard","auditorias","processos","planos","comite"],
+    acoes: new Set(["exportar","comentar-auditoria","votar-enquete"])
   },
   gestor: {
     views: ["planos","auditorias"],
@@ -413,6 +413,17 @@ function AreaSelectionScreen({ areas, usuario, onSelect, onBack }) {
   );
 }
 
+// ── COMENTARIO INLINE ────────────────────────────────────────────
+function ComentarioInline({ audId, onSave }) {
+  const [texto, setTexto] = useState("");
+  return (
+    <div style={{ display: "flex", gap: 8, marginTop: 6 }}>
+      <input style={{ ...fi, flex: 1, fontSize: 12.5 }} value={texto} onChange={e => setTexto(e.target.value)} placeholder="Adicionar comentário..." onKeyDown={e => { if (e.key === "Enter" && texto.trim()) { onSave(audId, texto); setTexto(""); } }} />
+      <Btn onClick={() => { if (texto.trim()) { onSave(audId, texto); setTexto(""); } }} style={{ padding: "7px 12px", fontSize: 12 }}>Enviar</Btn>
+    </div>
+  );
+}
+
 // ── LOGIN SCREEN ─────────────────────────────────────────────────
 const PERFIL_ORDEM = ["administrador","auditor-lider","auditor","gestor","comite","diretoria","operacional"];
 
@@ -543,9 +554,10 @@ export default function App() {
     ];
     try {
       const salvo = localStorage.getItem("portal-fast-db");
-      const base = salvo ? JSON.parse(salvo) : { areas: [], processos: [], auditorias: [], planos: [], ciclos: [], comite: [], usuarios: [], modulos: [] };
+      const base = salvo ? JSON.parse(salvo) : { areas: [], processos: [], auditorias: [], planos: [], ciclos: [], comite: [], usuarios: [], modulos: [], notificacoes: [] };
       if (!base.usuarios || base.usuarios.length === 0) base.usuarios = USUARIOS_PADRAO;
       if (!base.modulos) base.modulos = [];
+      if (!base.notificacoes) base.notificacoes = [];
       return base;
     } catch {
       return { areas: [], processos: [], auditorias: [], planos: [], ciclos: [], comite: [], usuarios: USUARIOS_PADRAO, modulos: [] };
@@ -569,6 +581,7 @@ export default function App() {
   const [justificandoPlano, setJustificandoPlano] = useState(null);
   const [cienciaAuditoriaId, setCienciaAuditoriaId] = useState(null);
   const [comiteAba, setComiteAba] = useState("reunioes");
+  const [relatorioFinalAudId, setRelatorioFinalAudId] = useState(null);
   const planosIdsRef = useRef(new Set());
 
   useEffect(() => {
@@ -790,6 +803,7 @@ ${db.planos.length ? `<table>
   })();
 
   // ── NOTIFICAÇÕES ──
+  const notifDB = (db.notificacoes || []).filter(n => n.paraId === usuarioLogado.id && !n.lida);
   const notificacoes = [
     ...db.planos
       .filter(p => idsNovos.has(p.id))
@@ -804,10 +818,12 @@ ${db.planos.length ? `<table>
         const dias = Math.ceil((new Date(p.prazo + "T00:00") - new Date()) / 86400000);
         return { key: `prazo-${p.id}`, tipo: "prazo", titulo: dias === 0 ? "Vence hoje!" : `Vence em ${dias} dia${dias !== 1 ? "s" : ""}`, desc: p.desc, area: p.areaNome, prazo: p.prazo };
       }),
+    ...notifDB.map(n => ({ key: `db-${n.id}`, tipo: n.tipo, titulo: n.titulo, desc: n.mensagem, area: n.meta?.areaNome || "", prazo: n.meta?.dataReuniao || "", dbId: n.id })),
   ].filter(n => !idsLidos.has(n.key));
 
   function marcarTodasLidas() {
     setIdsLidos(s => new Set([...s, ...notificacoes.map(n => n.key)]));
+    upd("notificacoes", arr => arr.map(n => n.paraId === usuarioLogado.id ? { ...n, lida: true } : n));
     setNotifOpen(false);
   }
 
@@ -913,18 +929,67 @@ ${db.planos.length ? `<table>
     upd("planos", arr => arr.map(p => p.id === id ? { ...p, aprovacao: "rejeitado", rejeitadoPor: usuarioLogado?.nome || "—", rejeitadoEm: new Date().toISOString(), historico: [...(p.historico || []), evt] } : p));
     showToast("Relatório rejeitado.", "err");
   }
-  function agendarReuniaoComite(audId, dataReuniao) {
-    upd("auditorias", arr => arr.map(a => a.id === audId ? { ...a, comite: { ...(a.comite || {}), dataReuniao } } : a));
-    showToast("Reunião agendada!");
+  function enviarNotificacao(paraId, titulo, mensagem, tipo, meta) {
+    upd("notificacoes", arr => [...arr, { id: uid(), paraId, titulo, mensagem, tipo: tipo || "geral", meta: meta || {}, data: new Date().toISOString(), lida: false }]);
   }
+
+  function marcarReuniaoComNotificacoes(audId, dataReuniao) {
+    const aud = db.auditorias.find(a => a.id === audId);
+    if (!aud) return;
+    upd("auditorias", arr => arr.map(a => a.id === audId ? { ...a, comite: { ...(a.comite || {}), dataReuniao } } : a));
+    const mensagem = `Reunião do Comitê agendada para ${fmtDate(dataReuniao)} — Auditoria: ${aud.areaNome}`;
+    const meta = { auditoriaId: audId, areaNome: aud.areaNome, dataReuniao };
+    db.usuarios.forEach(u => {
+      if (["comite","administrador","auditor-lider","auditor"].includes(u.perfil)) {
+        enviarNotificacao(u.id, "Reunião do Comitê Agendada", mensagem, "reuniao", meta);
+      }
+      if (u.perfil === "gestor" && u.areaId === aud.areaId) {
+        enviarNotificacao(u.id, "Reunião do Comitê Agendada", mensagem, "reuniao", meta);
+      }
+    });
+    showToast("Reunião agendada — notificações enviadas!");
+  }
+
   function marcarReuniaoRealizada(audId, obs) {
     upd("auditorias", arr => arr.map(a => a.id === audId ? { ...a, comite: { ...(a.comite || {}), status: "realizada", realizadaEm: new Date().toISOString(), observacoes: obs || "" } } : a));
     showToast("Reunião marcada como realizada!");
   }
+
+  function addComentarioAuditoria(audId, texto) {
+    if (!texto?.trim()) return;
+    const comentario = { id: uid(), usuarioId: usuarioLogado.id, usuarioNome: usuarioLogado.nome, texto, data: new Date().toISOString() };
+    upd("auditorias", arr => arr.map(a => a.id === audId ? { ...a, comentarios: [...(a.comentarios || []), comentario] } : a));
+  }
+
+  function salvarRelatorioFinal(audId, form) {
+    upd("auditorias", arr => arr.map(a => a.id === audId ? { ...a, relatorioFinal: { ...form, auditorId: usuarioLogado.id, auditorNome: usuarioLogado.nome, data: new Date().toISOString(), status: "enviado" } } : a));
+    setRelatorioFinalAudId(null);
+    showToast("Relatório final enviado ao administrador!");
+  }
+
   function liberarRelatoriosGestor(audId) {
-    const evt = { data: new Date().toISOString(), acao: "Liberado pelo administrador após reunião do comitê", autor: usuarioLogado?.nome || "Sistema" };
-    upd("planos", arr => arr.map(p => p.auditoriaId === audId ? { ...p, aguardaComite: false, aprovacao: "aprovado", historico: [...(p.historico || []), evt] } : p));
-    showToast("Relatórios liberados para o gestor!");
+    const evt = { data: new Date().toISOString(), acao: "Liberado após reunião do comitê", autor: usuarioLogado?.nome || "Sistema" };
+    const aud = db.auditorias.find(a => a.id === audId);
+    upd("planos", arr => arr.map(p => p.auditoriaId === audId ? {
+      ...p, aguardaComite: false, aprovacao: "pendente",
+      enqueteComite: db.comite.reduce((acc, m) => ({ ...acc, [m.usuarioId]: null }), {}),
+      historico: [...(p.historico || []), evt]
+    } : p));
+    db.comite.forEach(m => {
+      const planos = db.planos.filter(p => p.auditoriaId === audId);
+      planos.forEach(p => {
+        enviarNotificacao(m.usuarioId, "Enquete: Aprovar Relatório de Conclusão", `Sua votação é necessária para o relatório: "${p.desc?.slice(0,60)}"`, "enquete", { planoId: p.id, areaNome: aud?.areaNome });
+      });
+    });
+    showToast("Relatórios liberados — enquete enviada ao comitê!");
+  }
+
+  function votarEnquete(planoId, voto) {
+    upd("planos", arr => arr.map(p => p.id === planoId ? {
+      ...p, enqueteComite: { ...(p.enqueteComite || {}), [usuarioLogado.id]: { voto, nome: usuarioLogado.nome, data: new Date().toISOString() } }
+    } : p));
+    upd("notificacoes", arr => arr.map(n => n.meta?.planoId === planoId && n.paraId === usuarioLogado.id ? { ...n, lida: true } : n));
+    showToast(voto === "sim" ? "Voto registrado: Aprovado!" : "Voto registrado: Reprovado.");
   }
 
   function aprovarExtensao(id) {
@@ -1190,7 +1255,7 @@ ${db.planos.length ? `<table>
                                 {n.area}{n.prazo ? ` · Prazo: ${fmtDate(n.prazo)}` : ""}
                               </div>
                             </div>
-                            <button onClick={() => setIdsLidos(s => new Set([...s, n.key]))} style={{
+                            <button onClick={() => { setIdsLidos(s => new Set([...s, n.key])); if (n.dbId) upd("notificacoes", arr => arr.map(x => x.id === n.dbId ? { ...x, lida: true } : x)); }} style={{
                               background: "none", border: "none", color: F.gray4,
                               cursor: "pointer", fontSize: 14, padding: "2px 4px", flexShrink: 0
                             }}>✕</button>
@@ -1491,7 +1556,7 @@ ${db.planos.length ? `<table>
             {view === "auditorias" && (
               <Card>
                 <DataTable
-                  cols={["Área", "Auditor", "Data", "Ciclo", "Score Individual", "Média do Ciclo", "NCs", "Ciência", ...(podeExecutar(perfil, "excluir") ? [""] : [])]}
+                  cols={["Área", "Auditor", "Data", "Ciclo", "Score Individual", "Média do Ciclo", "NCs", "Ciência", "Rel. Final", ...(podeExecutar(perfil, "excluir") ? [""] : [])]}
                   rows={auditoriasVisiveis.map(a => {
                     const ncc = a.ncs?.filter(n => n.clas === "nc").length || 0;
                     const parceirosCiclo = a.cicloNome && a.cicloNome !== "—"
@@ -1523,6 +1588,14 @@ ${db.planos.length ? `<table>
                               {perfil === "gestor" && <button onClick={() => setCienciaAuditoriaId(a.id)} style={{ fontSize: 10.5, color: F.green, background: F.greenDim, border: `1px solid ${F.green}44`, borderRadius: 5, padding: "2px 8px", cursor: "pointer", fontWeight: 700, fontFamily: "'Barlow',sans-serif" }}>Registrar</button>}
                             </div>
                         }
+                      </TD>
+                      <TD>
+                        {podeExecutar(perfil, "relatorio-final") && (
+                          a.relatorioFinal?.status === "enviado"
+                            ? <div><Pill color={F.green} bg={F.greenDim}>Enviado</Pill><div style={{ fontSize: 10, color: F.gray4, marginTop: 2 }}>{a.relatorioFinal.auditorNome}</div></div>
+                            : <button onClick={() => setRelatorioFinalAudId(a.id)} style={{ fontSize: 11, color: F.blue, background: F.blueDim, border: `1px solid ${F.blue}44`, borderRadius: 5, padding: "3px 9px", cursor: "pointer", fontWeight: 700, fontFamily: "'Barlow',sans-serif" }}>Elaborar</button>
+                        )}
+                        {!podeExecutar(perfil, "relatorio-final") && (a.relatorioFinal?.status === "enviado" ? <Pill color={F.green} bg={F.greenDim}>Disponível</Pill> : <span style={{ color: F.gray5, fontSize: 12 }}>—</span>)}
                       </TD>
                       {podeExecutar(perfil, "excluir") && <TD><button onClick={() => upd("auditorias", arr => arr.filter(x => x.id !== a.id))} style={{ background: "none", border: "none", color: F.gray4, cursor: "pointer", fontSize: 16, padding: "2px 6px" }}>✕</button></TD>}
                     </>;
@@ -1869,7 +1942,7 @@ ${db.planos.length ? `<table>
               <div>
                 {/* Tabs */}
                 <div style={{ display: "flex", gap: 4, marginBottom: 16 }}>
-                  {[["reunioes","Reuniões de Auditoria"],["membros","Membros"]].map(([id, label]) => (
+                  {[["reunioes","Reuniões de Auditoria"],["enquetes","Enquetes"],["membros","Membros"]].map(([id, label]) => (
                     <button key={id} onClick={() => setComiteAba(id)} style={{
                       padding: "8px 18px", borderRadius: 7, border: "none", cursor: "pointer",
                       fontSize: 13, fontWeight: 600, fontFamily: "'Barlow',sans-serif",
@@ -1956,7 +2029,7 @@ ${db.planos.length ? `<table>
                                 <div style={{ flex: 1, minWidth: 180 }}>
                                   <div style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: 1, color: F.gray4, marginBottom: 5, fontFamily: "'Barlow Condensed',sans-serif" }}>Data da Reunião do Comitê</div>
                                   {podeExecutar(perfil, "agendar-reuniao") ? (
-                                    <input type="date" style={{ ...fi, fontSize: 12.5 }} value={a.comite?.dataReuniao || ""} onChange={e => agendarReuniaoComite(a.id, e.target.value)} />
+                                    <input type="date" style={{ ...fi, fontSize: 12.5 }} value={a.comite?.dataReuniao || ""} onChange={e => marcarReuniaoComNotificacoes(a.id, e.target.value)} />
                                   ) : (
                                     <div style={{ fontSize: 13, fontWeight: 600, color: a.comite?.dataReuniao ? F.charcoal : F.gray4 }}>{a.comite?.dataReuniao ? fmtDate(a.comite.dataReuniao) : "Não agendada"}</div>
                                   )}
@@ -1989,10 +2062,88 @@ ${db.planos.length ? `<table>
                               </div>
                             )}
 
+                            {/* Relatório Final */}
+                            {a.relatorioFinal?.status === "enviado" && (
+                              <div style={{ marginTop: 12, background: F.blueDim, border: `1px solid ${F.blue}44`, borderRadius: 8, padding: "10px 14px" }}>
+                                <div style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: 1, color: F.blue, fontFamily: "'Barlow Condensed',sans-serif", marginBottom: 6 }}>Relatório Final — {a.relatorioFinal.auditorNome} · {fmtDate(a.relatorioFinal.data?.split("T")[0])}</div>
+                                {a.relatorioFinal.conclusoes && <div style={{ fontSize: 12.5, marginBottom: 4 }}><strong>Conclusões:</strong> {a.relatorioFinal.conclusoes}</div>}
+                                {a.relatorioFinal.recomendacoes && <div style={{ fontSize: 12.5, marginBottom: 4 }}><strong>Recomendações:</strong> {a.relatorioFinal.recomendacoes}</div>}
+                                {a.relatorioFinal.observacoes && <div style={{ fontSize: 12.5 }}><strong>Obs.:</strong> {a.relatorioFinal.observacoes}</div>}
+                              </div>
+                            )}
+
+                            {/* Comentários do Comitê */}
+                            {podeExecutar(perfil, "comentar-auditoria") && (
+                              <div style={{ marginTop: 12, borderTop: `1px solid ${F.gray6}`, paddingTop: 12 }}>
+                                <div style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: 1, color: F.gray4, fontFamily: "'Barlow Condensed',sans-serif", marginBottom: 8 }}>Comentários do Comitê</div>
+                                {(a.comentarios || []).map(c => (
+                                  <div key={c.id} style={{ background: F.offWhite, borderRadius: 6, padding: "8px 10px", marginBottom: 6 }}>
+                                    <div style={{ fontSize: 11, fontWeight: 700, color: F.gray3, marginBottom: 2 }}>{c.usuarioNome} · {fmtDate(c.data?.split("T")[0])}</div>
+                                    <div style={{ fontSize: 12.5, color: F.charcoal }}>{c.texto}</div>
+                                  </div>
+                                ))}
+                                <ComentarioInline audId={a.id} onSave={addComentarioAuditoria} />
+                              </div>
+                            )}
+
                             {a.obs && <div style={{ marginTop: 12, fontSize: 12, color: F.gray3, borderTop: `1px solid ${F.gray6}`, paddingTop: 10 }}><strong>Obs. do auditor:</strong> {a.obs}</div>}
                           </Card>
                         );
                       })}
+                    </div>
+                  );
+                })()}
+
+                {/* Aba: Enquetes */}
+                {comiteAba === "enquetes" && (() => {
+                  const planosComEnquete = db.planos.filter(p => p.enqueteComite && !p.aguardaComite);
+                  const meusPendentes = planosComEnquete.filter(p => p.enqueteComite[usuarioLogado.id] === null || p.enqueteComite[usuarioLogado.id] === undefined);
+                  const planosVotados = planosComEnquete.filter(p => p.enqueteComite[usuarioLogado.id]?.voto);
+                  return (
+                    <div>
+                      {meusPendentes.length > 0 && (
+                        <Card style={{ marginBottom: 14, border: `1.5px solid ${F.amber}` }}>
+                          <div style={{ fontFamily: "'Barlow Condensed',sans-serif", fontSize: 14, fontWeight: 800, textTransform: "uppercase", letterSpacing: 0.5, color: F.amber, marginBottom: 12 }}>
+                            Aguardando seu voto ({meusPendentes.length})
+                          </div>
+                          {meusPendentes.map(p => {
+                            const votos = Object.values(p.enqueteComite || {}).filter(Boolean);
+                            const sim = votos.filter(v => v.voto === "sim").length;
+                            const nao = votos.filter(v => v.voto === "nao").length;
+                            return (
+                              <div key={p.id} style={{ background: F.offWhite, borderRadius: 8, padding: "12px 14px", marginBottom: 10 }}>
+                                <div style={{ fontSize: 13.5, fontWeight: 700, color: F.charcoal, marginBottom: 4 }}>{p.desc}</div>
+                                <div style={{ fontSize: 11, color: F.gray4, marginBottom: 10 }}>{p.areaNome} · {fmtDate(p.prazo)}</div>
+                                <div style={{ fontSize: 11, color: F.gray3, marginBottom: 8 }}>Votos: <strong style={{ color: F.green }}>{sim} Sim</strong> · <strong style={{ color: F.red }}>{nao} Não</strong></div>
+                                {podeExecutar(perfil, "votar-enquete") && (
+                                  <div style={{ display: "flex", gap: 8 }}>
+                                    <Btn onClick={() => votarEnquete(p.id, "sim")} style={{ background: F.green, border: "none", color: "#fff", flex: 1 }}>✓ Aprovar</Btn>
+                                    <Btn variant="danger" onClick={() => votarEnquete(p.id, "nao")} style={{ flex: 1 }}>✕ Reprovar</Btn>
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </Card>
+                      )}
+                      {planosVotados.length > 0 && (
+                        <Card>
+                          <div style={{ fontFamily: "'Barlow Condensed',sans-serif", fontSize: 13, fontWeight: 800, textTransform: "uppercase", letterSpacing: 0.5, color: F.gray4, marginBottom: 10 }}>Meus votos anteriores</div>
+                          {planosVotados.map(p => {
+                            const meuVoto = p.enqueteComite[usuarioLogado.id];
+                            return (
+                              <div key={p.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 0", borderBottom: `1px solid ${F.gray6}` }}>
+                                <Pill color={meuVoto.voto === "sim" ? F.green : F.red} bg={meuVoto.voto === "sim" ? F.greenDim : F.redDim}>{meuVoto.voto === "sim" ? "Aprovei" : "Reprovei"}</Pill>
+                                <span style={{ fontSize: 12.5, color: F.charcoal, flex: 1 }}>{p.desc}</span>
+                                <span style={{ fontSize: 11, color: F.gray4 }}>{fmtDate(meuVoto.data?.split("T")[0])}</span>
+                              </div>
+                            );
+                          })}
+                        </Card>
+                      )}
+                      {!meusPendentes.length && !planosVotados.length && (
+                        <Card><div style={{ textAlign: "center", padding: "40px 0", color: F.gray4, fontSize: 13 }}>Nenhuma enquete pendente.</div></Card>
+                      )}
                     </div>
                   );
                 })()}
@@ -2073,6 +2224,14 @@ ${db.planos.length ? `<table>
 
       {/* PLANO */}
       <PlanoModal open={!!modals.plano} onClose={() => closeModal("plano")} areas={db.areas} usuarios={db.usuarios} onSave={f => { savePlano(f); }} />
+
+      {/* RELATÓRIO FINAL */}
+      <RelatorioFinalModal
+        open={!!relatorioFinalAudId}
+        onClose={() => setRelatorioFinalAudId(null)}
+        auditoria={db.auditorias.find(a => a.id === relatorioFinalAudId) || null}
+        onSave={salvarRelatorioFinal}
+      />
 
       {/* CIÊNCIA DO AUDITADO */}
       <CienciaModal
@@ -2380,6 +2539,29 @@ function PlanoModal({ open, onClose, areas, usuarios, onSave }) {
           </select>
         </FG>
       </div>
+    </Modal>
+  );
+}
+
+function RelatorioFinalModal({ open, onClose, auditoria, onSave }) {
+  const [f, setF] = useState({ conclusoes: "", recomendacoes: "", observacoes: "" });
+  useEffect(() => { if (open) setF({ conclusoes: auditoria?.relatorioFinal?.conclusoes || "", recomendacoes: auditoria?.relatorioFinal?.recomendacoes || "", observacoes: auditoria?.relatorioFinal?.observacoes || "" }); }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
+  if (!auditoria) return null;
+  return (
+    <Modal open={open} onClose={onClose} title="Relatório Final de Auditoria" width={560}
+      footer={<><Btn variant="ghost" onClick={onClose}>Cancelar</Btn><Btn onClick={() => { if (!f.conclusoes.trim()) { alert("Informe as conclusões."); return; } onSave(auditoria.id, f); }}>✓ Enviar ao Administrador</Btn></>}>
+      <div style={{ background: F.offWhite, borderRadius: 8, padding: "10px 14px", marginBottom: 16, fontSize: 12.5, color: F.charcoal }}>
+        <strong>{auditoria.areaNome}</strong> · {fmtDate(auditoria.data)} · Score: <strong style={{ color: scoreColor(auditoria.score) }}>{auditoria.score}%</strong>
+      </div>
+      <FG label="Conclusões da Auditoria *">
+        <textarea style={{ ...fi, resize: "vertical", minHeight: 90 }} value={f.conclusoes} onChange={e => setF({ ...f, conclusoes: e.target.value })} placeholder="Descreva as principais conclusões da auditoria..." />
+      </FG>
+      <FG label="Recomendações">
+        <textarea style={{ ...fi, resize: "vertical", minHeight: 70 }} value={f.recomendacoes} onChange={e => setF({ ...f, recomendacoes: e.target.value })} placeholder="Ações e melhorias recomendadas..." />
+      </FG>
+      <FG label="Observações Adicionais">
+        <textarea style={{ ...fi, resize: "vertical", minHeight: 60 }} value={f.observacoes} onChange={e => setF({ ...f, observacoes: e.target.value })} placeholder="Outras informações relevantes..." />
+      </FG>
     </Modal>
   );
 }
