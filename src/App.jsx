@@ -48,6 +48,17 @@ const css = `
 `;
 
 // ── CHECKLIST DATA ────────────────────────────────────────────────
+const CAUSAS_RAIZ = [
+  "Processo inexistente",
+  "Processo inadequado",
+  "Falta de treinamento",
+  "Falha sistêmica",
+  "Comunicação inadequada",
+  "Indisciplina operacional",
+  "Falha de governança",
+  "Falha de controle",
+];
+
 const CL_BASE = [
   "O processo está documentado e atualizado?",
   "Os responsáveis conhecem e seguem o procedimento?",
@@ -1036,6 +1047,7 @@ ${db.planos.length ? `<table>
         respId: "", respNome: "", resp: "",
         prio: i.clas === "nc" ? "high" : i.clas === "mel" ? "mid" : "low",
         prazo: prazo.toISOString().split("T")[0], clas: i.clas || "obs",
+        causaRaiz: i.causaRaiz || "",
         auditoriaId: audId, aguardaComite: true,
       }, true);
     });
@@ -1683,7 +1695,7 @@ ${db.planos.length ? `<table>
                       </div>
                     </div>
                     <DataTable
-                      cols={["Ação", "Área", "Responsável", "Prazo", "Clas.", "Origem", ...(podeExecutar(perfil, "aprovar") ? ["Aprovar / Rejeitar"] : [])]}
+                      cols={["Ação", "Área", "Responsável", "Prazo", "Clas.", "Causa Raiz", "Origem", ...(podeExecutar(perfil, "aprovar") ? ["Aprovar / Rejeitar"] : [])]}
                       rows={planosPendAprov.map(p => {
                         const cmap = { nc: [F.red, F.redDim, "NC"], mel: [F.blue, F.blueDim, "Melhoria"], obs: [F.gray3, F.gray6, "Obs"] };
                         const [cc, cbg, clbl] = cmap[p.clas] || [F.gray3, F.gray6, "—"];
@@ -1707,6 +1719,7 @@ ${db.planos.length ? `<table>
                           </TD>
                           <TD style={{ color: F.gray3 }}>{fmtDate(p.prazo)}</TD>
                           <TD><Tag color={cc} bg={cbg}>{clbl}</Tag></TD>
+                          <TD style={{ fontSize: 12, color: p.causaRaiz ? F.charcoal : F.gray5 }}>{p.causaRaiz || "—"}</TD>
                           <TD><Tag>{p.origem === "auditoria" ? "Auditoria" : "Manual"}</Tag></TD>
                           {podeExecutar(perfil, "aprovar") && (
                             <TD>
@@ -1731,7 +1744,7 @@ ${db.planos.length ? `<table>
                     </div>
                   )}
                   <DataTable
-                    cols={["Ação", "Área", "Responsável", "Prazo", "Clas.", "Status", "", ...(podeExecutar(perfil, "excluir") ? [""] : [])]}
+                    cols={["Ação", "Área", "Responsável", "Prazo", "Clas.", "Causa Raiz", "Status", "", ...(podeExecutar(perfil, "excluir") ? [""] : [])]}
                     rows={[
                       ...planosAprovados.map(p => {
                         const at = isAtrasado(p);
@@ -1767,6 +1780,7 @@ ${db.planos.length ? `<table>
                             {at && <div style={{ fontSize: 10, color: F.red, fontWeight: 600 }}>Atrasado</div>}
                           </TD>
                           <TD><Tag color={cc} bg={cbg}>{clbl}</Tag></TD>
+                          <TD style={{ fontSize: 12, color: p.causaRaiz ? F.charcoal : F.gray5 }}>{p.causaRaiz || "—"}</TD>
                           <TD>
                             {podeExecutar(perfil, "atualizar-status") ? (
                               <select value={p.status} onChange={e => {
@@ -2520,7 +2534,7 @@ function MembroModal({ open, onClose, areas, usuarios, onSave }) {
 }
 
 function PlanoModal({ open, onClose, areas, usuarios, onSave }) {
-  const empty = { desc: "", areaId: "", respId: "", respNome: "", prio: "high", prazo: "", clas: "nc" };
+  const empty = { desc: "", areaId: "", respId: "", respNome: "", prio: "high", prazo: "", clas: "nc", causaRaiz: "" };
   const [f, setF] = useState(empty);
   function save() {
     const area = areas.find(a => a.id === f.areaId);
@@ -2559,6 +2573,12 @@ function PlanoModal({ open, onClose, areas, usuarios, onSave }) {
           </select>
         </FG>
       </div>
+      <FG label="Causa Raiz">
+        <select style={fi} value={f.causaRaiz} onChange={e => setF({ ...f, causaRaiz: e.target.value })}>
+          <option value="">Selecione a causa raiz...</option>
+          {CAUSAS_RAIZ.map(cr => <option key={cr} value={cr}>{cr}</option>)}
+        </select>
+      </FG>
     </Modal>
   );
 }
@@ -3180,6 +3200,17 @@ function AuditoriaModal({ open, onClose, step, setStep, form, setForm, checklist
                         {isCritical && <span style={{ fontSize: 9.5, fontWeight: 700, background: F.red, color: "#fff", padding: "1px 6px", borderRadius: 3, fontFamily: "'Barlow Condensed',sans-serif", textTransform: "uppercase" }}>Item Crítico</span>}
                       </div>
                       {item.evidencia && <div style={{ fontSize: 11, color: F.gray3, marginTop: 2 }}>Evidência: {item.evidencia}</div>}
+                      <div style={{ marginTop: 8 }}>
+                        <select
+                          value={item.causaRaiz || ""}
+                          onChange={e => setChecklist(cl => cl.map(x => x.id === item.id ? { ...x, causaRaiz: e.target.value } : x))}
+                          style={{ ...fi, fontSize: 11.5, padding: "4px 8px", borderColor: !item.causaRaiz ? F.amber : F.gray6 }}
+                        >
+                          <option value="">Selecione a causa raiz...</option>
+                          {CAUSAS_RAIZ.map(cr => <option key={cr} value={cr}>{cr}</option>)}
+                        </select>
+                        {!item.causaRaiz && <div style={{ fontSize: 10, color: F.amber, fontWeight: 700, marginTop: 3 }}>Selecione a causa raiz</div>}
+                      </div>
                     </div>
                     <span style={{ fontSize: 9.5, fontWeight: 700, padding: "2px 7px", borderRadius: 3, background: `${c}22`, color: c, whiteSpace: "nowrap", fontFamily: "'Barlow Condensed',sans-serif", textTransform: "uppercase", letterSpacing: 0.5 }}>{lbl}</span>
                   </div>
