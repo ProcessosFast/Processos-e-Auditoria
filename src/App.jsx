@@ -930,6 +930,7 @@ ${db.planos.length ? `<table>
   function savePlano(form, auto = false) {
     if (!form.desc?.trim()) { if (!auto) showToast("Informe a descrição.", "err"); return; }
     if (!auto && !form.respId) { showToast("Selecione um responsável.", "err"); return; }
+    if (!auto && !form.causaRaiz) { showToast("Selecione a causa raiz.", "err"); return; }
     const evt = { data: new Date().toISOString(), acao: "Relatório criado", autor: auto ? "Sistema (Auditoria)" : usuarioLogado?.nome || "Sistema" };
     upd("planos", p => [...p, { id: uid(), status: "aberto", aprovacao: "pendente", historico: [evt], origem: auto ? "auditoria" : "manual", ...form }]);
     if (!auto) { closeModal("plano"); showToast("Relatório criado! Aguardando aprovação do administrador."); }
@@ -2573,11 +2574,12 @@ function PlanoModal({ open, onClose, areas, usuarios, onSave }) {
           </select>
         </FG>
       </div>
-      <FG label="Causa Raiz">
-        <select style={fi} value={f.causaRaiz} onChange={e => setF({ ...f, causaRaiz: e.target.value })}>
+      <FG label="Causa Raiz *">
+        <select style={{ ...fi, borderColor: !f.causaRaiz ? F.amber : F.gray6, borderWidth: 2 }} value={f.causaRaiz} onChange={e => setF({ ...f, causaRaiz: e.target.value })}>
           <option value="">Selecione a causa raiz...</option>
           {CAUSAS_RAIZ.map(cr => <option key={cr} value={cr}>{cr}</option>)}
         </select>
+        {!f.causaRaiz && <div style={{ fontSize: 10.5, color: F.amber, fontWeight: 700, marginTop: 4 }}>Campo obrigatório — identifique a origem do problema</div>}
       </FG>
     </Modal>
   );
