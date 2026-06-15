@@ -1417,13 +1417,17 @@ ${db.planos.length ? `<table>
             {view === "dashboard" && (
               <div>
                 {/* Stats */}
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 12, marginBottom: 20 }}>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(5,1fr)", gap: 12, marginBottom: 20 }}>
                   <StatCard label="Áreas Auditáveis" value={areasAuditaveis.length || "—"}
                     sub={areasAuditaveis.length ? `${areasAuditaveis.length} área${areasAuditaveis.length !== 1 ? "s" : ""}` : "Nenhuma cadastrada"}
                     accent={F.green} delay={0} />
                   <StatCard label="Auditorias Realizadas" value={audsConcluidas.length || "—"}
                     sub={audsConcluidas.length ? `${audsConcluidas.length} no total` : "Nenhuma realizada"}
                     accent={F.red} delay={0.05} />
+                  <StatCard label="Planos em Andamento"
+                    value={planosAprovados.filter(p => p.status === "andamento").length || "—"}
+                    sub={planosAprovados.filter(p => p.status === "andamento").length ? `de ${planosAprovados.length} aprovado${planosAprovados.length !== 1 ? "s" : ""}` : "Nenhum em andamento"}
+                    accent={F.blue} delay={0.08} />
                   <StatCard label="Ações em Atraso" value={db.planos.length ? planosAtrasados.length : "—"}
                     sub={db.planos.length ? `${db.planos.length} plano${db.planos.length !== 1 ? "s" : ""} no total` : "Nenhum plano"}
                     accent={planosAtrasados.length > 0 ? F.red : F.amber} delay={0.1} />
