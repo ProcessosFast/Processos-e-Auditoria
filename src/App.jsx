@@ -105,8 +105,8 @@ function scoreAreaCiclo(areaId, auditorias) {
 // ── PERMISSÕES ───────────────────────────────────────────────────
 const PERMISSOES = {
   administrador: {
-    views: ["dashboard","areas","processos","auditorias","planos","ncs","ciclos","comite","usuarios","modulos"],
-    acoes: new Set(["criar","excluir","aprovar","exportar","auditar","atualizar-status","gerir-modulos","gerir-ciclos","gerir-comite","liberar-relatorios","agendar-reuniao","comentar-auditoria","relatorio-final"])
+    views: ["dashboard","areas","processos","auditorias","planos","elaborar","ncs","ciclos","comite","usuarios","modulos"],
+    acoes: new Set(["criar","excluir","aprovar","exportar","auditar","atualizar-status","gerir-modulos","gerir-ciclos","gerir-comite","liberar-relatorios","agendar-reuniao","comentar-auditoria","relatorio-final","elaborar-plano"])
   },
   "auditor-lider": {
     views: ["dashboard","areas","processos","auditorias","planos","ncs","ciclos","comite","modulos"],
@@ -1001,6 +1001,31 @@ ${db.planos.length ? `<table>
     showToast("Relatórios liberados — enquete enviada ao comitê!");
   }
 
+  function salvarElaboracao(planoId, campos) {
+    upd("planos", arr => arr.map(p => p.id === planoId ? { ...p, ...campos, elaborado: !!(campos.desc?.trim() && campos.prazo && campos.respId && campos.causaRaiz) } : p));
+  }
+
+  function enviarParaEnqueteComite(planoId) {
+    const plano = db.planos.find(p => p.id === planoId);
+    if (!plano) return;
+    const evt = { data: new Date().toISOString(), acao: "Enviado para enquete do comitê", autor: usuarioLogado?.nome || "Sistema" };
+    upd("planos", arr => arr.map(p => p.id === planoId ? {
+      ...p,
+      aguardaComite: false,
+      aprovacao: "pendente",
+      enqueteEnviada: true,
+      enqueteComite: db.comite.reduce((acc, m) => ({ ...acc, [m.usuarioId]: null }), {}),
+      historico: [...(p.historico || []), evt]
+    } : p));
+    db.comite.forEach(m => {
+      enviarNotificacao(m.usuarioId, "Enquete: Aprovar Plano de Ação",
+        `Sua votação é necessária para o plano: "${plano.desc?.slice(0, 60)}"`,
+        "enquete", { planoId, areaNome: plano.areaNome }
+      );
+    });
+    showToast("Plano enviado para enquete do comitê!");
+  }
+
   function votarEnquete(planoId, voto) {
     upd("planos", arr => arr.map(p => p.id === planoId ? {
       ...p, enqueteComite: { ...(p.enqueteComite || {}), [usuarioLogado.id]: { voto, nome: usuarioLogado.nome, data: new Date().toISOString() } }
@@ -1079,7 +1104,8 @@ ${db.planos.length ? `<table>
     { id: "areas", icon: "◉", label: "Áreas", section: "Operação" },
     { id: "processos", icon: "⬡", label: "Processos" },
     { id: "auditorias", icon: "◎", label: "Auditorias", badge: auditoriasVisiveis.filter(a => a.status === "aberta").length },
-    { id: "planos", icon: "◷", label: "Relatórios de Conclusão", badge: planosPendAprov.length || planosAtrasados.length, section: "Melhoria" },
+    { id: "elaborar", icon: "✍", label: "Elaborar Plano de Ação", badge: db.planos.filter(p => p.aguardaComite && !p.elaborado).length || 0, section: "Melhoria" },
+    { id: "planos", icon: "◷", label: "Relatórios de Conclusão", badge: planosPendAprov.length || planosAtrasados.length },
     { id: "ncs", icon: "⚑", label: "Não Conformidades" },
     { id: "ciclos", icon: "◈", label: "Ciclos", section: "Gestão" },
     { id: "modulos", icon: "⊞", label: "Categorias de Avaliação" },
@@ -1634,6 +1660,111 @@ ${db.planos.length ? `<table>
                 />
               </Card>
             )}
+
+            {/* ── ELABORAR PLANO DE AÇÃO ── */}
+            {view === "elaborar" && (() => {
+              const planosParaElaborar = db.planos.filter(p => p.aguardaComite && !p.enqueteEnviada);
+              return (
+                <div>
+                  {planosParaElaborar.length === 0 ? (
+                    <Card>
+                      <div style={{ textAlign: "center", padding: "48px 20px" }}>
+                        <div style={{ fontSize: 36, opacity: 0.15, marginBottom: 10 }}>✍</div>
+                        <div style={{ fontSize: 15, fontWeight: 700, color: F.gray3, marginBottom: 6 }}>Nenhum plano aguardando elaboração</div>
+                        <div style={{ fontSize: 13, color: F.gray4 }}>Os planos gerados por auditorias aparecerão aqui para elaboração.</div>
+                      </div>
+                    </Card>
+                  ) : (
+                    <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+                      <div style={{ fontSize: 12.5, color: F.gray3, background: F.blueDim, border: `1px solid ${F.blue}33`, borderRadius: 8, padding: "10px 14px", lineHeight: 1.7 }}>
+                        Elabore cada plano de ação com prazo e responsável definidos. Quando todos os campos estiverem preenchidos, o botão de envio para enquete do comitê será liberado.
+                      </div>
+                      {planosParaElaborar.map(p => {
+                        const aud = db.auditorias.find(a => a.id === p.auditoriaId);
+                        const cmap = { nc: [F.red, F.redDim, "NC"], mel: [F.blue, F.blueDim, "Melhoria"], obs: [F.gray3, F.gray6, "Obs"] };
+                        const [cc, cbg, clbl] = cmap[p.clas] || [F.gray3, F.gray6, "—"];
+                        const completo = p.desc?.trim() && p.prazo && p.respId && p.causaRaiz;
+                        return (
+                          <Card key={p.id} style={{ border: `1.5px solid ${completo ? F.green : F.amber}` }}>
+                            {/* Cabeçalho */}
+                            <div style={{ display: "flex", alignItems: "flex-start", gap: 12, marginBottom: 16 }}>
+                              <Tag color={cc} bg={cbg}>{clbl}</Tag>
+                              <div style={{ flex: 1 }}>
+                                <div style={{ fontSize: 13.5, fontWeight: 700, color: F.charcoal, lineHeight: 1.4 }}>{p.desc}</div>
+                                {aud && <div style={{ fontSize: 11, color: F.gray4, marginTop: 3 }}>Auditoria: {aud.areaNome} · {fmtDate(aud.data)} · {aud.auditorNome}</div>}
+                                {p.causaRaiz && <div style={{ fontSize: 11, color: F.gray3, marginTop: 2 }}>Causa raiz: <strong>{p.causaRaiz}</strong></div>}
+                                {p.evidencia && <div style={{ fontSize: 11, color: F.gray3, marginTop: 2 }}>Evidência: {p.evidencia}</div>}
+                              </div>
+                              <div style={{ flexShrink: 0 }}>
+                                {completo
+                                  ? <Pill color={F.green} bg={F.greenDim}>Pronto para envio</Pill>
+                                  : <Pill color={F.amber} bg={F.amberDim}>Pendente</Pill>}
+                              </div>
+                            </div>
+
+                            {/* Formulário de elaboração */}
+                            <div style={{ background: F.offWhite, borderRadius: 8, padding: "14px 16px", display: "flex", flexDirection: "column", gap: 12 }}>
+                              <FG label="Descrição detalhada do plano de ação *">
+                                <textarea
+                                  style={{ ...fi, resize: "vertical", minHeight: 70, textTransform: "uppercase" }}
+                                  value={p.desc || ""}
+                                  onChange={e => salvarElaboracao(p.id, { desc: e.target.value })}
+                                  placeholder="Descreva detalhadamente o plano de ação..."
+                                />
+                              </FG>
+                              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                                <FG label="Responsável *">
+                                  <select style={{ ...fi, borderColor: !p.respId ? F.amber : F.gray6 }} value={p.respId || ""} onChange={e => { const u = db.usuarios.find(x => x.id === e.target.value); salvarElaboracao(p.id, { respId: u?.id || "", respNome: u?.nome || "" }); }}>
+                                    <option value="">Selecione o responsável...</option>
+                                    {db.usuarios.map(u => <option key={u.id} value={u.id}>{u.nome}</option>)}
+                                  </select>
+                                </FG>
+                                <FG label="Prazo *">
+                                  <input type="date" style={{ ...fi, borderColor: !p.prazo ? F.amber : F.gray6 }} value={p.prazo || ""} onChange={e => salvarElaboracao(p.id, { prazo: e.target.value })} />
+                                </FG>
+                              </div>
+                              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                                <FG label="Causa Raiz *">
+                                  <select style={{ ...fi, borderColor: !p.causaRaiz ? F.amber : F.gray6 }} value={p.causaRaiz || ""} onChange={e => salvarElaboracao(p.id, { causaRaiz: e.target.value })}>
+                                    <option value="">Selecione a causa raiz...</option>
+                                    {CAUSAS_RAIZ.map(cr => <option key={cr} value={cr}>{cr}</option>)}
+                                  </select>
+                                </FG>
+                                <FG label="Prioridade">
+                                  <select style={fi} value={p.prio || "high"} onChange={e => salvarElaboracao(p.id, { prio: e.target.value })}>
+                                    <option value="high">Alta</option>
+                                    <option value="mid">Média</option>
+                                    <option value="low">Baixa</option>
+                                  </select>
+                                </FG>
+                              </div>
+                            </div>
+
+                            {/* Botão de envio */}
+                            <div style={{ marginTop: 14, display: "flex", justifyContent: "flex-end" }}>
+                              <button
+                                onClick={() => completo && enviarParaEnqueteComite(p.id)}
+                                disabled={!completo}
+                                style={{
+                                  background: completo ? F.green : F.gray6,
+                                  color: completo ? "#fff" : F.gray4,
+                                  border: "none", borderRadius: 8, padding: "10px 20px",
+                                  fontSize: 13, fontWeight: 700, cursor: completo ? "pointer" : "not-allowed",
+                                  fontFamily: "'Barlow',sans-serif", transition: "all 0.2s",
+                                  display: "flex", alignItems: "center", gap: 8
+                                }}
+                              >
+                                {completo ? "✓ Enviar para Enquete do Comitê" : "⏳ Preencha todos os campos para enviar"}
+                              </button>
+                            </div>
+                          </Card>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
 
             {/* ── PLANOS ── */}
             {view === "planos" && (
