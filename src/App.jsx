@@ -567,12 +567,13 @@ export default function App() {
     try {
       const salvo = localStorage.getItem("portal-fast-db");
       const base = salvo ? JSON.parse(salvo) : { areas: [], processos: [], auditorias: [], planos: [], ciclos: [], comite: [], usuarios: [], modulos: [], notificacoes: [] };
-      if (!base.usuarios || base.usuarios.length === 0) base.usuarios = USUARIOS_PADRAO;
+      if (!base.usuarios) base.usuarios = [];
       if (!base.modulos) base.modulos = [];
       if (!base.notificacoes) base.notificacoes = [];
-      if (!base.usuarios.find(u => u.perfil === "comite")) {
-        base.usuarios.push({ id: "u-comite", nome: "Comitê", ini: "CO", email: "comite@fastdrywall.com.br", perfil: "comite", areaId: "", areaNome: "—" });
-      }
+      // Restaura usuários padrão que estiverem faltando
+      USUARIOS_PADRAO.forEach(u => {
+        if (!base.usuarios.find(x => x.id === u.id)) base.usuarios.push(u);
+      });
       return base;
     } catch {
       return { areas: [], processos: [], auditorias: [], planos: [], ciclos: [], comite: [], usuarios: USUARIOS_PADRAO, modulos: [] };
