@@ -1182,6 +1182,20 @@ ${db.planos.length ? `<table>
                 <div style={{ fontSize: 12, fontWeight: 600, color: "#fff", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{usuarioLogado.nome}</div>
                 <div style={{ fontSize: 9, color: F.gray3, textTransform: "uppercase", letterSpacing: 0.5 }}>{PERFIL_LABEL[perfil] || perfil}</div>
               </div>
+              {perfil === "administrador" && (
+                <button
+                  title="Limpar todos os dados"
+                  onClick={() => {
+                    if (window.confirm("Apagar TODOS os dados do portal? Esta ação não pode ser desfeita.")) {
+                      localStorage.removeItem("portal-fast-db");
+                      window.location.reload();
+                    }
+                  }}
+                  style={{ background: "none", border: "none", color: F.gray2, cursor: "pointer", fontSize: 13, padding: "2px 4px", flexShrink: 0, transition: "color 0.15s" }}
+                  onMouseEnter={e => e.currentTarget.style.color = F.red}
+                  onMouseLeave={e => e.currentTarget.style.color = F.gray2}
+                >🗑</button>
+              )}
               <button
                 onClick={() => setUsuarioLogado(null)}
                 title="Sair"
