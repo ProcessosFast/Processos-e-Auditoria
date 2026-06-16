@@ -425,6 +425,22 @@ function AreaSelectionScreen({ areas, usuario, onSelect, onBack }) {
 }
 
 // ── COMENTARIO INLINE ────────────────────────────────────────────
+function EvidenciaInline({ planoId, onSave }) {
+  const [texto, setTexto] = useState("");
+  return (
+    <div style={{ display: "flex", gap: 8, marginTop: 6 }}>
+      <input
+        style={{ ...fi, flex: 1, fontSize: 12.5, textTransform: "none" }}
+        value={texto}
+        onChange={e => setTexto(e.target.value)}
+        placeholder="Descreva a evidência ou cole o link do documento..."
+        onKeyDown={e => { if (e.key === "Enter" && texto.trim()) { onSave(planoId, texto); setTexto(""); } }}
+      />
+      <Btn onClick={() => { if (texto.trim()) { onSave(planoId, texto); setTexto(""); } }} style={{ padding: "7px 12px", fontSize: 12 }}>Anexar</Btn>
+    </div>
+  );
+}
+
 function ComentarioInline({ audId, onSave }) {
   const [texto, setTexto] = useState("");
   return (
@@ -1065,6 +1081,12 @@ ${db.planos.length ? `<table>
     upd("planos", arr => arr.map(p => p.id === id && p.extensao ? { ...p, prazo: p.extensao.novoPrazo, extensao: { ...p.extensao, status: "aprovada", aprovadoPor: usuarioLogado?.nome || "—", aprovadoEm: new Date().toISOString() }, historico: [...(p.historico || []), evt] } : p));
     showToast("Extensão aprovada!");
   }
+  function adicionarEvidenciaExecucao(planoId, texto) {
+    if (!texto?.trim()) return;
+    const ev = { id: uid(), texto, data: new Date().toISOString(), autor: usuarioLogado?.nome || "—" };
+    upd("planos", arr => arr.map(p => p.id === planoId ? { ...p, evidenciasExecucao: [...(p.evidenciasExecucao || []), ev] } : p));
+  }
+
   function rejeitarExtensao(id) {
     const evt = { data: new Date().toISOString(), acao: "Extensão de prazo rejeitada", autor: usuarioLogado?.nome || "Sistema" };
     upd("planos", arr => arr.map(p => p.id === id ? { ...p, extensao: { ...p.extensao, status: "rejeitada" }, historico: [...(p.historico || []), evt] } : p));
@@ -2325,6 +2347,116 @@ ${db.planos.length ? `<table>
             {/* ── PLANOS ── */}
             {view === "planos" && (
               <div>
+
+                {/* ── VIEW CARDS GESTOR ── */}
+                {perfil === "gestor" && planosAprovados.length > 0 && (
+                  <div style={{ marginBottom: 20 }}>
+                    <div style={{ fontFamily: "'Barlow Condensed',sans-serif", fontSize: 13, fontWeight: 800, textTransform: "uppercase", letterSpacing: 0.5, color: F.gray4, marginBottom: 12 }}>
+                      Meus Relatórios de Conclusão ({planosAprovados.length})
+                    </div>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+                      {planosAprovados.map(p => {
+                        const at = isAtrasado(p);
+                        const cmap = { nc: [F.red, F.redDim, "Não Conformidade"], mel: [F.blue, F.blueDim, "Melhoria"], obs: [F.gray3, F.gray6, "Obs"] };
+                        const [cc, cbg, clbl] = cmap[p.clas] || [F.gray3, F.gray6, "—"];
+                        const prioMap = { high: [F.red, "Alta"], mid: [F.amber, "Média"], low: [F.green, "Baixa"] };
+                        const [pCor, pLbl] = prioMap[p.prio] || [F.gray3, "—"];
+                        const statusMap = {
+                          aberto:    { cor: F.gray3, label: "Aberto" },
+                          andamento: { cor: F.blue,  label: "Em Andamento" },
+                          concluido: { cor: F.green, label: "Concluído" },
+                        };
+                        return (
+                          <Card key={p.id} style={{ border: `1.5px solid ${at ? F.red : p.status === "concluido" ? F.green : F.gray6}` }}>
+                            {/* Cabeçalho */}
+                            <div style={{ display: "flex", alignItems: "flex-start", gap: 12, marginBottom: 14 }}>
+                              <div style={{ flex: 1 }}>
+                                <div style={{ display: "flex", gap: 7, flexWrap: "wrap", marginBottom: 6 }}>
+                                  <Tag color={cc} bg={cbg}>{clbl}</Tag>
+                                  <span style={{ fontSize: 10.5, fontWeight: 700, color: pCor, background: `${pCor}15`, padding: "2px 8px", borderRadius: 20, fontFamily: "'Barlow Condensed',sans-serif" }}>● {pLbl}</span>
+                                  {at && <Tag color={F.red} bg={F.redDim}>⚠ Atrasado</Tag>}
+                                </div>
+                                <div style={{ fontSize: 14, fontWeight: 700, color: F.charcoal, lineHeight: 1.4, marginBottom: 6 }}>{p.desc}</div>
+                                <div style={{ fontSize: 11.5, color: F.gray4, display: "flex", gap: 14, flexWrap: "wrap" }}>
+                                  {p.causaRaiz && <span>🔍 {p.causaRaiz}</span>}
+                                  {p.respNome && <span>👤 {p.respNome}</span>}
+                                  <span style={{ color: at ? F.red : F.gray4 }}>📅 Prazo: {fmtDate(p.prazo)}</span>
+                                </div>
+                              </div>
+                              {/* Status visual */}
+                              <div style={{ flexShrink: 0, textAlign: "right" }}>
+                                <div style={{ fontSize: 10, fontWeight: 700, color: F.gray4, textTransform: "uppercase", letterSpacing: 1, marginBottom: 6, fontFamily: "'Barlow Condensed',sans-serif" }}>Status</div>
+                                <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                                  {["aberto","andamento","concluido"].map(s => {
+                                    const { cor, label } = statusMap[s];
+                                    const ativo = p.status === s;
+                                    return (
+                                      <button key={s} onClick={() => {
+                                        const evt = { data: new Date().toISOString(), acao: `Status alterado para ${label}`, autor: usuarioLogado?.nome || "Sistema" };
+                                        upd("planos", arr => arr.map(x => x.id === p.id ? { ...x, status: s, historico: [...(x.historico || []), evt] } : x));
+                                      }} style={{
+                                        padding: "5px 12px", borderRadius: 6, fontSize: 11.5, fontWeight: 700, cursor: "pointer", fontFamily: "'Barlow',sans-serif",
+                                        background: ativo ? cor : "transparent",
+                                        color: ativo ? "#fff" : F.gray4,
+                                        border: `1.5px solid ${ativo ? cor : F.gray6}`,
+                                        transition: "all 0.12s"
+                                      }}>
+                                        {ativo ? "● " : "○ "}{label}
+                                      </button>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Extensão pendente */}
+                            {p.extensao?.status === "pendente" && (
+                              <div style={{ background: F.amberDim, border: `1px solid ${F.amber}44`, borderRadius: 7, padding: "8px 12px", marginBottom: 12, fontSize: 12.5, color: F.charcoal }}>
+                                <span style={{ fontWeight: 700, color: F.amber }}>⏳ Extensão solicitada</span> — novo prazo: {fmtDate(p.extensao.novoPrazo)} · Aguardando aprovação
+                              </div>
+                            )}
+
+                            {/* Evidências de execução */}
+                            <div style={{ borderTop: `1px solid ${F.gray6}`, paddingTop: 12, marginTop: 4 }}>
+                              <div style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: 1, color: F.gray4, fontFamily: "'Barlow Condensed',sans-serif", marginBottom: 8 }}>
+                                📎 Evidências de Execução ({(p.evidenciasExecucao || []).length})
+                              </div>
+                              {(p.evidenciasExecucao || []).length > 0 && (
+                                <div style={{ display: "flex", flexDirection: "column", gap: 5, marginBottom: 8 }}>
+                                  {(p.evidenciasExecucao || []).map(ev => (
+                                    <div key={ev.id} style={{ background: F.offWhite, borderRadius: 6, padding: "7px 10px", display: "flex", gap: 10, alignItems: "flex-start" }}>
+                                      <div style={{ flex: 1, fontSize: 12.5, color: F.charcoal }}>
+                                        {ev.texto.startsWith("http")
+                                          ? <a href={ev.texto} target="_blank" rel="noreferrer" style={{ color: F.red, fontWeight: 600 }}>↗ {ev.texto.length > 60 ? ev.texto.slice(0,60) + "…" : ev.texto}</a>
+                                          : ev.texto}
+                                      </div>
+                                      <div style={{ fontSize: 10, color: F.gray4, flexShrink: 0 }}>{ev.autor} · {fmtDate(ev.data?.split("T")[0])}</div>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                              <EvidenciaInline planoId={p.id} onSave={adicionarEvidenciaExecucao} />
+                            </div>
+
+                            {/* Rodapé: solicitar extensão + histórico */}
+                            <div style={{ borderTop: `1px solid ${F.gray6}`, paddingTop: 10, marginTop: 12, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                              <div style={{ display: "flex", gap: 8 }}>
+                                {at && !p.extensao && (
+                                  <button onClick={() => setJustificandoPlano(p)} style={{ fontSize: 11.5, color: F.amber, background: F.amberDim, border: `1px solid ${F.amber}44`, borderRadius: 6, padding: "5px 12px", cursor: "pointer", fontWeight: 700, fontFamily: "'Barlow',sans-serif" }}>
+                                    ⏱ Solicitar Extensão de Prazo
+                                  </button>
+                                )}
+                              </div>
+                              <button onClick={() => setHistoricoPlanId(p.id)} style={{ fontSize: 11.5, color: F.gray4, background: "none", border: "none", cursor: "pointer", fontFamily: "'Barlow',sans-serif" }}>
+                                ⊙ Ver Histórico
+                              </button>
+                            </div>
+                          </Card>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
 
                 {/* ── CIÊNCIA PENDENTE (gestor) ── */}
                 {perfil === "gestor" && (() => {
