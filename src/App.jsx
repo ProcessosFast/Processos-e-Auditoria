@@ -121,7 +121,7 @@ const PERMISSOES = {
     acoes: new Set(["exportar","comentar-auditoria","votar-enquete"])
   },
   gestor: {
-    views: ["planos","auditorias"],
+    views: ["dashboard","planos","auditorias"],
     acoes: new Set(["atualizar-status"])
   }
 };
@@ -627,7 +627,7 @@ export default function App() {
 
   // ── LOGIN GUARD ──
   if (!usuarioLogado) {
-    return <LoginScreen usuarios={db.usuarios} onLogin={u => { setUsuarioLogado(u); setView(u.perfil === "gestor" ? "planos" : "dashboard"); }} />;
+    return <LoginScreen usuarios={db.usuarios} onLogin={u => { setUsuarioLogado(u); setView("dashboard"); }} />;
   }
   const perfil = usuarioLogado.perfil;
 
@@ -1434,8 +1434,127 @@ ${db.planos.length ? `<table>
               </div>
             )}
 
-            {/* ── DASHBOARD ── */}
-            {view === "dashboard" && (
+            {/* ── DASHBOARD GESTOR ── */}
+            {view === "dashboard" && perfil === "gestor" && (() => {
+              const minhasAuds = auditoriasVisiveis;
+              const ultimaAud = [...minhasAuds].sort((a,b) => (b.data||"").localeCompare(a.data||""))[0];
+              const planosArea = planosAprovados;
+              const emAndamento = planosArea.filter(p => p.status === "andamento").length;
+              const concluidos = planosArea.filter(p => p.status === "concluido").length;
+              const abertos = planosArea.filter(p => p.status === "aberto").length;
+              const evolucao = [...minhasAuds].sort((a,b)=>(a.data||"").localeCompare(b.data||"")).slice(-8);
+              return (
+                <div>
+                  {/* Header da área */}
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
+                    <div>
+                      <div style={{ fontFamily: "'Barlow Condensed',sans-serif", fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: 1.5, color: F.gray4, marginBottom: 2 }}>Minha Área</div>
+                      <div style={{ fontFamily: "'Barlow Condensed',sans-serif", fontSize: 28, fontWeight: 900, color: F.charcoal }}>{usuarioLogado.areaNome}</div>
+                    </div>
+                    {confGeral !== null && (
+                      <div style={{ textAlign: "center", background: "#fff", border: `2px solid ${scoreColor(confGeral)}`, borderRadius: 12, padding: "14px 20px" }}>
+                        <div style={{ fontFamily: "'Barlow Condensed',sans-serif", fontSize: 42, fontWeight: 900, color: scoreColor(confGeral), lineHeight: 1 }}>{confGeral}%</div>
+                        <div style={{ fontSize: 11, fontWeight: 700, color: scoreColor(confGeral), textTransform: "uppercase", letterSpacing: 0.5 }}>{scoreLabel(confGeral)}</div>
+                        <div style={{ fontSize: 10, color: F.gray4, marginTop: 2 }}>Conformidade Geral</div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Cards de indicadores */}
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 12, marginBottom: 20 }}>
+                    <StatCard label="Auditorias Realizadas" value={minhasAuds.length || "—"}
+                      sub={ultimaAud ? `Última: ${fmtDate(ultimaAud.data)}` : "Nenhuma realizada"} accent={F.red} delay={0} />
+                    <StatCard label="Planos em Aberto" value={abertos || "—"}
+                      sub={`${planosArea.length} plano${planosArea.length !== 1 ? "s" : ""} no total`} accent={F.amber} delay={0.05} />
+                    <StatCard label="Em Andamento" value={emAndamento || "—"}
+                      sub={`${concluidos} concluído${concluidos !== 1 ? "s" : ""}`} accent={F.blue} delay={0.08} />
+                    <StatCard label="Ações em Atraso" value={planosAtrasados.length || "—"}
+                      sub={planosAtrasados.length ? "Requer atenção" : "Nenhum atrasado"} accent={planosAtrasados.length > 0 ? F.red : F.green} delay={0.1} />
+                  </div>
+
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginBottom: 14 }}>
+                    {/* Evolução de Score */}
+                    <Card className="anim2">
+                      <div style={{ fontFamily: "'Barlow Condensed',sans-serif", fontSize: 14, fontWeight: 800, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 16 }}>Evolução de Score</div>
+                      {evolucao.length > 0 ? (
+                        <ResponsiveContainer width="100%" height={160}>
+                          <LineChart data={evolucao.map(a => ({ name: fmtDate(a.data).slice(0,5), score: a.score }))}>
+                            <XAxis dataKey="name" tick={{ fontSize: 10, fill: F.gray4 }} />
+                            <YAxis tick={{ fontSize: 10, fill: F.gray4 }} domain={[0,100]} />
+                            <Tooltip contentStyle={{ background: F.charcoal, border: "none", borderRadius: 6, color: "#fff", fontSize: 12 }} formatter={v => [v + "%", "Score"]} />
+                            <Line type="monotone" dataKey="score" stroke={F.red} strokeWidth={2.5} dot={{ fill: F.red, r: 4 }} activeDot={{ r: 6 }} />
+                          </LineChart>
+                        </ResponsiveContainer>
+                      ) : (
+                        <div style={{ height: 160, display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: 8 }}>
+                          <div style={{ fontSize: 28, opacity: 0.15 }}>📈</div>
+                          <div style={{ fontSize: 12.5, color: F.gray4 }}>Sem dados de evolução</div>
+                        </div>
+                      )}
+                    </Card>
+
+                    {/* Status dos planos */}
+                    <Card className="anim2">
+                      <div style={{ fontFamily: "'Barlow Condensed',sans-serif", fontSize: 14, fontWeight: 800, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 16 }}>Relatórios de Conclusão</div>
+                      {planosArea.length > 0 ? (
+                        <ResponsiveContainer width="100%" height={160}>
+                          <PieChart>
+                            <Pie data={[
+                              { name: "Concluídos", value: concluidos, fill: F.green },
+                              { name: "Em Andamento", value: emAndamento, fill: F.blue },
+                              { name: "Abertos", value: abertos, fill: F.amber },
+                              { name: "Atrasados", value: planosAtrasados.length, fill: F.red },
+                            ].filter(d => d.value > 0)} cx="50%" cy="45%" outerRadius={65} dataKey="value" label={({ name, value }) => `${value}`} labelLine={false}>
+                              {[F.green, F.blue, F.amber, F.red].map((fill, i) => <Cell key={i} fill={fill} />)}
+                            </Pie>
+                            <Legend iconSize={8} wrapperStyle={{ fontSize: 11 }} />
+                            <Tooltip contentStyle={{ background: F.charcoal, border: "none", borderRadius: 6, color: "#fff", fontSize: 12 }} />
+                          </PieChart>
+                        </ResponsiveContainer>
+                      ) : (
+                        <div style={{ height: 160, display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: 8 }}>
+                          <div style={{ fontSize: 28, opacity: 0.15 }}>✅</div>
+                          <div style={{ fontSize: 12.5, color: F.gray4 }}>Nenhum relatório aprovado</div>
+                        </div>
+                      )}
+                    </Card>
+                  </div>
+
+                  {/* Últimas auditorias */}
+                  <Card className="anim3">
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+                      <div style={{ fontFamily: "'Barlow Condensed',sans-serif", fontSize: 14, fontWeight: 800, textTransform: "uppercase", letterSpacing: 0.5 }}>Histórico de Auditorias da Área</div>
+                      <button onClick={() => setView("auditorias")} style={{ fontSize: 11.5, color: F.red, background: "none", border: "none", cursor: "pointer", fontFamily: "'Barlow',sans-serif", fontWeight: 600 }}>Ver todas →</button>
+                    </div>
+                    {minhasAuds.length > 0 ? (
+                      <DataTable
+                        cols={["Data", "Auditor", "Ciclo", "Score", "NCs", "Ciência"]}
+                        rows={[...minhasAuds].reverse().slice(0,6).map(a => {
+                          const ncc = a.ncs?.filter(n => n.clas === "nc").length || 0;
+                          return <>
+                            <TD style={{ color: F.gray3 }}>{fmtDate(a.data)}</TD>
+                            <TD style={{ color: F.gray3 }}>{a.auditorNome}</TD>
+                            <TD>{a.cicloNome !== "—" ? <Tag>{a.cicloNome}</Tag> : "—"}</TD>
+                            <TD><strong style={{ fontFamily: "'Barlow Condensed',sans-serif", fontSize: 16, color: scoreColor(a.score) }}>{a.score}%</strong></TD>
+                            <TD>{ncc > 0 ? <Tag color={F.red} bg={F.redDim}>{ncc} NC</Tag> : "—"}</TD>
+                            <TD>{a.ciencia?.confirmado ? <Pill color={F.green} bg={F.greenDim}>Registrada</Pill> : <button onClick={() => setCienciaAuditoriaId(a.id)} style={{ fontSize: 10.5, color: F.green, background: F.greenDim, border: `1px solid ${F.green}44`, borderRadius: 5, padding: "2px 8px", cursor: "pointer", fontWeight: 700, fontFamily: "'Barlow',sans-serif" }}>Registrar</button>}</TD>
+                          </>;
+                        })}
+                        empty={{ icon: "◎", title: "Nenhuma auditoria realizada para esta área" }}
+                      />
+                    ) : (
+                      <div style={{ textAlign: "center", padding: "30px 0", color: F.gray4 }}>
+                        <div style={{ fontSize: 28, opacity: 0.15, marginBottom: 8 }}>◎</div>
+                        <div style={{ fontSize: 13 }}>Nenhuma auditoria realizada para esta área</div>
+                      </div>
+                    )}
+                  </Card>
+                </div>
+              );
+            })()}
+
+            {/* ── DASHBOARD ADMIN/AUDITOR ── */}
+            {view === "dashboard" && perfil !== "gestor" && (
               <div>
                 {/* Stats */}
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(5,1fr)", gap: 12, marginBottom: 20 }}>
