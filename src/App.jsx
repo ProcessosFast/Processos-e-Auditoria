@@ -2033,14 +2033,40 @@ ${db.planos.length ? `<table>
                         const ncsUnidas = grupo.flatMap(a => (a.ncs || []).map(n => ({ ...n, auditorNome: a.auditorNome })));
                         const consolidacao = db.consolidacoes.find(c => c.areaId === a1.areaId && c.cicloNome === a1.cicloNome);
                         const key = `${a1.areaId}-${a1.cicloNome}`;
+                        const scores = grupo.map(a => a.score);
+                        const difScore = grupo.length >= 2 ? Math.abs(scores[0] - scores[1]) : 0;
+                        const grandeDisparidade = difScore > 20;
                         return (
-                          <Card key={key} style={{ border: `1.5px solid ${consolidacao ? F.green : F.amber}` }}>
+                          <Card key={key} style={{ border: `1.5px solid ${grandeDisparidade && !consolidacao ? F.red : consolidacao ? F.green : F.amber}` }}>
+                            {/* Alerta de disparidade */}
+                            {grandeDisparidade && (
+                              <div style={{ background: F.redDim, border: `1px solid ${F.redBorder}`, borderRadius: 8, padding: "10px 14px", marginBottom: 14, display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+                                <div style={{ flex: 1 }}>
+                                  <div style={{ fontFamily: "'Barlow Condensed',sans-serif", fontSize: 13, fontWeight: 800, textTransform: "uppercase", letterSpacing: 0.5, color: F.red }}>
+                                    ⚠ Disparidade de {difScore}% entre os auditores
+                                  </div>
+                                  <div style={{ fontSize: 12, color: F.gray3, marginTop: 2 }}>
+                                    {grupo.map(a => `${a.auditorNome}: ${a.score}%`).join(" · ")} — diferença acima de 20%. Recomenda-se refazer a auditoria.
+                                  </div>
+                                </div>
+                                {podeExecutar(perfil, "auditar") && (
+                                  <Btn onClick={() => {
+                                    setAudStep(1);
+                                    setAudForm({ areaId: a1.areaId, cicloId: db.ciclos.find(c => c.nome === a1.cicloNome)?.id || "", data: new Date().toISOString().split("T")[0] });
+                                    setChecklist([]);
+                                    openModal("auditoria");
+                                  }} style={{ background: F.red, border: "none", color: "#fff", flexShrink: 0 }}>
+                                    ↺ Refazer Auditoria
+                                  </Btn>
+                                )}
+                              </div>
+                            )}
                             <div style={{ display: "flex", alignItems: "flex-start", gap: 14, marginBottom: 16 }}>
                               <div style={{ flex: 1 }}>
                                 <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", marginBottom: 4 }}>
                                   <div style={{ fontFamily: "'Barlow Condensed',sans-serif", fontSize: 18, fontWeight: 900, color: F.charcoal }}>{a1.areaNome}</div>
                                   <Tag>{a1.cicloNome}</Tag>
-                                  {consolidacao ? <Pill color={F.green} bg={F.greenDim}>Consolidado</Pill> : <Pill color={F.amber} bg={F.amberDim}>Aguardando consolidação</Pill>}
+                                  {consolidacao ? <Pill color={F.green} bg={F.greenDim}>Consolidado</Pill> : grandeDisparidade ? <Pill color={F.red} bg={F.redDim}>Disparidade Alta</Pill> : <Pill color={F.amber} bg={F.amberDim}>Aguardando consolidação</Pill>}
                                 </div>
                               </div>
                               <div style={{ textAlign: "center", flexShrink: 0 }}>
