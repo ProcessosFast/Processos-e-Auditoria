@@ -903,8 +903,13 @@ ${db.planos.length ? `<table>
   // ── SAVE CICLO ──
   function saveCiclo(form) {
     if (!form.nome?.trim()) { showToast("Informe o nome do ciclo.", "err"); return; }
-    upd("ciclos", c => [...c, { id: uid(), status: "ativo", ...form }]);
-    closeModal("ciclo"); showToast("Ciclo criado!");
+    if (form.id) {
+      upd("ciclos", arr => arr.map(c => c.id === form.id ? { ...c, ...form } : c));
+      closeModal("ciclo"); showToast("Ciclo atualizado!");
+    } else {
+      upd("ciclos", c => [...c, { id: uid(), status: "ativo", ...form }]);
+      closeModal("ciclo"); showToast("Ciclo criado!");
+    }
   }
 
   // ── SAVE USUARIO ──
@@ -2106,7 +2111,7 @@ ${db.planos.length ? `<table>
             {view === "ciclos" && (
               <Card>
                 <DataTable
-                  cols={["Ciclo", "Início", "Fim", "Auditorias", "Status", ...(podeExecutar(perfil, "excluir") ? [""] : [])]}
+                  cols={["Ciclo", "Início", "Fim", "Auditorias", "Status", ...(podeExecutar(perfil, "excluir") || podeExecutar(perfil, "gerir-ciclos") ? [""] : [])]}
                   rows={db.ciclos.map(c => {
                     const n = db.auditorias.filter(a => a.cicloNome === c.nome).length;
                     return <>
@@ -2115,7 +2120,14 @@ ${db.planos.length ? `<table>
                       <TD style={{ color: F.gray3 }}>{fmtDate(c.fim)}</TD>
                       <TD><Tag>{n} auditoria{n !== 1 ? "s" : ""}</Tag></TD>
                       <TD><Pill color={c.status === "ativo" ? F.green : F.gray3} bg={c.status === "ativo" ? F.greenDim : F.gray6}>{c.status === "ativo" ? "Ativo" : "Encerrado"}</Pill></TD>
-                      {(podeExecutar(perfil, "excluir") || podeExecutar(perfil, "gerir-ciclos")) && <TD><button onClick={() => upd("ciclos", arr => arr.filter(x => x.id !== c.id))} style={{ background: "none", border: "none", color: F.gray4, cursor: "pointer", fontSize: 16, padding: "2px 6px" }}>✕</button></TD>}
+                      {(podeExecutar(perfil, "excluir") || podeExecutar(perfil, "gerir-ciclos")) && (
+                        <TD>
+                          <div style={{ display: "flex", gap: 4 }}>
+                            <button onClick={() => openModal("ciclo", c)} style={{ background: F.offWhite, border: `1px solid ${F.gray6}`, borderRadius: 5, color: F.gray3, cursor: "pointer", fontSize: 13, padding: "3px 8px" }}>✎</button>
+                            <button onClick={() => upd("ciclos", arr => arr.filter(x => x.id !== c.id))} style={{ background: "none", border: "none", color: F.gray4, cursor: "pointer", fontSize: 16, padding: "2px 6px" }}>✕</button>
+                          </div>
+                        </TD>
+                      )}
                     </>;
                   })}
                   empty={{
@@ -2404,7 +2416,7 @@ ${db.planos.length ? `<table>
       <ProcessoModal open={!!modals.processo} onClose={() => closeModal("processo")} areas={db.areas} onSave={saveProcesso} />
 
       {/* CICLO */}
-      <CicloModal open={!!modals.ciclo} onClose={() => closeModal("ciclo")} onSave={saveCiclo} />
+      <CicloModal open={!!modals.ciclo} onClose={() => closeModal("ciclo")} ciclo={modals.ciclo} onSave={saveCiclo} />
 
       {/* USUÁRIO */}
       <UsuarioModal open={!!modals.usuario} onClose={() => closeModal("usuario")} areas={db.areas} onSave={saveUsuario} />
@@ -2620,12 +2632,15 @@ function ProcessoModal({ open, onClose, areas, onSave }) {
   );
 }
 
-function CicloModal({ open, onClose, onSave }) {
-  const [f, setF] = useState({ nome: "", ini: "", fim: "", obs: "" });
-  function save() { onSave(f); setF({ nome: "", ini: "", fim: "", obs: "" }); }
+function CicloModal({ open, onClose, ciclo, onSave }) {
+  const empty = { nome: "", ini: "", fim: "", obs: "" };
+  const [f, setF] = useState(empty);
+  const isEdit = !!(ciclo && ciclo.id);
+  useEffect(() => { if (open) setF(isEdit ? { ...empty, ...ciclo } : empty); }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
+  function save() { onSave(f); setF(empty); }
   return (
-    <Modal open={open} onClose={onClose} title="Novo Ciclo" width={480}
-      footer={<><Btn variant="ghost" onClick={onClose}>Cancelar</Btn><Btn onClick={save}>Criar Ciclo</Btn></>}>
+    <Modal open={open} onClose={onClose} title={isEdit ? "Editar Ciclo" : "Novo Ciclo"} width={480}
+      footer={<><Btn variant="ghost" onClick={onClose}>Cancelar</Btn><Btn onClick={save}>{isEdit ? "Salvar Alterações" : "Criar Ciclo"}</Btn></>}>
       <FG label="Nome do Ciclo"><input style={fi} value={f.nome} onChange={e => setF({ ...f, nome: e.target.value })} placeholder="ex: Mai/2025" /></FG>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
         <FG label="Início"><input type="date" style={fi} value={f.ini} onChange={e => setF({ ...f, ini: e.target.value })} /></FG>
