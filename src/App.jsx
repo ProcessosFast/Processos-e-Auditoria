@@ -2510,7 +2510,7 @@ function AreaModal({ open, onClose, modulos, area, onSave }) {
     onSave(f); setF(emptyF);
   }
 
-  const categOptions = ["Administrativo","Comercial","Franquias","Unidades de Negócio","Financeiro / Admin","Operações","Suporte","Controle"];
+  const categOptions = ["Administrativo","Setor Técnico","Comercial Varejo","Comercial Atacado","Comercial Homes e Obras","Faturamento","Comercial","Franquias","Unidades de Negócio","Financeiro / Admin","Operações","Suporte","Controle"];
   const cargoOptions = [["gerente","Gerente"],["supervisor","Supervisor"],["coordenador","Coordenador"],["analista","Analista"],["operador","Operador"]];
   const modulosAtivos = (modulos || []).filter(m => m.ativo);
 
