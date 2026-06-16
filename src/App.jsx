@@ -1434,6 +1434,102 @@ ${db.planos.length ? `<table>
               </div>
             )}
 
+            {/* ── KANBAN DE FLUXO ── */}
+            {view === "dashboard" && (() => {
+              const ETAPAS = [
+                { id: "auditoria",    label: "Auditoria",         icon: "◎", cor: F.red,    perfisResponsaveis: ["auditor","auditor-lider","administrador"],
+                  itens: db.auditorias.filter(a => !a.relatorioFinal?.status).map(a => ({ titulo: a.areaNome, sub: `Score: ${a.score}% · ${fmtDate(a.data)}`, id: a.id })),
+                  acaoPerfis: ["auditor-lider","administrador"], acao: "Elaborar relatório final" },
+                { id: "relatorio",    label: "Relatório Final",   icon: "📄", cor: F.blue,   perfisResponsaveis: ["auditor-lider","administrador"],
+                  itens: db.auditorias.filter(a => a.relatorioFinal?.status === "enviado" && a.comite && !a.comite.dataReuniao).map(a => ({ titulo: a.areaNome, sub: `Relatório de ${a.relatorioFinal.auditorNome}`, id: a.id })),
+                  acaoPerfis: ["administrador"], acao: "Agendar reunião do comitê" },
+                { id: "reuniao",      label: "Reunião Comitê",    icon: "📅", cor: F.amber,  perfisResponsaveis: ["administrador","auditor-lider","comite"],
+                  itens: db.auditorias.filter(a => a.comite?.dataReuniao && a.comite.status !== "realizada").map(a => ({ titulo: a.areaNome, sub: `Reunião: ${fmtDate(a.comite.dataReuniao)}`, id: a.id })),
+                  acaoPerfis: ["comite","administrador"], acao: "Revisar resultados e comentar" },
+                { id: "elaborar",     label: "Elaborar Planos",   icon: "✍", cor: "#FF6B35", perfisResponsaveis: ["administrador"],
+                  itens: db.planos.filter(p => p.aguardaComite && !p.enqueteEnviada).map(p => ({ titulo: p.desc?.slice(0,40) + (p.desc?.length > 40 ? "…" : ""), sub: p.areaNome, id: p.id })),
+                  acaoPerfis: ["administrador"], acao: "Elaborar e enviar para enquete" },
+                { id: "enquete",      label: "Enquete Comitê",    icon: "🗳", cor: "#9b6dff", perfisResponsaveis: ["comite"],
+                  itens: db.planos.filter(p => p.enqueteEnviada && p.enqueteComite && p.enqueteComite[usuarioLogado.id] === null).map(p => ({ titulo: p.desc?.slice(0,40) + (p.desc?.length > 40 ? "…" : ""), sub: p.areaNome, id: p.id })),
+                  acaoPerfis: ["comite"], acao: "Votar: aprovar ou reprovar" },
+                { id: "aprovacao",    label: "Aprovação",         icon: "✓", cor: F.green,  perfisResponsaveis: ["administrador"],
+                  itens: db.planos.filter(p => p.aprovacao === "pendente" && !p.aguardaComite).map(p => ({ titulo: p.desc?.slice(0,40) + (p.desc?.length > 40 ? "…" : ""), sub: p.areaNome, id: p.id })),
+                  acaoPerfis: ["administrador"], acao: "Aprovar ou rejeitar plano" },
+                { id: "execucao",     label: "Execução",          icon: "◷", cor: F.blue,   perfisResponsaveis: ["gestor"],
+                  itens: planosAprovados.filter(p => p.status !== "concluido").map(p => ({ titulo: p.desc?.slice(0,40) + (p.desc?.length > 40 ? "…" : ""), sub: `${p.areaNome} · ${fmtDate(p.prazo)}`, id: p.id })),
+                  acaoPerfis: ["gestor"], acao: "Executar e atualizar status" },
+                { id: "ciencia",      label: "Ciência",           icon: "✔", cor: "#00875A", perfisResponsaveis: ["gestor"],
+                  itens: auditoriasVisiveis.filter(a => !a.ciencia?.confirmado).map(a => ({ titulo: a.areaNome, sub: `Score: ${a.score}% · ${fmtDate(a.data)}`, id: a.id })),
+                  acaoPerfis: ["gestor"], acao: "Registrar ciência da auditoria" },
+              ];
+              // filtra etapas relevantes para o perfil atual
+              const etapasVisiveis = ETAPAS.filter(e => e.perfisResponsaveis.includes(perfil));
+              const minhasAcoes = ETAPAS.filter(e => e.acaoPerfis.includes(perfil) && e.itens.length > 0);
+              return (
+                <div style={{ marginBottom: 24 }}>
+                  {/* Minhas ações */}
+                  {minhasAcoes.length > 0 && (
+                    <div style={{ background: F.redDim, border: `1.5px solid ${F.redBorder}`, borderRadius: 10, padding: "12px 16px", marginBottom: 16, display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+                      <div style={{ fontFamily: "'Barlow Condensed',sans-serif", fontSize: 13, fontWeight: 800, textTransform: "uppercase", letterSpacing: 0.5, color: F.red, flexShrink: 0 }}>
+                        ⚡ Suas ações pendentes
+                      </div>
+                      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                        {minhasAcoes.map(e => (
+                          <div key={e.id} style={{ background: "#fff", borderRadius: 7, padding: "5px 12px", border: `1.5px solid ${e.cor}`, display: "flex", alignItems: "center", gap: 7 }}>
+                            <span style={{ fontSize: 13 }}>{e.icon}</span>
+                            <div>
+                              <div style={{ fontSize: 11, fontWeight: 800, color: e.cor, textTransform: "uppercase", letterSpacing: 0.5, fontFamily: "'Barlow Condensed',sans-serif" }}>{e.label}</div>
+                              <div style={{ fontSize: 10, color: F.gray3 }}>{e.itens.length} item{e.itens.length !== 1 ? "s" : ""} · {e.acao}</div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Kanban */}
+                  <div style={{ overflowX: "auto", paddingBottom: 4 }}>
+                    <div style={{ display: "flex", gap: 10, minWidth: "max-content" }}>
+                      {etapasVisiveis.map((etapa, idx) => {
+                        const eMinha = etapa.acaoPerfis.includes(perfil);
+                        const temItens = etapa.itens.length > 0;
+                        return (
+                          <div key={etapa.id} style={{ width: 200, flexShrink: 0 }}>
+                            {/* Cabeçalho da coluna */}
+                            <div style={{ background: eMinha && temItens ? etapa.cor : F.gray6, borderRadius: "8px 8px 0 0", padding: "8px 12px", display: "flex", alignItems: "center", gap: 6 }}>
+                              <span style={{ fontSize: 14 }}>{etapa.icon}</span>
+                              <div style={{ flex: 1 }}>
+                                <div style={{ fontFamily: "'Barlow Condensed',sans-serif", fontSize: 12, fontWeight: 800, textTransform: "uppercase", letterSpacing: 0.5, color: eMinha && temItens ? "#fff" : F.gray3 }}>{etapa.label}</div>
+                              </div>
+                              <div style={{ background: eMinha && temItens ? "rgba(255,255,255,.3)" : F.gray5, borderRadius: 20, padding: "1px 7px", fontSize: 11, fontWeight: 700, color: eMinha && temItens ? "#fff" : F.gray3 }}>{etapa.itens.length}</div>
+                            </div>
+                            {/* Itens */}
+                            <div style={{ background: "#fff", border: `1px solid ${eMinha && temItens ? etapa.cor : F.gray6}`, borderTop: "none", borderRadius: "0 0 8px 8px", minHeight: 80, padding: 8, display: "flex", flexDirection: "column", gap: 6 }}>
+                              {etapa.itens.length === 0 ? (
+                                <div style={{ color: F.gray5, fontSize: 11, textAlign: "center", padding: "16px 0" }}>Nenhum item</div>
+                              ) : etapa.itens.slice(0,4).map((item, i) => (
+                                <div key={i} style={{ background: eMinha ? `${etapa.cor}0F` : F.offWhite, borderRadius: 6, padding: "7px 9px", border: `1px solid ${eMinha ? etapa.cor + "33" : F.gray6}` }}>
+                                  <div style={{ fontSize: 11.5, fontWeight: 600, color: F.charcoal, lineHeight: 1.3, marginBottom: 2 }}>{item.titulo}</div>
+                                  <div style={{ fontSize: 10, color: F.gray4 }}>{item.sub}</div>
+                                </div>
+                              ))}
+                              {etapa.itens.length > 4 && (
+                                <div style={{ fontSize: 10, color: F.gray4, textAlign: "center", padding: "3px 0" }}>+{etapa.itens.length - 4} mais</div>
+                              )}
+                            </div>
+                            {/* Quem age */}
+                            <div style={{ marginTop: 4, fontSize: 9.5, color: eMinha ? etapa.cor : F.gray4, textAlign: "center", fontWeight: eMinha ? 700 : 400, fontFamily: "'Barlow Condensed',sans-serif", textTransform: "uppercase", letterSpacing: 0.5 }}>
+                              {eMinha ? "▲ Sua ação" : etapa.acaoPerfis.map(p => PERFIL_LABEL[p] || p).join(" / ")}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
+
             {/* ── DASHBOARD GESTOR ── */}
             {view === "dashboard" && perfil === "gestor" && (() => {
               const minhasAuds = auditoriasVisiveis;
