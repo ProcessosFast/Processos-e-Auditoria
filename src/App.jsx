@@ -109,8 +109,8 @@ const PERMISSOES = {
     acoes: new Set(["criar","excluir","aprovar","exportar","auditar","atualizar-status","gerir-modulos","gerir-ciclos","gerir-comite","liberar-relatorios","agendar-reuniao","comentar-auditoria","relatorio-final","elaborar-plano"])
   },
   "auditor-lider": {
-    views: ["dashboard","areas","processos","auditorias","planos","ncs","ciclos","comite","modulos"],
-    acoes: new Set(["auditar","exportar","gerir-ciclos","gerir-comite","agendar-reuniao","relatorio-final","comentar-auditoria"])
+    views: ["dashboard","areas","processos","auditorias","consolidar","planos","ncs","ciclos","comite","modulos"],
+    acoes: new Set(["auditar","exportar","gerir-ciclos","gerir-comite","agendar-reuniao","relatorio-final","comentar-auditoria","consolidar"])
   },
   auditor: {
     views: ["dashboard","areas","processos","auditorias","planos","ncs","ciclos","comite","modulos"],
@@ -566,10 +566,11 @@ export default function App() {
     ];
     try {
       const salvo = localStorage.getItem("portal-fast-db");
-      const base = salvo ? JSON.parse(salvo) : { areas: [], processos: [], auditorias: [], planos: [], ciclos: [], comite: [], usuarios: [], modulos: [], notificacoes: [] };
+      const base = salvo ? JSON.parse(salvo) : { areas: [], processos: [], auditorias: [], planos: [], ciclos: [], comite: [], usuarios: [], modulos: [], notificacoes: [], consolidacoes: [] };
       if (!base.usuarios) base.usuarios = [];
       if (!base.modulos) base.modulos = [];
       if (!base.notificacoes) base.notificacoes = [];
+      if (!base.consolidacoes) base.consolidacoes = [];
       // Restaura usuários padrão que estiverem faltando
       USUARIOS_PADRAO.forEach(u => {
         if (!base.usuarios.find(x => x.id === u.id)) base.usuarios.push(u);
@@ -598,6 +599,7 @@ export default function App() {
   const [cienciaAuditoriaId, setCienciaAuditoriaId] = useState(null);
   const [comiteAba, setComiteAba] = useState("reunioes");
   const [relatorioFinalAudId, setRelatorioFinalAudId] = useState(null);
+  const [consolidandoPar, setConsolidandoPar] = useState(null);
   const [viewRelatorioAudId, setViewRelatorioAudId] = useState(null);
   const planosIdsRef = useRef(new Set());
 
@@ -984,6 +986,17 @@ ${db.planos.length ? `<table>
     upd("auditorias", arr => arr.map(a => a.id === audId ? { ...a, comentarios: [...(a.comentarios || []), comentario] } : a));
   }
 
+  function salvarConsolidacao(form) {
+    const exist = db.consolidacoes.find(c => c.areaId === form.areaId && c.cicloNome === form.cicloNome);
+    if (exist) {
+      upd("consolidacoes", arr => arr.map(c => c.id === exist.id ? { ...c, ...form, atualizadoEm: new Date().toISOString() } : c));
+      showToast("Consolidação atualizada!");
+    } else {
+      upd("consolidacoes", arr => [...arr, { id: uid(), ...form, auditorLiderId: usuarioLogado.id, auditorLiderNome: usuarioLogado.nome, criadoEm: new Date().toISOString() }]);
+      showToast("Consolidação registrada!");
+    }
+  }
+
   function salvarRelatorioFinal(audId, form) {
     upd("auditorias", arr => arr.map(a => a.id === audId ? { ...a, relatorioFinal: { ...form, auditorId: usuarioLogado.id, auditorNome: usuarioLogado.nome, data: new Date().toISOString(), status: "enviado" } } : a));
     setRelatorioFinalAudId(null);
@@ -1111,6 +1124,7 @@ ${db.planos.length ? `<table>
     { id: "areas", icon: "◉", label: "Áreas", section: "Operação" },
     { id: "processos", icon: "⬡", label: "Processos" },
     { id: "auditorias", icon: "◎", label: "Auditorias", badge: auditoriasVisiveis.filter(a => a.status === "aberta").length },
+    { id: "consolidar", icon: "⊕", label: "Consolidar Auditorias", badge: (() => { const pares = {}; db.auditorias.forEach(a => { if (a.cicloNome && a.cicloNome !== "—") { const k = `${a.areaId}-${a.cicloNome}`; pares[k] = (pares[k] || 0) + 1; } }); return Object.values(pares).filter(v => v >= 2).length; })() || 0 },
     { id: "elaborar", icon: "✍", label: "Elaborar Plano de Ação", badge: db.planos.filter(p => p.aguardaComite && !p.elaborado).length || 0, section: "Melhoria" },
     { id: "planos", icon: "◷", label: "Relatórios de Conclusão", badge: planosPendAprov.length || planosAtrasados.length },
     { id: "ncs", icon: "⚑", label: "Não Conformidades" },
@@ -1620,6 +1634,121 @@ ${db.planos.length ? `<table>
                 />
               </Card>
             )}
+
+            {/* ── CONSOLIDAR AUDITORIAS ── */}
+            {view === "consolidar" && (() => {
+              // Agrupa auditorias por área+ciclo com 2+ auditores
+              const grupos = {};
+              db.auditorias.forEach(a => {
+                if (!a.cicloNome || a.cicloNome === "—") return;
+                const k = `${a.areaId}||${a.cicloNome}`;
+                if (!grupos[k]) grupos[k] = [];
+                grupos[k].push(a);
+              });
+              const pares = Object.values(grupos).filter(g => g.length >= 2);
+
+              return (
+                <div>
+                  {pares.length === 0 ? (
+                    <Card>
+                      <div style={{ textAlign: "center", padding: "48px 0" }}>
+                        <div style={{ fontSize: 36, opacity: 0.15, marginBottom: 10 }}>⊕</div>
+                        <div style={{ fontSize: 15, fontWeight: 700, color: F.gray3, marginBottom: 6 }}>Nenhum par de auditorias encontrado</div>
+                        <div style={{ fontSize: 13, color: F.gray4 }}>Quando dois auditores auditarem a mesma área no mesmo ciclo, o par aparecerá aqui.</div>
+                      </div>
+                    </Card>
+                  ) : (
+                    <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+                      <div style={{ fontSize: 12.5, color: F.gray3, background: F.blueDim, border: `1px solid ${F.blue}33`, borderRadius: 8, padding: "10px 14px" }}>
+                        Auditorias realizadas por dois auditores na mesma área e ciclo. Consolide em um único relatório com a média dos resultados.
+                      </div>
+                      {pares.map(grupo => {
+                        const [a1] = grupo;
+                        const scoreMedia = Math.round(grupo.reduce((s, a) => s + a.score, 0) / grupo.length);
+                        const ncsUnidas = grupo.flatMap(a => (a.ncs || []).map(n => ({ ...n, auditorNome: a.auditorNome })));
+                        const consolidacao = db.consolidacoes.find(c => c.areaId === a1.areaId && c.cicloNome === a1.cicloNome);
+                        const key = `${a1.areaId}-${a1.cicloNome}`;
+                        return (
+                          <Card key={key} style={{ border: `1.5px solid ${consolidacao ? F.green : F.amber}` }}>
+                            <div style={{ display: "flex", alignItems: "flex-start", gap: 14, marginBottom: 16 }}>
+                              <div style={{ flex: 1 }}>
+                                <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", marginBottom: 4 }}>
+                                  <div style={{ fontFamily: "'Barlow Condensed',sans-serif", fontSize: 18, fontWeight: 900, color: F.charcoal }}>{a1.areaNome}</div>
+                                  <Tag>{a1.cicloNome}</Tag>
+                                  {consolidacao ? <Pill color={F.green} bg={F.greenDim}>Consolidado</Pill> : <Pill color={F.amber} bg={F.amberDim}>Aguardando consolidação</Pill>}
+                                </div>
+                              </div>
+                              <div style={{ textAlign: "center", flexShrink: 0 }}>
+                                <div style={{ fontSize: 10, fontWeight: 700, color: F.gray4, textTransform: "uppercase", letterSpacing: 1, fontFamily: "'Barlow Condensed',sans-serif" }}>Média</div>
+                                <div style={{ fontFamily: "'Barlow Condensed',sans-serif", fontSize: 38, fontWeight: 900, color: scoreColor(scoreMedia), lineHeight: 1 }}>{scoreMedia}%</div>
+                                <div style={{ fontSize: 10, color: scoreColor(scoreMedia), fontWeight: 700, textTransform: "uppercase" }}>{scoreLabel(scoreMedia)}</div>
+                              </div>
+                            </div>
+
+                            {/* Cards dos auditores */}
+                            <div style={{ display: "grid", gridTemplateColumns: `repeat(${grupo.length}, 1fr)`, gap: 10, marginBottom: 16 }}>
+                              {grupo.map(a => (
+                                <div key={a.id} style={{ background: F.offWhite, borderRadius: 8, padding: "12px 14px", border: `1px solid ${F.gray6}` }}>
+                                  <div style={{ fontSize: 11, fontWeight: 700, color: F.gray4, textTransform: "uppercase", letterSpacing: 0.5, fontFamily: "'Barlow Condensed',sans-serif", marginBottom: 4 }}>Auditor</div>
+                                  <div style={{ fontSize: 13, fontWeight: 700, color: F.charcoal }}>{a.auditorNome}</div>
+                                  <div style={{ fontSize: 11, color: F.gray4, marginTop: 2 }}>{fmtDate(a.data)}</div>
+                                  <div style={{ fontFamily: "'Barlow Condensed',sans-serif", fontSize: 26, fontWeight: 900, color: scoreColor(a.score), marginTop: 6 }}>{a.score}%</div>
+                                  <div style={{ fontSize: 11, color: F.gray3, marginTop: 4 }}>{(a.ncs || []).filter(n => n.clas === "nc").length} NC · {(a.ncs || []).filter(n => n.clas === "mel").length} Melhoria</div>
+                                </div>
+                              ))}
+                            </div>
+
+                            {/* NCs unidas */}
+                            {ncsUnidas.length > 0 && (
+                              <div style={{ marginBottom: 14 }}>
+                                <div style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: 1, color: F.gray4, fontFamily: "'Barlow Condensed',sans-serif", marginBottom: 8 }}>
+                                  Não Conformidades consolidadas ({ncsUnidas.length})
+                                </div>
+                                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                                  {ncsUnidas.map((n, i) => {
+                                    const cmap = { nc: [F.red, F.redDim, "NC"], mel: [F.blue, F.blueDim, "Melhoria"], obs: [F.gray3, F.gray6, "Obs"] };
+                                    const [c, bg, lbl] = cmap[n.clas] || [F.gray3, F.gray6, "—"];
+                                    return (
+                                      <div key={i} style={{ background: bg, border: `1px solid ${c}33`, borderRadius: 7, padding: "8px 12px" }}>
+                                        <div style={{ display: "flex", gap: 8, alignItems: "flex-start" }}>
+                                          <span style={{ fontSize: 9.5, fontWeight: 700, padding: "1px 6px", borderRadius: 3, background: `${c}22`, color: c, fontFamily: "'Barlow Condensed',sans-serif", textTransform: "uppercase", whiteSpace: "nowrap", marginTop: 1 }}>{lbl}</span>
+                                          <div style={{ flex: 1 }}>
+                                            <div style={{ fontSize: 12.5 }}>{n.q}</div>
+                                            {n.evidencia && <div style={{ fontSize: 11, color: F.gray3, marginTop: 2 }}>Evidência: {n.evidencia}</div>}
+                                            <div style={{ fontSize: 10, color: F.gray4, marginTop: 2 }}>— {n.auditorNome}</div>
+                                          </div>
+                                        </div>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Relatório consolidado existente */}
+                            {consolidacao && (
+                              <div style={{ background: F.greenDim, border: `1px solid ${F.green}44`, borderRadius: 8, padding: "12px 14px", marginBottom: 12 }}>
+                                <div style={{ fontSize: 11, fontWeight: 700, color: F.green, marginBottom: 8 }}>✓ Relatório consolidado por {consolidacao.auditorLiderNome} · {fmtDate(consolidacao.criadoEm?.split("T")[0])}</div>
+                                {consolidacao.conclusoes && <div style={{ fontSize: 12.5, marginBottom: 4 }}><strong>Conclusões:</strong> {consolidacao.conclusoes}</div>}
+                                {consolidacao.recomendacoes && <div style={{ fontSize: 12.5, marginBottom: 4 }}><strong>Recomendações:</strong> {consolidacao.recomendacoes}</div>}
+                                {consolidacao.observacoes && <div style={{ fontSize: 12.5 }}><strong>Obs.:</strong> {consolidacao.observacoes}</div>}
+                              </div>
+                            )}
+
+                            <div style={{ display: "flex", justifyContent: "flex-end" }}>
+                              <Btn onClick={() => setConsolidandoPar({ grupo, scoreMedia, ncsUnidas, consolidacao })}
+                                style={{ background: consolidacao ? F.gray2 : F.blue, border: "none", color: "#fff" }}>
+                                {consolidacao ? "✎ Editar Consolidação" : "⊕ Criar Relatório Consolidado"}
+                              </Btn>
+                            </div>
+                          </Card>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
 
             {/* ── AUDITORIAS ── */}
             {view === "auditorias" && (
@@ -2427,6 +2556,14 @@ ${db.planos.length ? `<table>
       {/* PLANO */}
       <PlanoModal open={!!modals.plano} onClose={() => closeModal("plano")} areas={db.areas} usuarios={db.usuarios} onSave={f => { savePlano(f); }} />
 
+      {/* CONSOLIDAÇÃO */}
+      <ConsolidacaoModal
+        open={!!consolidandoPar}
+        onClose={() => setConsolidandoPar(null)}
+        par={consolidandoPar}
+        onSave={salvarConsolidacao}
+      />
+
       {/* VISUALIZAR RELATÓRIO FINAL */}
       <RelatorioFinalViewModal
         open={!!viewRelatorioAudId}
@@ -2899,6 +3036,49 @@ ${auditoria.comentarios?.length > 0 ? `
   const win = window.open(url, "_blank");
   setTimeout(() => URL.revokeObjectURL(url), 60000);
   if (!win) alert("Permita pop-ups para gerar o PDF.");
+}
+
+function ConsolidacaoModal({ open, onClose, par, onSave }) {
+  const [f, setF] = useState({ conclusoes: "", recomendacoes: "", observacoes: "" });
+  useEffect(() => {
+    if (open && par) {
+      const c = par.consolidacao;
+      setF({ conclusoes: c?.conclusoes || "", recomendacoes: c?.recomendacoes || "", observacoes: c?.observacoes || "" });
+    }
+  }, [open, par]);
+  if (!par) return null;
+  const { grupo, scoreMedia, ncsUnidas } = par;
+  const [a1] = grupo;
+  return (
+    <Modal open={open} onClose={onClose} title="Relatório Consolidado de Auditoria" width={620}
+      footer={<><Btn variant="ghost" onClick={onClose}>Cancelar</Btn><Btn onClick={() => { if (!f.conclusoes.trim()) { alert("Informe as conclusões."); return; } onSave({ areaId: a1.areaId, areaNome: a1.areaNome, cicloNome: a1.cicloNome, auditoriaIds: grupo.map(a => a.id), scoreMedia, ncsCount: ncsUnidas.length, ...f }); onClose(); }}>✓ Salvar Relatório Consolidado</Btn></>}>
+
+      {/* Resumo */}
+      <div style={{ background: F.offWhite, borderRadius: 8, padding: "12px 16px", marginBottom: 16, display: "flex", gap: 16, alignItems: "center", flexWrap: "wrap" }}>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontFamily: "'Barlow Condensed',sans-serif", fontSize: 16, fontWeight: 900, color: F.charcoal }}>{a1.areaNome}</div>
+          <div style={{ fontSize: 11.5, color: F.gray4, marginTop: 2 }}>Ciclo: {a1.cicloNome} · {grupo.length} auditores · {ncsUnidas.length} NCs</div>
+          <div style={{ display: "flex", gap: 8, marginTop: 6, flexWrap: "wrap" }}>
+            {grupo.map(a => <Tag key={a.id} color={scoreColor(a.score)} bg={`${scoreColor(a.score)}18`}>{a.auditorNome}: {a.score}%</Tag>)}
+          </div>
+        </div>
+        <div style={{ textAlign: "center" }}>
+          <div style={{ fontFamily: "'Barlow Condensed',sans-serif", fontSize: 36, fontWeight: 900, color: scoreColor(scoreMedia), lineHeight: 1 }}>{scoreMedia}%</div>
+          <div style={{ fontSize: 10, color: scoreColor(scoreMedia), fontWeight: 700, textTransform: "uppercase" }}>Média Consolidada</div>
+        </div>
+      </div>
+
+      <FG label="Conclusões Consolidadas *">
+        <textarea style={{ ...fi, resize: "vertical", minHeight: 90 }} value={f.conclusoes} onChange={e => setF({ ...f, conclusoes: e.target.value })} placeholder="Síntese das conclusões das duas auditorias..." />
+      </FG>
+      <FG label="Recomendações">
+        <textarea style={{ ...fi, resize: "vertical", minHeight: 70 }} value={f.recomendacoes} onChange={e => setF({ ...f, recomendacoes: e.target.value })} placeholder="Ações e melhorias recomendadas pelo Auditor Líder..." />
+      </FG>
+      <FG label="Observações do Auditor Líder">
+        <textarea style={{ ...fi, resize: "vertical", minHeight: 60 }} value={f.observacoes} onChange={e => setF({ ...f, observacoes: e.target.value })} placeholder="Contexto adicional, pontos de convergência ou divergência entre os auditores..." />
+      </FG>
+    </Modal>
+  );
 }
 
 function RelatorioFinalViewModal({ open, onClose, auditoria }) {
