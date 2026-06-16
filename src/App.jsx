@@ -45,6 +45,18 @@ const css = `
   .anim2 { animation: slideIn 0.35s ease 0.1s both; }
   .anim3 { animation: slideIn 0.35s ease 0.2s both; }
   .anim4 { animation: slideIn 0.35s ease 0.3s both; }
+  .table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  @media (max-width: 768px) {
+    .resp-grid-5 { grid-template-columns: repeat(2,1fr) !important; }
+    .resp-grid-4 { grid-template-columns: repeat(2,1fr) !important; }
+    .resp-grid-2 { grid-template-columns: 1fr !important; }
+    .resp-grid-3 { grid-template-columns: 1fr !important; }
+    .resp-hide { display: none !important; }
+    .resp-full { width: 100% !important; }
+    .resp-stack { flex-direction: column !important; }
+    .resp-wrap { flex-wrap: wrap !important; }
+    .modal-inner { padding: 14px !important; }
+  }
 `;
 
 // ── CHECKLIST DATA ────────────────────────────────────────────────
@@ -189,18 +201,22 @@ function Modal({ open, onClose, title, children, footer, width = 560 }) {
   return (
     <div onClick={e => e.target === e.currentTarget && onClose()} style={{
       position: "fixed", inset: 0, background: "rgba(10,10,10,0.6)",
-      backdropFilter: "blur(4px)", zIndex: 200,
-      display: "flex", alignItems: "center", justifyContent: "center",
+      backdropFilter: "blur(4px)", zIndex: 210,
+      display: "flex", alignItems: window.innerWidth <= 768 ? "flex-end" : "center", justifyContent: "center",
       animation: "fadeIn 0.2s ease"
     }}>
       <div style={{
-        background: "#fff", borderRadius: 12, width, maxWidth: "95vw",
-        maxHeight: "88vh", display: "flex", flexDirection: "column",
+        background: "#fff", borderRadius: window.innerWidth <= 768 ? "12px 12px 0 0" : 12,
+        width: window.innerWidth <= 768 ? "100%" : width,
+        maxWidth: "100vw", maxHeight: window.innerWidth <= 768 ? "92vh" : "88vh",
+        display: "flex", flexDirection: "column",
         overflow: "hidden", boxShadow: "0 24px 80px rgba(0,0,0,0.25)",
-        animation: "slideIn 0.25s ease"
+        animation: "slideIn 0.25s ease",
+        position: window.innerWidth <= 768 ? "fixed" : "relative",
+        bottom: window.innerWidth <= 768 ? 0 : "auto"
       }}>
         <div style={{
-          padding: "18px 24px 16px", borderBottom: `1px solid ${F.gray6}`,
+          padding: window.innerWidth <= 768 ? "14px 16px 12px" : "18px 24px 16px", borderBottom: `1px solid ${F.gray6}`,
           display: "flex", alignItems: "center", justifyContent: "space-between",
           flexShrink: 0
         }}>
@@ -216,7 +232,7 @@ function Modal({ open, onClose, title, children, footer, width = 560 }) {
             color: F.gray3
           }}>✕</button>
         </div>
-        <div style={{ padding: "20px 24px", overflowY: "auto", flex: 1 }}>{children}</div>
+        <div className="modal-inner" style={{ padding: window.innerWidth <= 768 ? "14px 14px" : "20px 24px", overflowY: "auto", flex: 1, WebkitOverflowScrolling: "touch" }}>{children}</div>
         {footer && (
           <div style={{
             padding: "14px 24px", borderTop: `1px solid ${F.gray6}`,
@@ -299,7 +315,8 @@ function DataTable({ cols, rows, empty }) {
     </div>
   );
   return (
-    <table style={{ width: "100%", borderCollapse: "collapse" }}>
+    <div className="table-scroll">
+    <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 500 }}>
       <thead>
         <tr>
           {cols.map((c, i) => (
@@ -323,6 +340,7 @@ function DataTable({ cols, rows, empty }) {
         ))}
       </tbody>
     </table>
+    </div>
   );
 }
 function TD({ children, style = {} }) {
@@ -618,6 +636,14 @@ export default function App() {
   const [relatorioFinalAudId, setRelatorioFinalAudId] = useState(null);
   const [consolidandoPar, setConsolidandoPar] = useState(null);
   const [cronogramaView, setCronogramaView] = useState("lista");
+  const [isMobile, setIsMobile] = useState(() => window.innerWidth <= 768);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  useEffect(() => {
+    const onResize = () => { setIsMobile(window.innerWidth <= 768); if (window.innerWidth > 768) setSidebarOpen(false); };
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
   const [calMes, setCalMes] = useState(() => { const d = new Date(); return { ano: d.getFullYear(), mes: d.getMonth() }; });
   const [viewRelatorioAudId, setViewRelatorioAudId] = useState(null);
   const planosIdsRef = useRef(new Set());
@@ -1179,11 +1205,18 @@ ${db.planos.length ? `<table>
       <style>{css}</style>
       <div style={{ display: "flex", minHeight: "100vh" }}>
 
+        {/* OVERLAY MOBILE */}
+        {isMobile && sidebarOpen && (
+          <div onClick={() => setSidebarOpen(false)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 199, animation: "fadeIn 0.2s ease" }} />
+        )}
+
         {/* SIDEBAR */}
         <aside style={{
           width: 220, minHeight: "100vh", background: F.charcoal,
           display: "flex", flexDirection: "column", position: "fixed",
-          top: 0, left: 0, zIndex: 100
+          top: 0, left: 0, zIndex: 200,
+          transform: isMobile && !sidebarOpen ? "translateX(-100%)" : "translateX(0)",
+          transition: "transform 0.28s cubic-bezier(.4,0,.2,1)"
         }}>
           {/* LOGO */}
           <div style={{
@@ -1269,24 +1302,30 @@ ${db.planos.length ? `<table>
         </aside>
 
         {/* MAIN */}
-        <main style={{ marginLeft: 220, flex: 1, display: "flex", flexDirection: "column" }}>
+        <main style={{ marginLeft: isMobile ? 0 : 220, flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
 
           {/* TOPBAR */}
           <div style={{
-            padding: "14px 28px", borderBottom: `1px solid ${F.gray6}`,
+            padding: isMobile ? "12px 16px" : "14px 28px", borderBottom: `1px solid ${F.gray6}`,
             display: "flex", alignItems: "center", justifyContent: "space-between",
             background: "#fff", position: "sticky", top: 0, zIndex: 50,
-            boxShadow: "0 1px 0 rgba(0,0,0,0.05)"
+            boxShadow: "0 1px 0 rgba(0,0,0,0.05)", gap: 8
           }}>
-            <div style={{
-              fontFamily: "'Barlow Condensed',sans-serif",
-              fontSize: 20, fontWeight: 800, textTransform: "uppercase",
-              letterSpacing: 0.5, color: F.charcoal
-            }}>
-              {navItems.find(n => n.id === view)?.label || "Dashboard"}
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              {isMobile && (
+                <button onClick={() => setSidebarOpen(o => !o)} style={{ background: "none", border: "none", fontSize: 20, cursor: "pointer", color: F.charcoal, padding: "2px 4px", flexShrink: 0, lineHeight: 1 }}>☰</button>
+              )}
+              <div style={{
+                fontFamily: "'Barlow Condensed',sans-serif",
+                fontSize: isMobile ? 16 : 20, fontWeight: 800, textTransform: "uppercase",
+                letterSpacing: 0.5, color: F.charcoal, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: isMobile ? 160 : "none"
+              }}>
+                {navItems.find(n => n.id === view)?.label || "Dashboard"}
+              </div>
             </div>
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <a href={`/manual.html?perfil=${perfil}`} target="_blank" rel="noreferrer" style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "8px 14px", borderRadius: 6, fontSize: 13, fontWeight: 600, color: F.gray3, background: F.offWhite, border: `1.5px solid ${F.gray6}`, textDecoration: "none", fontFamily: "'Barlow',sans-serif", transition: "all 0.15s" }} onMouseEnter={e => { e.currentTarget.style.borderColor = F.red; e.currentTarget.style.color = F.red; }} onMouseLeave={e => { e.currentTarget.style.borderColor = F.gray6; e.currentTarget.style.color = F.gray3; }}>? Suporte</a>
+            <div style={{ display: "flex", alignItems: "center", gap: isMobile ? 5 : 8, flexShrink: 0 }}>
+              {!isMobile && <a href={`/manual.html?perfil=${perfil}`} target="_blank" rel="noreferrer" style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "8px 14px", borderRadius: 6, fontSize: 13, fontWeight: 600, color: F.gray3, background: F.offWhite, border: `1.5px solid ${F.gray6}`, textDecoration: "none", fontFamily: "'Barlow',sans-serif", transition: "all 0.15s" }} onMouseEnter={e => { e.currentTarget.style.borderColor = F.red; e.currentTarget.style.color = F.red; }} onMouseLeave={e => { e.currentTarget.style.borderColor = F.gray6; e.currentTarget.style.color = F.gray3; }}>? Suporte</a>}
+              {isMobile && <a href={`/manual.html?perfil=${perfil}`} target="_blank" rel="noreferrer" style={{ background: "none", border: "none", fontSize: 18, textDecoration: "none", color: F.gray3 }}>?</a>}
               {podeExecutar(perfil, "exportar") && <Btn variant="ghost" onClick={exportarRelatorio}>↓ Exportar Relatório</Btn>}
               {view === "areas" && podeExecutar(perfil, "criar") && <Btn onClick={() => openModal("area")}>+ Nova Área</Btn>}
               {view === "processos" && podeExecutar(perfil, "criar") && <Btn onClick={() => openModal("processo")}>+ Novo Processo</Btn>}
@@ -1399,7 +1438,7 @@ ${db.planos.length ? `<table>
           </div>
 
           {/* CONTENT */}
-          <div style={{ padding: "24px 28px", flex: 1 }}>
+          <div style={{ padding: isMobile ? "16px 12px" : "24px 28px", flex: 1, minWidth: 0 }}>
 
             {/* ── RESUMO DO GESTOR ── */}
             {perfil === "gestor" && (
@@ -1611,7 +1650,7 @@ ${db.planos.length ? `<table>
                       sub={planosAtrasados.length ? "Requer atenção" : "Nenhum atrasado"} accent={planosAtrasados.length > 0 ? F.red : F.green} delay={0.1} />
                   </div>
 
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginBottom: 14 }}>
+                  <div className="resp-grid-2" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginBottom: 14 }}>
                     {/* Evolução de Score */}
                     <Card className="anim2">
                       <div style={{ fontFamily: "'Barlow Condensed',sans-serif", fontSize: 14, fontWeight: 800, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 16 }}>Evolução de Score</div>
@@ -1696,7 +1735,7 @@ ${db.planos.length ? `<table>
             {view === "dashboard" && perfil !== "gestor" && (
               <div>
                 {/* Stats */}
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(5,1fr)", gap: 12, marginBottom: 20 }}>
+                <div className="resp-grid-5" style={{ display: "grid", gridTemplateColumns: "repeat(5,1fr)", gap: 12, marginBottom: 20 }}>
                   <StatCard label="Áreas Auditáveis" value={areasAuditaveis.length || "—"}
                     sub={areasAuditaveis.length ? `${areasAuditaveis.length} área${areasAuditaveis.length !== 1 ? "s" : ""}` : "Nenhuma cadastrada"}
                     accent={F.green} delay={0} />
@@ -1717,7 +1756,7 @@ ${db.planos.length ? `<table>
                 </div>
 
                 {/* Gráficos */}
-                <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 14, marginBottom: 14 }}>
+                <div className="resp-grid-2" style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 14, marginBottom: 14 }}>
                   <Card className="anim2">
                     <div style={{
                       fontFamily: "'Barlow Condensed',sans-serif", fontSize: 14,
