@@ -989,13 +989,18 @@ ${db.planos.length ? `<table>
   }
 
   function salvarConsolidacao(form) {
+    const relatorio = { conclusoes: form.conclusoes, recomendacoes: form.recomendacoes, observacoes: form.observacoes, auditorId: usuarioLogado.id, auditorNome: usuarioLogado.nome, data: new Date().toISOString(), status: "enviado", consolidado: true };
+    // Salva relatorioFinal em TODAS as auditorias do par
+    if (form.auditoriaIds?.length) {
+      upd("auditorias", arr => arr.map(a => form.auditoriaIds.includes(a.id) ? { ...a, relatorioFinal: relatorio } : a));
+    }
     const exist = db.consolidacoes.find(c => c.areaId === form.areaId && c.cicloNome === form.cicloNome);
     if (exist) {
       upd("consolidacoes", arr => arr.map(c => c.id === exist.id ? { ...c, ...form, atualizadoEm: new Date().toISOString() } : c));
-      showToast("Consolidação atualizada!");
+      showToast("Consolidação e relatório final atualizados!");
     } else {
       upd("consolidacoes", arr => [...arr, { id: uid(), ...form, auditorLiderId: usuarioLogado.id, auditorLiderNome: usuarioLogado.nome, criadoEm: new Date().toISOString() }]);
-      showToast("Consolidação registrada!");
+      showToast("Consolidação registrada — relatório final gerado!");
     }
   }
 
@@ -2098,7 +2103,7 @@ ${db.planos.length ? `<table>
                             <div style={{ display: "flex", justifyContent: "flex-end" }}>
                               <Btn onClick={() => setConsolidandoPar({ grupo, scoreMedia, ncsUnidas, consolidacao })}
                                 style={{ background: consolidacao ? F.gray2 : F.blue, border: "none", color: "#fff" }}>
-                                {consolidacao ? "✎ Editar Consolidação" : "⊕ Criar Relatório Consolidado"}
+                                {consolidacao ? "✎ Editar Relatório Consolidado" : "⊕ Consolidar e Gerar Relatório Final"}
                               </Btn>
                             </div>
                           </Card>
@@ -3410,8 +3415,8 @@ function ConsolidacaoModal({ open, onClose, par, onSave }) {
   const { grupo, scoreMedia, ncsUnidas } = par;
   const [a1] = grupo;
   return (
-    <Modal open={open} onClose={onClose} title="Relatório Consolidado de Auditoria" width={620}
-      footer={<><Btn variant="ghost" onClick={onClose}>Cancelar</Btn><Btn onClick={() => { if (!f.conclusoes.trim()) { alert("Informe as conclusões."); return; } onSave({ areaId: a1.areaId, areaNome: a1.areaNome, cicloNome: a1.cicloNome, auditoriaIds: grupo.map(a => a.id), scoreMedia, ncsCount: ncsUnidas.length, ...f }); onClose(); }}>✓ Salvar Relatório Consolidado</Btn></>}>
+    <Modal open={open} onClose={onClose} title="Consolidar Auditorias e Gerar Relatório Final" width={620}
+      footer={<><Btn variant="ghost" onClick={onClose}>Cancelar</Btn><Btn onClick={() => { if (!f.conclusoes.trim()) { alert("Informe as conclusões."); return; } onSave({ areaId: a1.areaId, areaNome: a1.areaNome, cicloNome: a1.cicloNome, auditoriaIds: grupo.map(a => a.id), scoreMedia, ncsCount: ncsUnidas.length, ...f }); onClose(); }}>✓ Consolidar e Gerar Relatório Final</Btn></>}>
 
       {/* Resumo */}
       <div style={{ background: F.offWhite, borderRadius: 8, padding: "12px 16px", marginBottom: 16, display: "flex", gap: 16, alignItems: "center", flexWrap: "wrap" }}>
@@ -3426,6 +3431,10 @@ function ConsolidacaoModal({ open, onClose, par, onSave }) {
           <div style={{ fontFamily: "'Barlow Condensed',sans-serif", fontSize: 36, fontWeight: 900, color: scoreColor(scoreMedia), lineHeight: 1 }}>{scoreMedia}%</div>
           <div style={{ fontSize: 10, color: scoreColor(scoreMedia), fontWeight: 700, textTransform: "uppercase" }}>Média Consolidada</div>
         </div>
+      </div>
+
+      <div style={{ background: F.blueDim, border: `1px solid ${F.blue}33`, borderRadius: 7, padding: "9px 14px", marginBottom: 14, fontSize: 12.5, color: F.blue }}>
+        Este relatório será salvo como <strong>Relatório Final</strong> em ambas as auditorias — não é necessário elaborar separadamente.
       </div>
 
       <FG label="Conclusões Consolidadas *">
