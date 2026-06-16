@@ -971,8 +971,14 @@ ${db.planos.length ? `<table>
   function saveProcesso(form) {
     if (!form.nome?.trim() || !form.areaId) { showToast("Informe nome e área.", "err"); return; }
     const area = db.areas.find(a => a.id === form.areaId);
-    upd("processos", p => [...p, { id: uid(), areaNome: area?.nome || "—", ...form, nome: U(form.nome), resp: U(form.resp) }]);
-    closeModal("processo"); showToast("Processo cadastrado!");
+    const f = { ...form, areaNome: area?.nome || "—", nome: U(form.nome), resp: U(form.resp) };
+    if (f.id) {
+      upd("processos", arr => arr.map(p => p.id === f.id ? { ...p, ...f } : p));
+      closeModal("processo"); showToast("Processo atualizado!");
+    } else {
+      upd("processos", arr => [...arr, { id: uid(), ...f }]);
+      closeModal("processo"); showToast("Processo cadastrado!");
+    }
   }
 
   // ── SAVE CICLO ──
@@ -2080,7 +2086,7 @@ ${db.planos.length ? `<table>
             {view === "processos" && (
               <Card>
                 <DataTable
-                  cols={["Processo", "Área", "Responsável", "Documento", "Status", ...(podeExecutar(perfil, "excluir") ? [""] : [])]}
+                  cols={["Processo", "Área", "Responsável", "Documento", "Status", ...(podeExecutar(perfil, "criar") || podeExecutar(perfil, "excluir") ? [""] : [])]}
                   rows={db.processos.map(p => {
                     const sm = { conforme: [F.green, F.greenDim, "Conforme"], revisao: [F.amber, F.amberDim, "Em Revisão"], pendente: [F.red, F.redDim, "Pendente"], inativo: [F.gray3, F.gray6, "Inativo"] };
                     const [c, bg, lbl] = sm[p.status] || [F.gray3, F.gray6, p.status];
@@ -2090,7 +2096,14 @@ ${db.planos.length ? `<table>
                       <TD style={{ color: F.gray3 }}>{p.resp || "—"}</TD>
                       <TD>{p.link ? <a href={p.link} target="_blank" rel="noreferrer" style={{ color: F.red, fontSize: 12, fontWeight: 600 }}>↗ SharePoint</a> : "—"}</TD>
                       <TD><Pill color={c} bg={bg}>{lbl}</Pill></TD>
-                      {podeExecutar(perfil, "excluir") && <TD><button onClick={() => upd("processos", arr => arr.filter(x => x.id !== p.id))} style={{ background: "none", border: "none", color: F.gray4, cursor: "pointer", fontSize: 16, padding: "2px 6px" }}>✕</button></TD>}
+                      {(podeExecutar(perfil, "criar") || podeExecutar(perfil, "excluir")) && (
+                        <TD>
+                          <div style={{ display: "flex", gap: 4 }}>
+                            {podeExecutar(perfil, "criar") && <button onClick={() => openModal("processo", p)} style={{ background: F.offWhite, border: `1px solid ${F.gray6}`, borderRadius: 5, color: F.gray3, cursor: "pointer", fontSize: 13, padding: "3px 8px" }}>✎</button>}
+                            {podeExecutar(perfil, "excluir") && <button onClick={() => upd("processos", arr => arr.filter(x => x.id !== p.id))} style={{ background: "none", border: "none", color: F.gray4, cursor: "pointer", fontSize: 16, padding: "2px 6px" }}>✕</button>}
+                          </div>
+                        </TD>
+                      )}
                     </>;
                   })}
                   empty={{
@@ -3266,7 +3279,7 @@ ${db.planos.length ? `<table>
       <AreaModal open={!!modals.area} onClose={() => closeModal("area")} modulos={db.modulos} area={modals.area} onSave={saveArea} />
 
       {/* PROCESSO */}
-      <ProcessoModal open={!!modals.processo} onClose={() => closeModal("processo")} areas={db.areas} onSave={saveProcesso} />
+      <ProcessoModal open={!!modals.processo} onClose={() => closeModal("processo")} areas={db.areas} processo={modals.processo} onSave={saveProcesso} />
 
       {/* CICLO */}
       <CicloModal open={!!modals.ciclo} onClose={() => closeModal("ciclo")} ciclo={modals.ciclo} onSave={saveCiclo} />
@@ -3472,12 +3485,15 @@ function AreaModal({ open, onClose, modulos, area, onSave }) {
   );
 }
 
-function ProcessoModal({ open, onClose, areas, onSave }) {
-  const [f, setF] = useState({ nome: "", areaId: "", resp: "", link: "", status: "conforme" });
-  function save() { onSave(f); setF({ nome: "", areaId: "", resp: "", link: "", status: "conforme" }); }
+function ProcessoModal({ open, onClose, areas, processo, onSave }) {
+  const empty = { nome: "", areaId: "", resp: "", link: "" };
+  const [f, setF] = useState(empty);
+  const isEdit = !!(processo && processo.id);
+  useEffect(() => { if (open) setF(isEdit ? { ...empty, ...processo } : empty); }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
+  function save() { onSave(f); setF(empty); }
   return (
-    <Modal open={open} onClose={onClose} title="Novo Processo" width={500}
-      footer={<><Btn variant="ghost" onClick={onClose}>Cancelar</Btn><Btn onClick={save}>Salvar</Btn></>}>
+    <Modal open={open} onClose={onClose} title={isEdit ? "Editar Processo" : "Novo Processo"} width={500}
+      footer={<><Btn variant="ghost" onClick={onClose}>Cancelar</Btn><Btn onClick={save}>{isEdit ? "Salvar Alterações" : "Salvar"}</Btn></>}>
       <FG label="Nome do Processo"><input style={fi} value={f.nome} onChange={e => setF({ ...f, nome: e.target.value })} placeholder="ex: Recebimento de Materiais" /></FG>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
         <FG label="Área">
