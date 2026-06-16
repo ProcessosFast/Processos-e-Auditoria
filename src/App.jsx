@@ -2616,14 +2616,6 @@ function ProcessoModal({ open, onClose, areas, onSave }) {
         <FG label="Responsável"><input style={fi} value={f.resp} onChange={e => setF({ ...f, resp: e.target.value })} placeholder="Nome" /></FG>
       </div>
       <FG label="Link SharePoint"><input style={{ ...fi, textTransform: "none" }} value={f.link} onChange={e => setF({ ...f, link: e.target.value })} placeholder="https://..." /></FG>
-      <FG label="Status">
-        <select style={fi} value={f.status} onChange={e => setF({ ...f, status: e.target.value })}>
-          <option value="conforme">Conforme</option>
-          <option value="revisao">Em Revisão</option>
-          <option value="pendente">Pendente</option>
-          <option value="inativo">Inativo</option>
-        </select>
-      </FG>
     </Modal>
   );
 }
