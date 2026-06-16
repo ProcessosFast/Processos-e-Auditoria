@@ -105,23 +105,23 @@ function scoreAreaCiclo(areaId, auditorias) {
 // ── PERMISSÕES ───────────────────────────────────────────────────
 const PERMISSOES = {
   administrador: {
-    views: ["dashboard","areas","processos","auditorias","planos","elaborar","ncs","ciclos","comite","usuarios","modulos"],
+    views: ["dashboard","areas","processos","auditorias","relatorio-conclusao","planos","elaborar","ncs","ciclos","comite","usuarios","modulos"],
     acoes: new Set(["criar","excluir","aprovar","exportar","auditar","atualizar-status","gerir-modulos","gerir-ciclos","gerir-comite","liberar-relatorios","agendar-reuniao","comentar-auditoria","relatorio-final","elaborar-plano"])
   },
   "auditor-lider": {
-    views: ["dashboard","areas","processos","auditorias","consolidar","planos","ncs","ciclos","comite","modulos"],
+    views: ["dashboard","areas","processos","auditorias","relatorio-conclusao","consolidar","planos","ncs","ciclos","comite","modulos"],
     acoes: new Set(["auditar","exportar","gerir-ciclos","gerir-comite","agendar-reuniao","relatorio-final","comentar-auditoria","consolidar"])
   },
   auditor: {
-    views: ["dashboard","areas","processos","auditorias","planos","ncs","ciclos","comite","modulos"],
+    views: ["dashboard","areas","processos","auditorias","relatorio-conclusao","planos","ncs","ciclos","comite","modulos"],
     acoes: new Set(["auditar","exportar","relatorio-final"])
   },
   comite: {
-    views: ["dashboard","auditorias","processos","planos","comite"],
+    views: ["dashboard","auditorias","processos","relatorio-conclusao","planos","comite"],
     acoes: new Set(["exportar","comentar-auditoria","votar-enquete"])
   },
   gestor: {
-    views: ["dashboard","planos","auditorias"],
+    views: ["dashboard","relatorio-conclusao","planos","auditorias"],
     acoes: new Set(["atualizar-status"])
   }
 };
@@ -1161,8 +1161,9 @@ ${db.planos.length ? `<table>
     { id: "processos", icon: "⬡", label: "Processos" },
     { id: "auditorias", icon: "◎", label: "Auditorias", badge: auditoriasVisiveis.filter(a => a.status === "aberta").length },
     { id: "consolidar", icon: "⊕", label: "Consolidar Auditorias", badge: (() => { const pares = {}; db.auditorias.forEach(a => { if (a.cicloNome && a.cicloNome !== "—") { const k = `${a.areaId}-${a.cicloNome}`; pares[k] = (pares[k] || 0) + 1; } }); return Object.values(pares).filter(v => v >= 2).length; })() || 0 },
-    { id: "elaborar", icon: "✍", label: "Elaborar Plano de Ação", badge: db.planos.filter(p => p.aguardaComite && !p.elaborado).length || 0, section: "Melhoria" },
-    { id: "planos", icon: "◷", label: "Relatórios de Conclusão", badge: planosPendAprov.length || planosAtrasados.length },
+    { id: "relatorio-conclusao", icon: "📋", label: "Relatório de Conclusão", section: "Melhoria" },
+    { id: "elaborar", icon: "✍", label: "Elaborar Plano de Ação", badge: db.planos.filter(p => p.aguardaComite && !p.elaborado).length || 0 },
+    { id: "planos", icon: "◷", label: "Planos de Ação", badge: planosPendAprov.length || planosAtrasados.length },
     { id: "ncs", icon: "⚑", label: "Não Conformidades" },
     { id: "ciclos", icon: "◈", label: "Ciclos", section: "Gestão" },
     { id: "modulos", icon: "⊞", label: "Categorias de Avaliação" },
@@ -1532,7 +1533,7 @@ ${db.planos.length ? `<table>
                         return (
                           <div key={etapa.id} style={{ width: 200, flexShrink: 0 }}>
                             {/* Cabeçalho da coluna */}
-                            <div style={{ background: eMinha && temItens ? etapa.cor : F.gray6, borderRadius: "8px 8px 0 0", padding: "8px 12px", display: "flex", alignItems: "center", gap: 6 }}>
+                            <div style={{ background: eMinha && temItens ? F.red : F.gray6, borderRadius: "8px 8px 0 0", padding: "8px 12px", display: "flex", alignItems: "center", gap: 6 }}>
                               <span style={{ fontSize: 14 }}>{etapa.icon}</span>
                               <div style={{ flex: 1 }}>
                                 <div style={{ fontFamily: "'Barlow Condensed',sans-serif", fontSize: 12, fontWeight: 800, textTransform: "uppercase", letterSpacing: 0.5, color: eMinha && temItens ? "#fff" : F.gray3 }}>{etapa.label}</div>
@@ -1544,7 +1545,7 @@ ${db.planos.length ? `<table>
                               {etapa.itens.length === 0 ? (
                                 <div style={{ color: F.gray5, fontSize: 11, textAlign: "center", padding: "16px 0" }}>Nenhum item</div>
                               ) : etapa.itens.slice(0,4).map((item, i) => (
-                                <div key={i} style={{ background: eMinha ? `${etapa.cor}0F` : F.offWhite, borderRadius: 6, padding: "7px 9px", border: `1px solid ${eMinha ? etapa.cor + "33" : F.gray6}` }}>
+                                <div key={i} style={{ background: eMinha ? F.redDim : F.offWhite, borderRadius: 6, padding: "7px 9px", border: `1px solid ${eMinha ? F.redBorder : F.gray6}` }}>
                                   <div style={{ fontSize: 11.5, fontWeight: 600, color: F.charcoal, lineHeight: 1.3, marginBottom: 2 }}>{item.titulo}</div>
                                   <div style={{ fontSize: 10, color: F.gray4 }}>{item.sub}</div>
                                 </div>
@@ -2028,6 +2029,127 @@ ${db.planos.length ? `<table>
                 />
               </Card>
             )}
+
+            {/* ── RELATÓRIO DE CONCLUSÃO ── */}
+            {view === "relatorio-conclusao" && (() => {
+              const relatorios = db.auditorias.filter(a => a.relatorioFinal?.status === "enviado");
+              // Para o gestor: só relatórios consolidados da sua área (evita ver os dois individuais)
+              const relFiltrados = perfil === "gestor"
+                ? (() => {
+                    const daArea = relatorios.filter(a => a.areaId === usuarioLogado.areaId || a.areaNome === usuarioLogado.areaNome);
+                    // Se houver consolidado, mostrar só ele; senão mostrar o único disponível
+                    const consolidados = daArea.filter(a => a.relatorioFinal?.consolidado);
+                    return consolidados.length > 0 ? consolidados : daArea.slice(0,1);
+                  })()
+                : relatorios;
+              const cmap = { nc: [F.red, F.redDim, "NC"], mel: [F.blue, F.blueDim, "Melhoria"], obs: [F.gray3, F.gray6, "Obs"] };
+              return (
+                <div>
+                  <div style={{ fontSize: 12.5, color: F.gray3, background: F.blueDim, border: `1px solid ${F.blue}33`, borderRadius: 8, padding: "10px 14px", marginBottom: 20, lineHeight: 1.7 }}>
+                    Esta aba exibe os relatórios de conclusão elaborados pelo <strong>Auditor Líder</strong> após a consolidação das auditorias realizadas.
+                  </div>
+                  {relFiltrados.length === 0 ? (
+                    <Card>
+                      <div style={{ textAlign: "center", padding: "48px 0" }}>
+                        <div style={{ fontSize: 36, opacity: 0.15, marginBottom: 10 }}>📋</div>
+                        <div style={{ fontSize: 15, fontWeight: 700, color: F.gray3, marginBottom: 6 }}>Nenhum relatório disponível</div>
+                        <div style={{ fontSize: 13, color: F.gray4 }}>Os relatórios aparecerão aqui quando o Auditor Líder concluir a consolidação.</div>
+                      </div>
+                    </Card>
+                  ) : (
+                    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                      {[...relFiltrados].sort((a,b) => (b.relatorioFinal.data||"").localeCompare(a.relatorioFinal.data||"")).map(a => {
+                        const r = a.relatorioFinal;
+                        const ncc = a.ncs?.filter(n => n.clas === "nc").length || 0;
+                        const mel = a.ncs?.filter(n => n.clas === "mel").length || 0;
+                        const obs = a.ncs?.filter(n => n.clas === "obs").length || 0;
+                        const consol = db.consolidacoes.find(c => c.areaId === a.areaId && c.cicloNome === a.cicloNome);
+                        return (
+                          <Card key={a.id} style={{ border: `1.5px solid ${F.gray6}` }}>
+                            {/* Cabeçalho */}
+                            <div style={{ display: "flex", alignItems: "flex-start", gap: 16, marginBottom: 16 }}>
+                              <div style={{ flex: 1 }}>
+                                <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", marginBottom: 4 }}>
+                                  <div style={{ fontFamily: "'Barlow Condensed',sans-serif", fontSize: 20, fontWeight: 900, color: F.charcoal }}>{a.areaNome}</div>
+                                  {a.cicloNome && a.cicloNome !== "—" && <Tag>{a.cicloNome}</Tag>}
+                                  {r.consolidado && <Pill color={F.blue} bg={F.blueDim}>Consolidado</Pill>}
+                                </div>
+                                <div style={{ fontSize: 12, color: F.gray4 }}>
+                                  Auditado em {fmtDate(a.data)} · {a.auditorNome}
+                                  {a.local && ` · ${a.local}`}
+                                </div>
+                                <div style={{ fontSize: 11.5, color: F.gray3, marginTop: 3 }}>
+                                  Relatório elaborado por <strong style={{ color: F.charcoal }}>{r.auditorNome}</strong> em {fmtDate(r.data?.split("T")[0])}
+                                </div>
+                              </div>
+                              <div style={{ textAlign: "center", flexShrink: 0 }}>
+                                <div style={{ fontFamily: "'Barlow Condensed',sans-serif", fontSize: 42, fontWeight: 900, color: scoreColor(a.score), lineHeight: 1 }}>{a.score}%</div>
+                                <div style={{ fontSize: 11, color: scoreColor(a.score), fontWeight: 700, textTransform: "uppercase" }}>{scoreLabel(a.score)}</div>
+                              </div>
+                            </div>
+
+                            {/* Indicadores */}
+                            <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 8, marginBottom: 16 }}>
+                              {[[ncc,"Não Conformidades",F.red,F.redDim],[mel,"Melhorias",F.blue,F.blueDim],[obs,"Observações",F.gray3,F.gray6]].map(([v,l,c,bg]) => (
+                                <div key={l} style={{ background: bg, borderRadius: 7, padding: "8px 10px", textAlign: "center" }}>
+                                  <div style={{ fontFamily: "'Barlow Condensed',sans-serif", fontSize: 24, fontWeight: 900, color: c, lineHeight: 1 }}>{v}</div>
+                                  <div style={{ fontSize: 9.5, fontWeight: 700, color: c, textTransform: "uppercase", letterSpacing: 0.5, marginTop: 2 }}>{l}</div>
+                                </div>
+                              ))}
+                            </div>
+
+                            {/* Conteúdo do relatório */}
+                            {[["Conclusões", r.conclusoes],["Recomendações", r.recomendacoes],["Observações Adicionais", r.observacoes]].filter(([,v]) => v).map(([label, valor]) => (
+                              <div key={label} style={{ marginBottom: 12 }}>
+                                <div style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: 1, color: F.gray4, fontFamily: "'Barlow Condensed',sans-serif", marginBottom: 5 }}>{label}</div>
+                                <div style={{ fontSize: 13, color: F.charcoal, lineHeight: 1.8, background: F.offWhite, borderRadius: 7, padding: "10px 14px" }}>{valor}</div>
+                              </div>
+                            ))}
+
+                            {/* NCs detalhadas */}
+                            {a.ncs?.length > 0 && (
+                              <div style={{ marginBottom: 12 }}>
+                                <div style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: 1, color: F.gray4, fontFamily: "'Barlow Condensed',sans-serif", marginBottom: 8 }}>
+                                  Não Conformidades ({a.ncs.length})
+                                </div>
+                                <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+                                  {a.ncs.map((n, i) => {
+                                    const [c, bg, lbl] = cmap[n.clas] || [F.gray3, F.gray6, "—"];
+                                    return (
+                                      <div key={i} style={{ background: bg, border: `1px solid ${c}33`, borderRadius: 6, padding: "8px 12px" }}>
+                                        <div style={{ display: "flex", gap: 8, alignItems: "flex-start" }}>
+                                          <span style={{ fontSize: 9.5, fontWeight: 700, padding: "1px 6px", borderRadius: 3, background: `${c}22`, color: c, fontFamily: "'Barlow Condensed',sans-serif", textTransform: "uppercase", flexShrink: 0, marginTop: 1 }}>{lbl}</span>
+                                          <div>
+                                            <div style={{ fontSize: 12.5, color: F.charcoal }}>{n.q}</div>
+                                            {n.evidencia && <div style={{ fontSize: 11.5, color: F.gray3, marginTop: 3 }}>📎 {n.evidencia.startsWith("http") ? <a href={n.evidencia} target="_blank" rel="noreferrer" style={{ color: F.red, fontWeight: 600 }}>↗ Ver documento</a> : n.evidencia}</div>}
+                                          </div>
+                                        </div>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Ciência + Comentários */}
+                            <div style={{ display: "flex", gap: 10, flexWrap: "wrap", paddingTop: 10, borderTop: `1px solid ${F.gray6}` }}>
+                              {a.ciencia?.confirmado
+                                ? <Pill color={F.green} bg={F.greenDim}>✓ Ciência: {a.ciencia.responsavel} · {fmtDate(a.ciencia.data)}</Pill>
+                                : <Pill color={F.amber} bg={F.amberDim}>⏳ Ciência pendente</Pill>}
+                              {a.comentarios?.length > 0 && <Tag color={F.blue} bg={F.blueDim}>{a.comentarios.length} comentário{a.comentarios.length !== 1 ? "s" : ""} do comitê</Tag>}
+                              {consol && <Tag color={F.blue} bg={F.blueDim}>Consolidado de {consol.auditorLiderNome}</Tag>}
+                              <div style={{ marginLeft: "auto" }}>
+                                <button onClick={() => { setViewRelatorioAudId(a.id); }} style={{ fontSize: 11.5, color: F.red, background: "none", border: "none", cursor: "pointer", fontWeight: 600, fontFamily: "'Barlow',sans-serif" }}>🖨 Gerar PDF</button>
+                              </div>
+                            </div>
+                          </Card>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
 
             {/* ── CONSOLIDAR AUDITORIAS ── */}
             {view === "consolidar" && (() => {
