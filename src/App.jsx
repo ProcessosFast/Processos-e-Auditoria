@@ -1477,6 +1477,9 @@ ${db.planos.length ? `<table>
             {/* ── KANBAN DE FLUXO ── */}
             {view === "dashboard" && (() => {
               const ETAPAS = [
+                { id: "novo-ciclo",   label: "Iniciar Auditoria", icon: "📅", cor: F.red,   perfisResponsaveis: ["auditor-lider","auditor"],
+                  itens: db.ciclos.filter(c => c.status === "ativo" && c.ini && c.ini <= new Date().toISOString().split("T")[0]).filter(c => !db.auditorias.find(a => a.cicloNome === c.nome)).map(c => ({ titulo: c.nome, sub: `Início: ${fmtDate(c.ini)} · Nenhuma auditoria iniciada`, id: c.id })),
+                  acaoPerfis: ["auditor-lider","auditor"], acao: "Ciclo ativo — iniciar auditorias das áreas" },
                 { id: "auditoria",    label: "Auditoria",         icon: "◎", cor: F.red,    perfisResponsaveis: ["auditor","auditor-lider","administrador"],
                   itens: db.auditorias.filter(a => !a.relatorioFinal?.status).map(a => ({ titulo: a.areaNome, sub: `Score: ${a.score}% · ${fmtDate(a.data)}`, id: a.id })),
                   acaoPerfis: ["auditor-lider","administrador"], acao: "Elaborar relatório final" },
