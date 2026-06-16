@@ -600,6 +600,8 @@ export default function App() {
   const [comiteAba, setComiteAba] = useState("reunioes");
   const [relatorioFinalAudId, setRelatorioFinalAudId] = useState(null);
   const [consolidandoPar, setConsolidandoPar] = useState(null);
+  const [cronogramaView, setCronogramaView] = useState("lista");
+  const [calMes, setCalMes] = useState(() => { const d = new Date(); return { ano: d.getFullYear(), mes: d.getMonth() }; });
   const [viewRelatorioAudId, setViewRelatorioAudId] = useState(null);
   const planosIdsRef = useRef(new Set());
 
@@ -1791,60 +1793,142 @@ ${db.planos.length ? `<table>
                 {/* Cronograma de Ciclos */}
                 {db.ciclos.length > 0 && (
                   <Card className="anim4" style={{ marginTop: 14 }}>
-                    <div style={{ fontFamily: "'Barlow Condensed',sans-serif", fontSize: 14, fontWeight: 800, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 16, color: F.charcoal }}>
-                      Cronograma de Auditorias
+                    {/* Cabeçalho com toggle */}
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
+                      <div style={{ fontFamily: "'Barlow Condensed',sans-serif", fontSize: 14, fontWeight: 800, textTransform: "uppercase", letterSpacing: 0.5, color: F.charcoal }}>
+                        Cronograma de Auditorias
+                      </div>
+                      <div style={{ display: "flex", gap: 4 }}>
+                        {[["lista","☰ Lista"],["calendario","📅 Calendário"]].map(([id, label]) => (
+                          <button key={id} onClick={() => setCronogramaView(id)} style={{ padding: "5px 12px", borderRadius: 6, border: "none", fontSize: 11.5, fontWeight: 600, cursor: "pointer", fontFamily: "'Barlow',sans-serif", background: cronogramaView === id ? F.red : F.offWhite, color: cronogramaView === id ? "#fff" : F.gray3, transition: "all 0.15s" }}>{label}</button>
+                        ))}
+                      </div>
                     </div>
-                    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                      {[...db.ciclos].sort((a, b) => (a.ini || "").localeCompare(b.ini || "")).map(ciclo => {
-                        const audsNoCiclo = db.auditorias.filter(a => a.cicloNome === ciclo.nome);
-                        const areasAuditadasIds = new Set(audsNoCiclo.map(a => a.areaId));
-                        const total = areasAuditaveis.length;
-                        const feitas = areasAuditaveis.filter(a => areasAuditadasIds.has(a.id)).length;
-                        const pct = total > 0 ? Math.round((feitas / total) * 100) : 0;
-                        const hoje = new Date().toISOString().split("T")[0];
-                        const emAndamento = ciclo.ini && ciclo.fim && ciclo.ini <= hoje && ciclo.fim >= hoje;
-                        const futuro = ciclo.ini && ciclo.ini > hoje;
-                        const statusCor = ciclo.status === "realizada" || pct === 100 ? F.green : emAndamento ? F.blue : futuro ? F.amber : F.gray3;
-                        const statusLabel = pct === 100 ? "Concluído" : emAndamento ? "Em Andamento" : futuro ? "Programado" : ciclo.status === "ativo" ? "Ativo" : "Encerrado";
-                        return (
-                          <div key={ciclo.id} style={{ border: `1px solid ${F.gray6}`, borderRadius: 8, padding: "12px 14px", borderLeft: `4px solid ${statusCor}` }}>
-                            <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
-                              <div style={{ flex: 1, minWidth: 120 }}>
-                                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                                  <span style={{ fontFamily: "'Barlow Condensed',sans-serif", fontSize: 15, fontWeight: 800, color: F.charcoal }}>{ciclo.nome}</span>
-                                  <span style={{ fontSize: 10, fontWeight: 700, padding: "1px 7px", borderRadius: 20, background: `${statusCor}18`, color: statusCor, textTransform: "uppercase", letterSpacing: 0.5, fontFamily: "'Barlow Condensed',sans-serif" }}>{statusLabel}</span>
+
+                    {/* VISTA LISTA */}
+                    {cronogramaView === "lista" && (
+                      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                        {[...db.ciclos].sort((a, b) => (a.ini || "").localeCompare(b.ini || "")).map(ciclo => {
+                          const audsNoCiclo = db.auditorias.filter(a => a.cicloNome === ciclo.nome);
+                          const areasAuditadasIds = new Set(audsNoCiclo.map(a => a.areaId));
+                          const total = areasAuditaveis.length;
+                          const feitas = areasAuditaveis.filter(a => areasAuditadasIds.has(a.id)).length;
+                          const pct = total > 0 ? Math.round((feitas / total) * 100) : 0;
+                          const hoje = new Date().toISOString().split("T")[0];
+                          const emAndamento = ciclo.ini && ciclo.fim && ciclo.ini <= hoje && ciclo.fim >= hoje;
+                          const futuro = ciclo.ini && ciclo.ini > hoje;
+                          const statusCor = pct === 100 ? F.green : emAndamento ? F.blue : futuro ? F.amber : F.gray3;
+                          const statusLabel = pct === 100 ? "Concluído" : emAndamento ? "Em Andamento" : futuro ? "Programado" : "Encerrado";
+                          return (
+                            <div key={ciclo.id} style={{ border: `1px solid ${F.gray6}`, borderRadius: 8, padding: "12px 14px", borderLeft: `4px solid ${statusCor}` }}>
+                              <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+                                <div style={{ flex: 1, minWidth: 120 }}>
+                                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                                    <span style={{ fontFamily: "'Barlow Condensed',sans-serif", fontSize: 15, fontWeight: 800, color: F.charcoal }}>{ciclo.nome}</span>
+                                    <span style={{ fontSize: 10, fontWeight: 700, padding: "1px 7px", borderRadius: 20, background: `${statusCor}18`, color: statusCor, textTransform: "uppercase", letterSpacing: 0.5, fontFamily: "'Barlow Condensed',sans-serif" }}>{statusLabel}</span>
+                                  </div>
+                                  <div style={{ fontSize: 11, color: F.gray4, marginTop: 2 }}>{ciclo.ini ? fmtDate(ciclo.ini) : "—"} {ciclo.fim ? `→ ${fmtDate(ciclo.fim)}` : ""}</div>
                                 </div>
-                                <div style={{ fontSize: 11, color: F.gray4, marginTop: 2 }}>
-                                  {ciclo.ini ? fmtDate(ciclo.ini) : "—"} {ciclo.fim ? `→ ${fmtDate(ciclo.fim)}` : ""}
+                                <div style={{ textAlign: "right", flexShrink: 0 }}>
+                                  <div style={{ fontSize: 12, fontWeight: 700, color: statusCor }}>{feitas}/{total} áreas</div>
+                                  <div style={{ fontSize: 10, color: F.gray4 }}>{pct}% concluído</div>
                                 </div>
                               </div>
-                              <div style={{ textAlign: "right", flexShrink: 0 }}>
-                                <div style={{ fontSize: 12, fontWeight: 700, color: statusCor }}>{feitas}/{total} áreas</div>
-                                <div style={{ fontSize: 10, color: F.gray4 }}>{pct}% concluído</div>
+                              <div style={{ marginTop: 10, height: 6, background: F.gray6, borderRadius: 4, overflow: "hidden" }}>
+                                <div style={{ height: "100%", width: `${pct}%`, background: statusCor, borderRadius: 4, transition: "width 0.4s ease" }} />
                               </div>
+                              {total > 0 && (
+                                <div style={{ display: "flex", gap: 5, flexWrap: "wrap", marginTop: 10 }}>
+                                  {areasAuditaveis.map(a => {
+                                    const auditada = areasAuditadasIds.has(a.id);
+                                    return (
+                                      <span key={a.id} style={{ fontSize: 10.5, fontWeight: 600, padding: "2px 8px", borderRadius: 5, fontFamily: "'Barlow Condensed',sans-serif", background: auditada ? F.greenDim : F.offWhite, color: auditada ? F.green : F.gray4, border: `1px solid ${auditada ? F.green + "44" : F.gray6}` }}>
+                                        {auditada ? "✓ " : "○ "}{a.nome}
+                                      </span>
+                                    );
+                                  })}
+                                </div>
+                              )}
                             </div>
-                            {/* Barra de progresso */}
-                            <div style={{ marginTop: 10, height: 6, background: F.gray6, borderRadius: 4, overflow: "hidden" }}>
-                              <div style={{ height: "100%", width: `${pct}%`, background: statusCor, borderRadius: 4, transition: "width 0.4s ease" }} />
-                            </div>
-                            {/* Áreas */}
-                            {total > 0 && (
-                              <div style={{ display: "flex", gap: 5, flexWrap: "wrap", marginTop: 10 }}>
-                                {areasAuditaveis.map(a => {
-                                  const auditada = areasAuditadasIds.has(a.id);
-                                  return (
-                                    <span key={a.id} style={{ fontSize: 10.5, fontWeight: 600, padding: "2px 8px", borderRadius: 5, fontFamily: "'Barlow Condensed',sans-serif", letterSpacing: 0.3, background: auditada ? F.greenDim : F.offWhite, color: auditada ? F.green : F.gray4, border: `1px solid ${auditada ? F.green + "44" : F.gray6}` }}>
-                                      {auditada ? "✓ " : "○ "}{a.nome}
-                                    </span>
-                                  );
-                                })}
-                              </div>
-                            )}
+                          );
+                        })}
+                      </div>
+                    )}
+
+                    {/* VISTA CALENDÁRIO */}
+                    {cronogramaView === "calendario" && (() => {
+                      const { ano, mes } = calMes;
+                      const CORES_CICLO = [F.red, F.blue, "#9b6dff", F.amber, "#00875A", "#FF6B35"];
+                      const ciclosComDatas = db.ciclos.filter(c => c.ini && c.fim);
+                      const primeiroDia = new Date(ano, mes, 1).getDay();
+                      const diasNoMes = new Date(ano, mes + 1, 0).getDate();
+                      const MESES = ["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
+                      const hoje = new Date().toISOString().split("T")[0];
+
+                      function diaStr(d) {
+                        return `${ano}-${String(mes+1).padStart(2,"0")}-${String(d).padStart(2,"0")}`;
+                      }
+                      function ciclosDoDia(d) {
+                        const ds = diaStr(d);
+                        return ciclosComDatas.map((c, i) => ({ ciclo: c, i })).filter(({ ciclo }) => ds >= ciclo.ini && ds <= ciclo.fim);
+                      }
+
+                      return (
+                        <div>
+                          {/* Navegação do mês */}
+                          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+                            <button onClick={() => setCalMes(m => { const d = new Date(m.ano, m.mes - 1); return { ano: d.getFullYear(), mes: d.getMonth() }; })} style={{ background: F.offWhite, border: `1px solid ${F.gray6}`, borderRadius: 6, padding: "5px 12px", cursor: "pointer", fontSize: 14, color: F.gray3 }}>‹</button>
+                            <div style={{ fontFamily: "'Barlow Condensed',sans-serif", fontSize: 16, fontWeight: 800, color: F.charcoal, textTransform: "uppercase", letterSpacing: 0.5 }}>{MESES[mes]} {ano}</div>
+                            <button onClick={() => setCalMes(m => { const d = new Date(m.ano, m.mes + 1); return { ano: d.getFullYear(), mes: d.getMonth() }; })} style={{ background: F.offWhite, border: `1px solid ${F.gray6}`, borderRadius: 6, padding: "5px 12px", cursor: "pointer", fontSize: 14, color: F.gray3 }}>›</button>
                           </div>
-                        );
-                      })}
-                    </div>
-                    <button onClick={() => setView("ciclos")} style={{ fontSize: 11.5, color: F.red, background: "none", border: "none", cursor: "pointer", fontFamily: "'Barlow',sans-serif", fontWeight: 600, marginTop: 12 }}>Ver todos os ciclos →</button>
+
+                          {/* Legenda dos ciclos */}
+                          {ciclosComDatas.length > 0 && (
+                            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
+                              {ciclosComDatas.map((c, i) => (
+                                <div key={c.id} style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11, color: F.charcoal }}>
+                                  <div style={{ width: 10, height: 10, borderRadius: 3, background: CORES_CICLO[i % CORES_CICLO.length], flexShrink: 0 }} />
+                                  <span style={{ fontWeight: 600 }}>{c.nome}</span>
+                                  <span style={{ color: F.gray4 }}>{fmtDate(c.ini)} → {fmtDate(c.fim)}</span>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+
+                          {/* Grid do calendário */}
+                          <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 3 }}>
+                            {["Dom","Seg","Ter","Qua","Qui","Sex","Sáb"].map(d => (
+                              <div key={d} style={{ textAlign: "center", fontSize: 10, fontWeight: 700, color: F.gray4, padding: "4px 0", fontFamily: "'Barlow Condensed',sans-serif", textTransform: "uppercase", letterSpacing: 0.5 }}>{d}</div>
+                            ))}
+                            {/* Dias vazios antes do primeiro */}
+                            {Array.from({ length: primeiroDia }).map((_, i) => <div key={`v${i}`} />)}
+                            {/* Dias do mês */}
+                            {Array.from({ length: diasNoMes }, (_, i) => i + 1).map(dia => {
+                              const ds = diaStr(dia);
+                              const ciclosDia = ciclosDoDia(dia);
+                              const isHoje = ds === hoje;
+                              return (
+                                <div key={dia} style={{ borderRadius: 6, border: `1px solid ${isHoje ? F.red : F.gray6}`, background: isHoje ? F.redDim : "#fff", minHeight: 52, padding: "4px 5px", position: "relative" }}>
+                                  <div style={{ fontSize: 11, fontWeight: isHoje ? 700 : 400, color: isHoje ? F.red : F.gray3, marginBottom: 3, textAlign: "right" }}>{dia}</div>
+                                  <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                                    {ciclosDia.slice(0,2).map(({ ciclo, i }) => {
+                                      const isStart = diaStr(dia) === ciclo.ini;
+                                      return (
+                                        <div key={ciclo.id} style={{ background: CORES_CICLO[i % CORES_CICLO.length], borderRadius: 3, height: 5, opacity: 0.85, position: "relative" }}>
+                                          {isStart && <span style={{ position: "absolute", left: 3, top: -14, fontSize: 8.5, fontWeight: 700, color: CORES_CICLO[i % CORES_CICLO.length], whiteSpace: "nowrap", fontFamily: "'Barlow Condensed',sans-serif" }}>{ciclo.nome}</span>}
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      );
+                    })()}
+
+                    <button onClick={() => setView("ciclos")} style={{ fontSize: 11.5, color: F.red, background: "none", border: "none", cursor: "pointer", fontFamily: "'Barlow',sans-serif", fontWeight: 600, marginTop: 14 }}>Ver todos os ciclos →</button>
                   </Card>
                 )}
               </div>
