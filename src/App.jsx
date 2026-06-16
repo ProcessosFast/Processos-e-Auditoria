@@ -1060,6 +1060,7 @@ ${db.planos.length ? `<table>
       auditorNome: auditor?.nome || "—", data: audForm.data,
       local: audForm.local, cicloNome: ciclo?.nome || "—",
       score, obs: audForm.obs, status: "concluida",
+      processosAuditados: audForm.processosAuditados || [],
       ncs: ncs.map(i => ({ q: i.q, clas: i.clas || "obs", evidencia: i.evidencia || "" })),
       ciencia: null,
       comite: { dataReuniao: null, status: "aguardando", observacoes: "" }
@@ -1629,7 +1630,18 @@ ${db.planos.length ? `<table>
                       ? Math.round(parceirosCiclo.reduce((s, x) => s + x.score, 0) / parceirosCiclo.length)
                       : null;
                     return <>
-                      <TD><strong>{a.areaNome}</strong>{a.local && <div style={{ fontSize: 11, color: F.gray4 }}>{a.local}</div>}</TD>
+                      <TD>
+                        <strong>{a.areaNome}</strong>
+                        {a.local && <div style={{ fontSize: 11, color: F.gray4 }}>{a.local}</div>}
+                        {a.processosAuditados?.length > 0 && (
+                          <div style={{ display: "flex", gap: 4, flexWrap: "wrap", marginTop: 4 }}>
+                            {a.processosAuditados.map(pid => {
+                              const proc = db.processos.find(p => p.id === pid);
+                              return proc ? <Tag key={pid} color={F.blue} bg={F.blueDim}>{proc.nome}</Tag> : null;
+                            })}
+                          </div>
+                        )}
+                      </TD>
                       <TD style={{ color: F.gray3 }}>{a.auditorNome}</TD>
                       <TD style={{ color: F.gray3 }}>{fmtDate(a.data)}</TD>
                       <TD>{a.cicloNome !== "—" ? <Tag>{a.cicloNome}</Tag> : "—"}</TD>
@@ -2462,6 +2474,7 @@ ${db.planos.length ? `<table>
         areas={db.areas.filter(a => !a.naoAuditada && !a.noa)}
         usuarios={db.usuarios}
         ciclos={db.ciclos}
+        processos={db.processos}
         modulos={db.modulos}
         buildChecklist={buildChecklist}
         calcScore={calcScore}
@@ -3165,7 +3178,7 @@ function ModuloModal({ open, onClose, areas, processos, modulo, onSave }) {
   );
 }
 
-function AuditoriaModal({ open, onClose, step, setStep, form, setForm, checklist, setChecklist, areas, usuarios, ciclos, modulos, buildChecklist, calcScore, onFinalizar }) {
+function AuditoriaModal({ open, onClose, step, setStep, form, setForm, checklist, setChecklist, areas, usuarios, ciclos, processos, modulos, buildChecklist, calcScore, onFinalizar }) {
   function next() {
     if (step === 1) {
       if (!form.areaId) { alert("Selecione uma área."); return; }
@@ -3232,8 +3245,42 @@ function AuditoriaModal({ open, onClose, step, setStep, form, setForm, checklist
             </FG>
             <FG label="Local / Unidade"><input style={fi} value={form.local || ""} onChange={e => setForm({ ...form, local: e.target.value })} placeholder="ex: São Paulo — SP" /></FG>
           </div>
+          {/* Processos da área */}
+          {form.areaId && (() => {
+            const processosArea = (processos || []).filter(p => p.areaId === form.areaId && p.status !== "inativo");
+            if (!processosArea.length) return null;
+            const selecionados = form.processosAuditados || [];
+            return (
+              <div style={{ marginTop: 14 }}>
+                <div style={{ fontSize: 10, fontWeight: 700, color: F.gray4, textTransform: "uppercase", letterSpacing: 1, marginBottom: 8, fontFamily: "'Barlow Condensed',sans-serif" }}>
+                  Processos auditados nesta área
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
+                  {processosArea.map(p => {
+                    const marcado = selecionados.includes(p.id);
+                    return (
+                      <label key={p.id} style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer", padding: "8px 12px", borderRadius: 7, background: marcado ? F.blueDim : F.offWhite, border: `1.5px solid ${marcado ? F.blue : F.gray6}`, transition: "all 0.12s" }}>
+                        <input
+                          type="checkbox"
+                          checked={marcado}
+                          onChange={e => setForm({ ...form, processosAuditados: e.target.checked ? [...selecionados, p.id] : selecionados.filter(id => id !== p.id) })}
+                          style={{ accentColor: F.blue, width: 14, height: 14, flexShrink: 0 }}
+                        />
+                        <div style={{ flex: 1 }}>
+                          <div style={{ fontSize: 13, fontWeight: 600, color: F.charcoal }}>{p.nome}</div>
+                          {p.resp && <div style={{ fontSize: 11, color: F.gray4 }}>Responsável: {p.resp}</div>}
+                        </div>
+                        {p.link && <a href={p.link} target="_blank" rel="noreferrer" onClick={e => e.stopPropagation()} style={{ fontSize: 11, color: F.red, fontWeight: 600 }}>↗ Doc</a>}
+                      </label>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })()}
+
           {mods.length > 0 && (
-            <div style={{ marginTop: 8 }}>
+            <div style={{ marginTop: 12 }}>
               <div style={{ fontSize: 10, fontWeight: 700, color: F.gray4, textTransform: "uppercase", letterSpacing: 1, marginBottom: 8, fontFamily: "'Barlow Condensed',sans-serif" }}>Categorias incluídas automaticamente</div>
               <div style={{ display: "flex", gap: 7, flexWrap: "wrap" }}>
                 {mods.map((m, i) => (
