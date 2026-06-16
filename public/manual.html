@@ -9,348 +9,194 @@
   *{margin:0;padding:0;box-sizing:border-box;}
   body{font-family:'Barlow',sans-serif;background:#F5F4F2;color:#1A1A1A;font-size:14px;}
   a{color:#E8001D;text-decoration:none;}
-  /* LAYOUT */
   .wrap{max-width:960px;margin:0 auto;padding:40px 24px;}
-  /* HEADER */
-  .header{background:#1A1A1A;padding:28px 40px;display:flex;align-items:center;justify-content:space-between;gap:20px;position:sticky;top:0;z-index:100;}
+  .header{background:#1A1A1A;padding:24px 40px;display:flex;align-items:center;justify-content:space-between;gap:20px;position:sticky;top:0;z-index:100;}
   .header img{height:44px;}
   .header-right{text-align:right;color:#888;font-size:12px;line-height:1.8;}
   .header-title{font-family:'Barlow Condensed',sans-serif;font-size:20px;font-weight:900;color:#fff;text-transform:uppercase;letter-spacing:1px;}
-  /* SIDEBAR NAV */
-  .layout{display:grid;grid-template-columns:240px 1fr;gap:32px;margin-top:32px;}
+  .perfil-badge{display:inline-flex;align-items:center;gap:6px;padding:4px 12px;border-radius:20px;font-size:12px;font-weight:700;font-family:'Barlow Condensed',sans-serif;text-transform:uppercase;letter-spacing:0.5px;margin-top:4px;}
+  .layout{display:grid;grid-template-columns:220px 1fr;gap:32px;margin-top:32px;}
   .nav{position:sticky;top:88px;align-self:start;}
-  .nav-section{font-family:'Barlow Condensed',sans-serif;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:2px;color:#888;padding:14px 12px 5px;margin-top:8px;}
-  .nav a{display:block;padding:8px 12px;border-radius:6px;font-size:13px;color:#555;margin-bottom:2px;transition:all .15s;font-weight:500;}
+  .nav-section{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:2px;color:#888;padding:12px 12px 4px;}
+  .nav a{display:block;padding:7px 12px;border-radius:6px;font-size:13px;color:#555;margin-bottom:2px;transition:all .15s;font-weight:500;}
   .nav a:hover{background:#fff;color:#E8001D;}
-  /* CONTENT */
   .content section{margin-bottom:48px;}
   h1{font-family:'Barlow Condensed',sans-serif;font-size:32px;font-weight:900;text-transform:uppercase;letter-spacing:1px;color:#1A1A1A;margin-bottom:6px;border-bottom:3px solid #E8001D;padding-bottom:12px;}
-  h2{font-family:'Barlow Condensed',sans-serif;font-size:22px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:#1A1A1A;margin:28px 0 12px;display:flex;align-items:center;gap:8px;}
-  h2 .ico{width:28px;height:28px;background:#E8001D;border-radius:6px;display:inline-flex;align-items:center;justify-content:center;font-size:13px;color:#fff;flex-shrink:0;}
   h3{font-size:15px;font-weight:700;color:#1A1A1A;margin:18px 0 8px;}
   p{line-height:1.8;color:#333;margin-bottom:10px;}
-  /* CARD */
-  .card{background:#fff;border-radius:10px;padding:20px;border:1px solid #E5E5E5;margin-bottom:16px;}
+  .card{background:#fff;border-radius:10px;padding:20px;border:1px solid #E5E5E5;margin-bottom:14px;}
   .card-red{border-left:4px solid #E8001D;}
   .card-green{border-left:4px solid #00B050;}
   .card-blue{border-left:4px solid #0066CC;}
   .card-amber{border-left:4px solid #FF8C00;}
-  /* STEPS */
-  .steps{display:flex;align-items:center;gap:0;margin:16px 0;}
-  .step{display:flex;align-items:center;gap:8px;flex:1;}
+  .steps{display:flex;align-items:center;gap:0;margin:16px 0;flex-wrap:wrap;}
+  .step{display:flex;align-items:center;gap:8px;}
   .step-num{width:28px;height:28px;border-radius:50%;background:#E8001D;color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0;}
-  .step-num.done{background:#00B050;}
+  .step-line{height:2px;background:#E5E5E5;width:30px;}
   .step-label{font-size:12px;font-weight:600;font-family:'Barlow Condensed',sans-serif;text-transform:uppercase;letter-spacing:.5px;color:#1A1A1A;}
-  .step-line{height:2px;background:#E5E5E5;flex:1;margin:0 4px;}
-  /* TABLE */
   table{width:100%;border-collapse:collapse;margin:12px 0;}
   th{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#888;padding:8px 12px;text-align:left;border-bottom:2px solid #E5E5E5;font-family:'Barlow Condensed',sans-serif;}
   td{padding:10px 12px;border-bottom:1px solid #F0F0F0;font-size:13px;vertical-align:top;}
   tr:last-child td{border-bottom:none;}
-  /* BADGE */
   .badge{display:inline-flex;align-items:center;gap:4px;font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;text-transform:uppercase;letter-spacing:.5px;font-family:'Barlow Condensed',sans-serif;}
   .badge-red{background:rgba(232,0,29,.1);color:#E8001D;}
   .badge-green{background:rgba(0,176,80,.1);color:#00B050;}
   .badge-blue{background:rgba(0,102,204,.1);color:#0066CC;}
   .badge-amber{background:rgba(255,140,0,.1);color:#FF8C00;}
   .badge-gray{background:#F0F0F0;color:#555;}
-  /* UI MOCKUP */
-  .mockup{background:#F5F4F2;border-radius:10px;border:1px solid #E5E5E5;overflow:hidden;margin:16px 0;}
-  .mockup-topbar{background:#fff;padding:10px 16px;border-bottom:1px solid #E5E5E5;display:flex;align-items:center;justify-content:space-between;}
-  .mockup-sidebar{background:#1A1A1A;padding:12px 10px;display:flex;flex-direction:column;gap:4px;min-width:160px;}
-  .mockup-nav-item{padding:6px 10px;border-radius:5px;font-size:11px;color:#888;cursor:default;}
-  .mockup-nav-item.active{background:#E8001D;color:#fff;font-weight:600;}
-  .mockup-body{display:flex;}
-  .mockup-content{padding:16px;flex:1;}
-  /* STAT MOCK */
-  .stat-row{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-bottom:12px;}
-  .stat-card{background:#fff;border-radius:8px;padding:12px;border:1px solid #E5E5E5;}
-  .stat-card-top{height:3px;border-radius:2px;margin-bottom:8px;}
-  .stat-label{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#888;margin-bottom:4px;}
-  .stat-val{font-family:'Barlow Condensed',sans-serif;font-size:28px;font-weight:900;line-height:1;}
-  /* CHECKLIST MOCK */
-  .check-item{background:#fff;border-radius:6px;padding:10px 12px;margin-bottom:6px;display:flex;align-items:center;gap:10px;border:1px solid #E5E5E5;}
-  .check-q{font-size:12px;flex:1;color:#333;}
-  .check-btns{display:flex;gap:4px;}
-  .btn-mock{padding:3px 9px;border-radius:4px;font-size:10px;font-weight:700;border:1.5px solid;}
-  .btn-ok{background:rgba(0,176,80,.1);color:#00B050;border-color:#00B050;}
-  .btn-nok{background:rgba(232,0,29,.1);color:#E8001D;border-color:#E8001D;}
-  .btn-na{background:#F5F4F2;color:#888;border-color:#E5E5E5;}
-  /* LOGIN MOCK */
-  .login-mock{background:#F5F4F2;border-radius:10px;padding:32px;text-align:center;}
-  .login-perfil-card{background:#fff;border-radius:10px;padding:14px 18px;border:1.5px solid #E5E5E5;display:flex;align-items:center;gap:14px;margin-bottom:8px;cursor:default;}
-  .login-avatar{width:36px;height:36px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:900;color:#fff;flex-shrink:0;font-family:'Barlow Condensed',sans-serif;}
-  /* FLOW */
-  .flow{display:flex;align-items:center;gap:0;flex-wrap:wrap;margin:16px 0;}
-  .flow-box{background:#fff;border:1.5px solid #E5E5E5;border-radius:8px;padding:10px 14px;font-size:12px;font-weight:600;text-align:center;min-width:100px;}
-  .flow-arrow{font-size:18px;color:#888;padding:0 8px;}
-  /* TIP */
-  .tip{background:#FFF8E1;border:1px solid #FFD600;border-radius:8px;padding:10px 14px;font-size:12.5px;color:#5D4037;margin:10px 0;display:flex;gap:8px;align-items:flex-start;}
+  .tip{background:#FFF8E1;border:1px solid #FFD600;border-radius:8px;padding:10px 14px;font-size:12.5px;color:#5D4037;margin:10px 0;}
   .warning{background:rgba(232,0,29,.05);border:1px solid rgba(232,0,29,.2);border-radius:8px;padding:10px 14px;font-size:12.5px;color:#B00020;margin:10px 0;}
-  /* CODE */
   code{background:#F0F0F0;border-radius:4px;padding:1px 6px;font-family:monospace;font-size:12px;}
-  /* PRINT */
-  @media print{
-    .header{position:static;}
-    .nav{display:none;}
-    .layout{grid-template-columns:1fr;}
-    .wrap{padding:20px;}
-    body{background:#fff;}
-    .mockup,.login-mock{page-break-inside:avoid;}
-  }
-  /* PRINT BTN */
+  ol,ul{padding-left:20px;line-height:2;}
+  @media print{.header{position:static;}.nav{display:none;}.layout{grid-template-columns:1fr;}.wrap{padding:20px;}body{background:#fff;}}
   .print-btn{position:fixed;bottom:24px;right:24px;background:#E8001D;color:#fff;border:none;padding:11px 20px;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;font-family:'Barlow',sans-serif;box-shadow:0 4px 16px rgba(232,0,29,.35);z-index:200;}
+  section[data-perfis]{display:none;}
+  section[data-perfis].visivel{display:block;}
+  .nav a[data-perfis]{display:none;}
+  .nav a[data-perfis].visivel{display:block;}
+  .nav-section[data-perfis]{display:none;}
+  .nav-section[data-perfis].visivel{display:block;}
 </style>
 </head>
 <body>
 
-<!-- HEADER -->
 <div class="header">
   <div style="display:flex;align-items:center;gap:20px;">
     <img src="/logo-fast-sistemas-construtivos.svg" alt="Fast Sistemas Construtivos"/>
-    <div class="header-title">Portal de Auditoria</div>
+    <div>
+      <div class="header-title">Manual de Instruções</div>
+      <div id="perfil-badge-wrap"></div>
+    </div>
   </div>
-  <div class="header-right">Manual de Instruções<br/>Versão 1.0 — 2026<br/>Uso Interno</div>
+  <div class="header-right">Portal de Gestão e Auditoria<br/>Fast Sistemas Construtivos<br/>Versão 1.0 — 2026</div>
 </div>
 
 <div class="wrap">
 <div class="layout">
 
-<!-- NAVEGAÇÃO LATERAL -->
 <nav class="nav">
-  <div class="nav-section">Início</div>
-  <a href="#acesso">Acesso e Login</a>
-  <a href="#perfis">Perfis de Usuário</a>
-  <a href="#dashboard">Dashboard</a>
-  <div class="nav-section">Cadastros</div>
-  <a href="#areas">Áreas</a>
-  <a href="#processos">Processos</a>
-  <a href="#categorias">Categorias de Avaliação</a>
-  <a href="#ciclos">Ciclos</a>
-  <div class="nav-section">Auditoria</div>
-  <a href="#auditoria">Realizar Auditoria</a>
-  <a href="#consolidar">Consolidação (Aud. Líder)</a>
-  <a href="#relatorio-final">Relatório Final</a>
-  <div class="nav-section">Comitê</div>
-  <a href="#comite">Reuniões e Enquetes</a>
-  <a href="#elaborar">Elaborar Plano de Ação</a>
-  <div class="nav-section">Conclusão</div>
-  <a href="#planos">Relatórios de Conclusão</a>
-  <a href="#ciencia">Ciência do Auditado</a>
-  <div class="nav-section">Administração</div>
-  <a href="#usuarios">Usuários</a>
-  <a href="#exportar">Exportação PDF</a>
-  <a href="#dados">Dados e Reset</a>
+  <div class="nav-section" data-perfis="todos">Início</div>
+  <a href="#acesso" data-perfis="todos">Acesso e Login</a>
+  <a href="#perfis" data-perfis="todos">Perfis de Usuário</a>
+  <a href="#dashboard" data-perfis="todos">Dashboard</a>
+
+  <div class="nav-section" data-perfis="administrador">Cadastros</div>
+  <a href="#areas" data-perfis="administrador">Áreas</a>
+  <a href="#processos" data-perfis="administrador">Processos</a>
+  <a href="#categorias" data-perfis="administrador">Categorias de Avaliação</a>
+  <a href="#ciclos" data-perfis="administrador auditor-lider">Ciclos</a>
+
+  <div class="nav-section" data-perfis="administrador auditor-lider auditor">Auditoria</div>
+  <a href="#auditoria" data-perfis="administrador auditor-lider auditor">Realizar Auditoria</a>
+  <a href="#consolidar" data-perfis="auditor-lider">Consolidação</a>
+  <a href="#relatorio-final" data-perfis="administrador auditor-lider auditor">Relatório Final</a>
+
+  <div class="nav-section" data-perfis="administrador auditor-lider comite">Comitê</div>
+  <a href="#comite" data-perfis="administrador auditor-lider comite">Reuniões e Enquetes</a>
+  <a href="#elaborar" data-perfis="administrador">Elaborar Plano de Ação</a>
+
+  <div class="nav-section" data-perfis="todos">Conclusão</div>
+  <a href="#relatorio-conclusao" data-perfis="todos">Relatório de Conclusão</a>
+  <a href="#planos" data-perfis="administrador gestor">Planos de Ação</a>
+  <a href="#ciencia" data-perfis="gestor">Ciência do Auditado</a>
+
+  <div class="nav-section" data-perfis="administrador">Administração</div>
+  <a href="#usuarios" data-perfis="administrador">Usuários</a>
+  <a href="#exportar" data-perfis="administrador auditor-lider">Exportação PDF</a>
+  <a href="#dados" data-perfis="administrador">Dados e Reset</a>
 </nav>
 
-<!-- CONTEÚDO -->
 <div class="content">
 
-<!-- ACESSO -->
-<section id="acesso">
-  <h1>1. Acesso e Login</h1>
-  <p>Ao abrir o portal, a tela de login exibe <strong>cards agrupados por perfil</strong>. Clique no card do perfil desejado para expandir e ver os usuários.</p>
+<section id="acesso" data-perfis="todos">
+  <h1>Acesso e Login</h1>
+  <p>Ao abrir o portal, a tela exibe <strong>cards agrupados por perfil</strong>. Clique no perfil para expandir e selecione seu nome.</p>
+  <div class="card card-amber"><strong>Gestor da Área:</strong> após selecionar seu usuário, escolha qual área você gerencia nesta sessão.</div>
+  <div class="card card-red"><strong>Sair:</strong> botão ⏏ no rodapé do menu lateral. O ícone 🗑 (somente Admin) apaga todos os dados após confirmação.</div>
+</section>
 
-  <div class="mockup" style="padding:24px;">
-    <div class="login-mock">
-      <div style="font-family:'Barlow Condensed',sans-serif;font-size:20px;font-weight:900;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;color:#1A1A1A;">Selecione seu perfil</div>
-      <div style="font-size:12px;color:#888;margin-bottom:20px;">Portal de Gestão — Fast Sistemas Construtivos</div>
-      <div style="max-width:400px;margin:0 auto;">
-        <div class="login-perfil-card" style="border-color:#E8001D;box-shadow:0 2px 12px rgba(232,0,29,.12);">
-          <div class="login-avatar" style="background:#E8001D;">AD</div>
-          <div style="flex:1;text-align:left;">
-            <div style="font-family:'Barlow Condensed',sans-serif;font-size:14px;font-weight:900;text-transform:uppercase;">Administrador</div>
-            <div style="font-size:11px;color:#888;">1 usuário</div>
-          </div>
-          <span style="font-size:11px;color:#E8001D;font-weight:700;">▲</span>
-        </div>
-        <!-- Expandido -->
-        <div style="background:#fff;border:1.5px solid #E8001D;border-top:1px solid #E5E5E5;border-radius:0 0 8px 8px;padding:8px 12px;margin-top:-8px;margin-bottom:8px;">
-          <div style="display:flex;align-items:center;gap:10px;padding:6px 0;">
-            <div class="login-avatar" style="background:#E8001D;width:28px;height:28px;font-size:10px;">AD</div>
-            <span style="font-size:13px;font-weight:600;">Administrador</span>
-            <span style="margin-left:auto;font-size:13px;color:#888;">→</span>
-          </div>
-        </div>
-        <div class="login-perfil-card">
-          <div class="login-avatar" style="background:#00875A;">AL</div>
-          <div style="flex:1;text-align:left;">
-            <div style="font-family:'Barlow Condensed',sans-serif;font-size:14px;font-weight:900;text-transform:uppercase;">Auditor Líder</div>
-            <div style="font-size:11px;color:#888;">1 usuário</div>
-          </div>
-          <span style="font-size:11px;color:#888;">▼</span>
-        </div>
-        <div class="login-perfil-card">
-          <div class="login-avatar" style="background:#9b6dff;">CO</div>
-          <div style="flex:1;text-align:left;">
-            <div style="font-family:'Barlow Condensed',sans-serif;font-size:14px;font-weight:900;text-transform:uppercase;">Comitê</div>
-            <div style="font-size:11px;color:#888;">1 usuário</div>
-          </div>
-          <span style="font-size:11px;color:#888;">▼</span>
-        </div>
-        <div class="login-perfil-card">
-          <div class="login-avatar" style="background:#0066CC;">GA</div>
-          <div style="flex:1;text-align:left;">
-            <div style="font-family:'Barlow Condensed',sans-serif;font-size:14px;font-weight:900;text-transform:uppercase;">Gestor da Área</div>
-            <div style="font-size:11px;color:#888;">1 usuário</div>
-          </div>
-          <span style="font-size:11px;color:#888;">▼</span>
-        </div>
-      </div>
-    </div>
-  </div>
+<section id="perfis" data-perfis="todos">
+  <h1>Perfis de Usuário</h1>
+  <table>
+    <thead><tr><th>Perfil</th><th>Responsabilidades</th></tr></thead>
+    <tbody>
+      <tr><td><span class="badge badge-red">Administrador</span></td><td>Gerencia todo o portal — cadastros, auditorias, aprovações, comitê e usuários</td></tr>
+      <tr><td><span class="badge" style="background:rgba(0,135,90,.1);color:#00875A;">Auditor Líder</span></td><td>Realiza e consolida auditorias, elabora relatório final, gerencia ciclos e comitê</td></tr>
+      <tr><td><span class="badge badge-green">Auditor</span></td><td>Realiza auditorias e elabora o relatório final</td></tr>
+      <tr><td><span class="badge" style="background:rgba(155,109,255,.1);color:#9b6dff;">Comitê</span></td><td>Revisa resultados, comenta auditorias e vota em enquetes de aprovação</td></tr>
+      <tr><td><span class="badge badge-blue">Gestor da Área</span></td><td>Acompanha auditorias e planos da sua área, registra ciência e atualiza status dos planos</td></tr>
+    </tbody>
+  </table>
+</section>
 
-  <div class="card card-amber">
-    <strong>Gestor da Área:</strong> após selecionar o usuário, uma segunda tela aparece para escolher qual área você gerencia nesta sessão.
-  </div>
+<section id="dashboard" data-perfis="todos">
+  <h1>Dashboard</h1>
+  <p>Tela inicial com indicadores, kanban de fluxo e cronograma de ciclos.</p>
   <div class="card card-red">
-    <strong>Sair:</strong> clique no ícone ⏏ no rodapé do menu lateral. O ícone 🗑 (somente Administrador) apaga todos os dados após confirmação.
+    <h3>⚡ Kanban de Fluxo de Auditoria</h3>
+    <p>Painel no topo que mostra em <strong>vermelho</strong> as colunas onde <strong>você tem ações pendentes</strong>. Cada coluna representa uma etapa do processo e indica quem é o responsável pela próxima ação.</p>
+  </div>
+  <div class="card card-blue">
+    <h3>📅 Cronograma de Ciclos</h3>
+    <p>Exibe todos os ciclos com período, progresso e áreas auditadas/pendentes. Alterne entre <strong>Lista</strong> e <strong>Calendário</strong> com os botões no canto superior direito do card.</p>
   </div>
 </section>
 
-<!-- PERFIS -->
-<section id="perfis">
-  <h1>2. Perfis de Usuário</h1>
-  <table>
-    <thead><tr><th>Perfil</th><th>Cor</th><th>Permissões</th></tr></thead>
-    <tbody>
-      <tr><td><strong>Administrador</strong></td><td><span class="badge badge-red">● Admin</span></td><td>Acesso total — cria, edita, exclui, aprova tudo</td></tr>
-      <tr><td><strong>Auditor Líder</strong></td><td><span class="badge" style="background:rgba(0,135,90,.1);color:#00875A;">● Aud. Líder</span></td><td>Realiza auditorias, elabora relatório final, consolida pares, gerencia ciclos e comitê</td></tr>
-      <tr><td><strong>Auditor</strong></td><td><span class="badge badge-green">● Auditor</span></td><td>Realiza auditorias, visualiza todas as views exceto Usuários</td></tr>
-      <tr><td><strong>Comitê</strong></td><td><span class="badge" style="background:rgba(155,109,255,.1);color:#9b6dff;">● Comitê</span></td><td>Visualiza resultados, adiciona comentários, vota em enquetes</td></tr>
-      <tr><td><strong>Gestor da Área</strong></td><td><span class="badge badge-blue">● Gestor</span></td><td>Visualiza auditorias e planos da sua área, registra ciência, atualiza status dos planos</td></tr>
-    </tbody>
-  </table>
-</section>
-
-<!-- DASHBOARD -->
-<section id="dashboard">
-  <h1>3. Dashboard</h1>
-  <p>Tela inicial do Administrador, Auditor e Comitê com indicadores e cronograma de ciclos.</p>
-
-  <div class="mockup">
-    <div class="mockup-body">
-      <div class="mockup-sidebar">
-        <div class="mockup-nav-item active">▦ Dashboard</div>
-        <div style="font-size:8px;color:#555;padding:10px 10px 3px;text-transform:uppercase;letter-spacing:1px;">Operação</div>
-        <div class="mockup-nav-item">◉ Áreas</div>
-        <div class="mockup-nav-item">⬡ Processos</div>
-        <div class="mockup-nav-item">◎ Auditorias</div>
-        <div style="font-size:8px;color:#555;padding:10px 10px 3px;text-transform:uppercase;letter-spacing:1px;">Melhoria</div>
-        <div class="mockup-nav-item">✍ Elaborar Plano</div>
-        <div class="mockup-nav-item">◷ Relatórios</div>
-      </div>
-      <div class="mockup-content">
-        <div class="stat-row">
-          <div class="stat-card"><div class="stat-card-top" style="background:#00B050;"></div><div class="stat-label">Áreas</div><div class="stat-val" style="color:#1A1A1A;">8</div></div>
-          <div class="stat-card"><div class="stat-card-top" style="background:#E8001D;"></div><div class="stat-label">Auditorias</div><div class="stat-val" style="color:#1A1A1A;">12</div></div>
-          <div class="stat-card"><div class="stat-card-top" style="background:#0066CC;"></div><div class="stat-label">Em Andamento</div><div class="stat-val" style="color:#0066CC;">5</div></div>
-          <div class="stat-card"><div class="stat-card-top" style="background:#FF8C00;"></div><div class="stat-label">Atraso</div><div class="stat-val" style="color:#FF8C00;">2</div></div>
-          <div class="stat-card"><div class="stat-card-top" style="background:#00B050;"></div><div class="stat-label">Conformidade</div><div class="stat-val" style="color:#00B050;">87%</div></div>
-        </div>
-        <!-- Cronograma mock -->
-        <div style="background:#fff;border-radius:8px;padding:12px;border:1px solid #E5E5E5;">
-          <div style="font-family:'Barlow Condensed',sans-serif;font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px;">Cronograma de Auditorias</div>
-          <div style="border:1px solid #E5E5E5;border-left:4px solid #0066CC;border-radius:6px;padding:10px 12px;margin-bottom:6px;">
-            <div style="display:flex;align-items:center;gap:10px;">
-              <div style="flex:1;"><strong style="font-size:13px;">Jun/2025</strong> <span style="font-size:9px;background:rgba(0,102,204,.1);color:#0066CC;padding:1px 6px;border-radius:10px;font-weight:700;text-transform:uppercase;">Em Andamento</span><br/><span style="font-size:10px;color:#888;">01/06 → 30/06</span></div>
-              <div style="text-align:right;font-size:12px;font-weight:700;color:#0066CC;">4/8 áreas</div>
-            </div>
-            <div style="margin-top:8px;height:5px;background:#E5E5E5;border-radius:3px;overflow:hidden;"><div style="width:50%;height:100%;background:#0066CC;border-radius:3px;"></div></div>
-            <div style="display:flex;gap:5px;flex-wrap:wrap;margin-top:8px;">
-              <span style="font-size:10px;background:rgba(0,176,80,.1);color:#00B050;border:1px solid rgba(0,176,80,.3);padding:1px 7px;border-radius:4px;">✓ Comercial</span>
-              <span style="font-size:10px;background:rgba(0,176,80,.1);color:#00B050;border:1px solid rgba(0,176,80,.3);padding:1px 7px;border-radius:4px;">✓ CSC</span>
-              <span style="font-size:10px;background:#F5F4F2;color:#888;border:1px solid #E5E5E5;padding:1px 7px;border-radius:4px;">○ Franquias</span>
-              <span style="font-size:10px;background:#F5F4F2;color:#888;border:1px solid #E5E5E5;padding:1px 7px;border-radius:4px;">○ Industria</span>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-</section>
-
-<!-- ÁREAS -->
-<section id="areas">
-  <h1>4. Cadastro de Áreas</h1>
-  <p><strong>Caminho:</strong> Menu lateral → Áreas → + Nova Área</p>
-  <table>
-    <thead><tr><th>Campo</th><th>Descrição</th><th>Obrigatório</th></tr></thead>
-    <tbody>
-      <tr><td><strong>Nome da Área</strong></td><td>Identificador principal da área</td><td><span class="badge badge-red">Sim</span></td></tr>
-      <tr><td><strong>Categoria</strong></td><td>CSC / FAST HOMES E OBRAS / FRANQUIAS / COMERCIAL / SUPLY / INDUSTRIA / LOGÍSTICA / UNITY</td><td>Não</td></tr>
-      <tr><td><strong>Excluir de auditorias</strong></td><td>Marcar para excluir da seleção de auditorias</td><td>Não</td></tr>
-      <tr><td><strong>Diretor da Área</strong></td><td>Nome e e-mail do responsável</td><td>Não</td></tr>
-      <tr><td><strong>Categorias de Avaliação</strong></td><td>Checklists adicionais vinculados à área</td><td>Não</td></tr>
-      <tr><td><strong>Subáreas</strong></td><td>Divisões internas com responsáveis (nome, e-mail, cargo)</td><td>Não</td></tr>
-    </tbody>
-  </table>
-  <div class="tip">💡 Para editar uma área já cadastrada, clique no botão <strong>✎</strong> na linha correspondente da tabela.</div>
-</section>
-
-<!-- PROCESSOS -->
-<section id="processos">
-  <h1>5. Cadastro de Processos</h1>
-  <p><strong>Caminho:</strong> Menu lateral → Processos → + Novo Processo</p>
+<section id="areas" data-perfis="administrador">
+  <h1>Cadastro de Áreas</h1>
+  <p><strong>Caminho:</strong> Áreas → + Nova Área</p>
   <table>
     <thead><tr><th>Campo</th><th>Descrição</th></tr></thead>
     <tbody>
-      <tr><td><strong>Nome do Processo</strong></td><td>Ex: Recebimento de Materiais</td></tr>
-      <tr><td><strong>Área</strong></td><td>Vincula o processo à área (aparece no checklist de auditoria)</td></tr>
-      <tr><td><strong>Responsável</strong></td><td>Nome do responsável pelo processo</td></tr>
+      <tr><td><strong>Nome da Área</strong></td><td>Identificador principal</td></tr>
+      <tr><td><strong>Categoria</strong></td><td>CSC / FAST HOMES E OBRAS / FRANQUIAS / COMERCIAL / SUPLY / INDUSTRIA / LOGÍSTICA / UNITY</td></tr>
+      <tr><td><strong>Diretor da Área</strong></td><td>Nome e e-mail do responsável</td></tr>
+      <tr><td><strong>Categorias de Avaliação</strong></td><td>Checklists adicionais vinculados à área</td></tr>
+      <tr><td><strong>Subáreas</strong></td><td>Divisões internas com responsáveis (nome, e-mail, cargo)</td></tr>
+    </tbody>
+  </table>
+  <div class="tip">💡 Clique em ✎ para editar uma área já cadastrada.</div>
+</section>
+
+<section id="processos" data-perfis="administrador">
+  <h1>Cadastro de Processos</h1>
+  <p><strong>Caminho:</strong> Processos → + Novo Processo</p>
+  <p>Processos vinculados a uma área ficam disponíveis para seleção no <strong>Step 1 da auditoria</strong>.</p>
+  <table>
+    <thead><tr><th>Campo</th><th>Descrição</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Nome</strong></td><td>Nome do processo</td></tr>
+      <tr><td><strong>Área</strong></td><td>Área à qual pertence</td></tr>
+      <tr><td><strong>Responsável</strong></td><td>Nome do responsável</td></tr>
       <tr><td><strong>Link SharePoint</strong></td><td>URL do documento oficial</td></tr>
     </tbody>
   </table>
-  <div class="tip">💡 Os processos vinculados a uma área ficam disponíveis como checkboxes no <strong>Step 1 da auditoria</strong>, permitindo registrar quais processos estão sendo auditados.</div>
 </section>
 
-<!-- CATEGORIAS -->
-<section id="categorias">
-  <h1>6. Categorias de Avaliação</h1>
-  <p><strong>Caminho:</strong> Menu lateral → Categorias de Avaliação → + Nova Categoria</p>
-  <p>Categorias são blocos de perguntas personalizados que complementam o checklist padrão. O bloco <strong>"Verificação Geral"</strong> (6 perguntas base) é fixo e sempre incluído.</p>
-
+<section id="categorias" data-perfis="administrador">
+  <h1>Categorias de Avaliação</h1>
+  <p><strong>Caminho:</strong> Categorias de Avaliação → + Nova Categoria</p>
+  <p>Blocos de perguntas personalizados que complementam o checklist padrão. O bloco <strong>"Verificação Geral"</strong> é fixo e sempre incluído.</p>
   <div class="card card-blue">
-    <h3>Peso das Perguntas</h3>
-    <p>Cada pergunta tem um peso que afeta o score ponderado da auditoria:</p>
-    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;">
-      <span class="badge badge-gray">1 — Normal</span>
-      <span class="badge badge-amber">2 — Importante</span>
-      <span class="badge badge-red">3 — Crítico</span>
-    </div>
+    <strong>Peso das Perguntas:</strong>
+    <span class="badge badge-gray" style="margin-left:8px;">1 — Normal</span>
+    <span class="badge badge-amber" style="margin-left:4px;">2 — Importante</span>
+    <span class="badge badge-red" style="margin-left:4px;">3 — Crítico</span>
+    <p style="margin-top:8px;">O peso afeta o score ponderado da auditoria.</p>
   </div>
-
-  <h3>Passos para criar uma categoria:</h3>
-  <ol style="line-height:2;padding-left:20px;">
-    <li>Informe o <strong>nome da categoria</strong></li>
-    <li>Selecione as <strong>áreas vinculadas</strong> (checkboxes)</li>
-    <li>Adicione as <strong>perguntas</strong> com seus respectivos pesos</li>
-    <li>Use os botões <strong>▲ ▼</strong> para reordenar as perguntas</li>
-    <li>Ative/desative com o toggle <strong>"Categoria ativa"</strong></li>
-  </ol>
 </section>
 
-<!-- CICLOS -->
-<section id="ciclos">
-  <h1>7. Ciclos de Auditoria</h1>
-  <p><strong>Caminho:</strong> Menu lateral → Ciclos → + Novo Ciclo</p>
+<section id="ciclos" data-perfis="administrador auditor-lider">
+  <h1>Ciclos de Auditoria</h1>
+  <p><strong>Caminho:</strong> Ciclos → + Novo Ciclo</p>
   <p>Ciclos organizam as auditorias por período e alimentam o cronograma do dashboard.</p>
-  <table>
-    <thead><tr><th>Campo</th><th>Descrição</th></tr></thead>
-    <tbody>
-      <tr><td><strong>Nome</strong></td><td>Ex: Jun/2025</td></tr>
-      <tr><td><strong>Data Início / Fim</strong></td><td>Define o período do ciclo — aparece no cronograma do dashboard</td></tr>
-      <tr><td><strong>Observações</strong></td><td>Informações adicionais sobre o ciclo</td></tr>
-    </tbody>
-  </table>
-  <div class="tip">💡 Múltiplos auditores podem auditar a mesma área no mesmo ciclo. O portal calcula automaticamente a <strong>média do ciclo</strong> e exibe na coluna "Média do Ciclo" na view de Auditorias.</div>
+  <div class="card card-blue">Ao criar um ciclo, todos os <strong>Auditores e Auditores Líderes</strong> recebem automaticamente uma notificação 📅 com as áreas a auditar.</div>
+  <div class="tip">💡 Clique em ✎ para editar um ciclo já cadastrado.</div>
 </section>
 
-<!-- AUDITORIA -->
-<section id="auditoria">
-  <h1>8. Realizando uma Auditoria</h1>
-  <p><strong>Quem pode:</strong> Administrador, Auditor Líder, Auditor<br/><strong>Caminho:</strong> Auditorias → + Nova Auditoria</p>
-
+<section id="auditoria" data-perfis="administrador auditor-lider auditor">
+  <h1>Realizando uma Auditoria</h1>
+  <p><strong>Caminho:</strong> Auditorias → + Nova Auditoria</p>
   <div class="steps">
     <div class="step"><div class="step-num">1</div><div class="step-label">Identificação</div></div>
     <div class="step-line"></div>
@@ -358,212 +204,144 @@
     <div class="step-line"></div>
     <div class="step"><div class="step-num">3</div><div class="step-label">Resultado</div></div>
   </div>
-
   <h3>Step 1 — Identificação</h3>
-  <ul style="line-height:2;padding-left:20px;">
-    <li>Selecione a <strong>área</strong> a auditar</li>
-    <li>Selecione o <strong>auditor responsável</strong></li>
-    <li>Informe a <strong>data</strong> e o <strong>ciclo</strong></li>
-    <li>Marque os <strong>processos sendo auditados</strong> (aparecem automaticamente os processos da área)</li>
-    <li>As categorias de avaliação vinculadas à área são exibidas automaticamente</li>
+  <ul>
+    <li>Selecione a <strong>área</strong>, o <strong>auditor</strong>, a <strong>data</strong> e o <strong>ciclo</strong></li>
+    <li>Marque os <strong>processos</strong> sendo auditados</li>
+    <li>As categorias de avaliação da área aparecem automaticamente</li>
   </ul>
-
   <h3>Step 2 — Checklist</h3>
-
-  <div class="mockup" style="padding:16px;">
-    <div style="font-family:'Barlow Condensed',sans-serif;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:#888;padding:7px 0;border-bottom:2px solid #E5E5E5;margin-bottom:10px;">Verificação Geral</div>
-    <div class="check-item">
-      <div class="check-q">O processo está documentado e atualizado?</div>
-      <div class="check-btns"><span class="btn-mock btn-ok">✓ Sim</span><span class="btn-mock btn-na" style="border-color:#E5E5E5;">✗ Não</span><span class="btn-mock btn-na">N/A</span></div>
-    </div>
-    <div class="check-item" style="border-color:#FF8C00;">
-      <div class="check-q">Os responsáveis conhecem e seguem o procedimento? <span style="font-size:9px;background:rgba(255,140,0,.1);color:#FF8C00;padding:1px 5px;border-radius:3px;font-weight:700;text-transform:uppercase;margin-left:4px;">Importante</span></div>
-      <div class="check-btns"><span class="btn-mock btn-na">✓ Sim</span><span class="btn-mock btn-nok">✗ Não</span><span class="btn-mock btn-na">N/A</span></div>
-    </div>
-    <div style="background:#F5F4F2;border-radius:6px;padding:10px;margin-top:4px;border:1px solid #E5E5E5;">
-      <div style="font-size:10px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:1px;margin-bottom:5px;">Evidência Obrigatória</div>
-      <input type="text" placeholder="Descreva a evidência ou informe o link do documento..." style="width:100%;padding:6px 10px;border:1.5px solid #FF8C00;border-radius:6px;font-size:12px;font-family:'Barlow',sans-serif;background:#fff;"/>
-      <div style="font-size:10px;color:#FF8C00;font-weight:700;margin-top:3px;">⚠ Evidência obrigatória</div>
-    </div>
-  </div>
-
-  <div class="warning">O avanço para o Step 3 é <strong>bloqueado</strong> se houver itens NOK sem evidência preenchida.</div>
-
-  <h3>Step 3 — Resultado</h3>
-  <ul style="line-height:2;padding-left:20px;">
-    <li>Visualize o <strong>score ponderado</strong></li>
-    <li>Para cada NC, selecione a <strong>Causa Raiz</strong> (obrigatório)</li>
-    <li>Marque as NCs que devem gerar <strong>Relatórios de Conclusão</strong></li>
-    <li>Itens Críticos (peso 3) aparecem com borda vermelha e badge "Item Crítico"</li>
-    <li>Preencha as <strong>Observações gerais</strong></li>
-    <li>Clique em <strong>✓ Finalizar Auditoria</strong></li>
+  <ul>
+    <li>Para cada pergunta: <strong>✓ Sim</strong>, <strong>✗ Não</strong> ou <strong>N/A</strong></li>
+    <li>Para itens NOK: preencha a <strong>evidência obrigatória</strong> e selecione a <strong>Classificação</strong></li>
+    <li>Itens com badge âmbar = Importante | badge vermelho = Crítico</li>
   </ul>
-
-  <div class="card card-amber">
-    Os Relatórios de Conclusão gerados ficam <strong>bloqueados</strong> para o gestor até a reunião do comitê e a liberação pelo administrador.
-  </div>
-
-  <h3>Causas Raiz disponíveis:</h3>
+  <div class="warning">O avanço para o Step 3 é bloqueado se houver itens NOK sem evidência.</div>
+  <h3>Step 3 — Resultado</h3>
+  <ul>
+    <li>Visualize o <strong>score ponderado</strong></li>
+    <li>Selecione a <strong>Causa Raiz</strong> para cada NC</li>
+    <li>Marque as NCs que devem gerar <strong>Planos de Ação</strong></li>
+  </ul>
+  <h3>Causas Raiz disponíveis</h3>
   <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;">
-    <span class="badge badge-gray">Processo inexistente</span>
-    <span class="badge badge-gray">Processo inadequado</span>
-    <span class="badge badge-gray">Falta de treinamento</span>
-    <span class="badge badge-gray">Falha sistêmica</span>
-    <span class="badge badge-gray">Comunicação inadequada</span>
-    <span class="badge badge-gray">Indisciplina operacional</span>
-    <span class="badge badge-gray">Falha de governança</span>
-    <span class="badge badge-gray">Falha de controle</span>
+    <span class="badge badge-gray">Processo inexistente</span><span class="badge badge-gray">Processo inadequado</span>
+    <span class="badge badge-gray">Falta de treinamento</span><span class="badge badge-gray">Falha sistêmica</span>
+    <span class="badge badge-gray">Comunicação inadequada</span><span class="badge badge-gray">Indisciplina operacional</span>
+    <span class="badge badge-gray">Falha de governança</span><span class="badge badge-gray">Falha de controle</span>
   </div>
 </section>
 
-<!-- CONSOLIDAÇÃO -->
-<section id="consolidar">
-  <h1>9. Consolidação de Auditorias</h1>
-  <p><strong>Quem pode:</strong> Auditor Líder<br/><strong>Caminho:</strong> ⊕ Consolidar Auditorias</p>
-  <p>Quando dois auditores realizam auditorias da mesma área no mesmo ciclo, o Auditor Líder consolida em um único relatório.</p>
-
-  <div class="flow">
-    <div class="flow-box" style="border-color:#E8001D;color:#E8001D;">Auditor A<br/>audita área</div>
-    <div class="flow-arrow">+</div>
-    <div class="flow-box" style="border-color:#E8001D;color:#E8001D;">Auditor B<br/>audita área</div>
-    <div class="flow-arrow">→</div>
-    <div class="flow-box" style="border-color:#00875A;color:#00875A;">Auditor Líder<br/>consolida</div>
-    <div class="flow-arrow">→</div>
-    <div class="flow-box" style="border-color:#0066CC;color:#0066CC;">Relatório<br/>único</div>
+<section id="consolidar" data-perfis="auditor-lider">
+  <h1>Consolidação de Auditorias</h1>
+  <p><strong>Caminho:</strong> ⊕ Consolidar Auditorias</p>
+  <p>Quando dois auditores auditam a mesma área no mesmo ciclo, você consolida em um único relatório.</p>
+  <div class="card card-red">
+    <strong>⚠ Disparidade maior que 20%:</strong> se a diferença entre os scores for acima de 20%, um alerta vermelho aparece com o botão <strong>"↺ Refazer Auditoria"</strong> para iniciar uma nova rodada.
   </div>
-
-  <p>O modal de consolidação exibe: scores individuais de cada auditor, a média consolidada, todas as NCs unificadas com atribuição por auditor. O Auditor Líder escreve: Conclusões, Recomendações e Observações.</p>
+  <h3>Passo a passo:</h3>
+  <ol>
+    <li>Acesse <strong>⊕ Consolidar Auditorias</strong> no menu lateral</li>
+    <li>Veja os scores individuais e as NCs unificadas de ambos os auditores</li>
+    <li>Preencha <strong>Conclusões</strong> (obrigatório), Recomendações e Observações</li>
+    <li>Clique em <strong>"✓ Consolidar e Gerar Relatório Final"</strong></li>
+  </ol>
+  <div class="tip">💡 A consolidação já salva automaticamente o Relatório Final — não é necessário elaborar em separado.</div>
 </section>
 
-<!-- RELATÓRIO FINAL -->
-<section id="relatorio-final">
-  <h1>10. Relatório Final de Auditoria</h1>
-  <p><strong>Quem pode elaborar:</strong> Auditor Líder, Administrador<br/><strong>Caminho:</strong> Auditorias → coluna "Rel. Final" → botão <strong>"Elaborar"</strong></p>
-
+<section id="relatorio-final" data-perfis="administrador auditor-lider auditor">
+  <h1>Relatório Final de Auditoria</h1>
+  <p><strong>Caminho:</strong> Auditorias → coluna "Rel. Final" → botão <strong>"Elaborar"</strong></p>
   <table>
-    <thead><tr><th>Campo</th><th>Descrição</th><th>Obrigatório</th></tr></thead>
+    <thead><tr><th>Campo</th><th>Obrigatório</th></tr></thead>
     <tbody>
-      <tr><td><strong>Conclusões</strong></td><td>Síntese dos resultados da auditoria</td><td><span class="badge badge-red">Sim</span></td></tr>
-      <tr><td><strong>Recomendações</strong></td><td>Ações e melhorias recomendadas</td><td>Não</td></tr>
-      <tr><td><strong>Observações</strong></td><td>Contexto adicional</td><td>Não</td></tr>
+      <tr><td><strong>Conclusões</strong></td><td><span class="badge badge-red">Sim</span></td></tr>
+      <tr><td><strong>Recomendações</strong></td><td>Não</td></tr>
+      <tr><td><strong>Observações Adicionais</strong></td><td>Não</td></tr>
     </tbody>
   </table>
-
-  <p>Após salvar, o Administrador e o Comitê visualizam pelo botão <strong>"📄 Ver Relatório"</strong>. Clique em <strong>"🖨 Gerar PDF"</strong> para exportar com logo Fast, score, NCs, evidências e comentários do comitê.</p>
+  <p>Após salvar, o relatório fica disponível para o Admin e o Comitê visualizarem com o botão <strong>"📄 Ver Relatório"</strong>.</p>
 </section>
 
-<!-- COMITÊ -->
-<section id="comite">
-  <h1>11. Comitê — Reuniões, Comentários e Enquetes</h1>
-  <p><strong>Caminho:</strong> Menu lateral → Comitê</p>
+<section id="comite" data-perfis="administrador auditor-lider comite">
+  <h1>Comitê — Reuniões, Comentários e Enquetes</h1>
+  <p><strong>Caminho:</strong> Comitê (3 abas: Reuniões / Enquetes / Membros)</p>
 
-  <div class="card" style="background:#F8F8F8;">
-    <div style="display:flex;gap:8px;margin-bottom:12px;">
-      <div style="padding:8px 16px;background:#E8001D;color:#fff;border-radius:7px;font-size:13px;font-weight:600;">Reuniões de Auditoria</div>
-      <div style="padding:8px 16px;background:#fff;border:1.5px solid #E5E5E5;border-radius:7px;font-size:13px;color:#555;">Enquetes</div>
-      <div style="padding:8px 16px;background:#fff;border:1.5px solid #E5E5E5;border-radius:7px;font-size:13px;color:#555;">Membros</div>
-    </div>
-    <p style="font-size:12.5px;color:#555;">A aba <strong>Reuniões de Auditoria</strong> é a principal interface do comitê. Cada auditoria finalizada aparece com resultados completos, NCs, evidências e relatório final.</p>
+  <div class="card card-amber" data-perfis-card="administrador auditor-lider">
+    <h3>Aba Reuniões de Auditoria <span class="badge badge-amber">Admin / Aud. Líder</span></h3>
+    <ol>
+      <li>Selecione a <strong>data da reunião</strong> → notificações automáticas para auditores, comitê e gestor da área</li>
+      <li>Após a reunião: clique em <strong>"✓ Reunião Realizada"</strong></li>
+      <li>Clique em <strong>"▶ Liberar Relatórios para o Gestor"</strong> → enquetes são enviadas ao comitê</li>
+    </ol>
   </div>
 
-  <h3>Fluxo do Comitê</h3>
-  <div class="flow" style="flex-wrap:wrap;">
-    <div class="flow-box">Auditoria<br/>finalizada</div>
-    <div class="flow-arrow">→</div>
-    <div class="flow-box" style="border-color:#FF8C00;color:#FF8C00;">Admin agenda<br/>reunião</div>
-    <div class="flow-arrow">→</div>
-    <div class="flow-box" style="border-color:#9b6dff;color:#9b6dff;">Comitê visualiza<br/>e comenta</div>
-    <div class="flow-arrow">→</div>
-    <div class="flow-box" style="border-color:#FF8C00;color:#FF8C00;">Reunião<br/>realizada</div>
-    <div class="flow-arrow">→</div>
-    <div class="flow-box" style="border-color:#00B050;color:#00B050;">Admin libera<br/>relatórios</div>
+  <div class="card card-blue">
+    <h3>Aba Enquetes <span class="badge badge-blue">Comitê</span></h3>
+    <p>Cada membro recebe enquetes para votar em cada plano de ação liberado.</p>
+    <ol>
+      <li>Leia a descrição do plano e a área</li>
+      <li>Clique em <strong>"✓ Aprovar"</strong> ou <strong>"✕ Reprovar"</strong></li>
+    </ol>
   </div>
 
-  <h3>Enquetes de Aprovação</h3>
-  <p>Ao liberar relatórios, cada membro do comitê recebe automaticamente uma notificação para votar em cada plano:</p>
-  <div style="display:flex;gap:10px;margin:12px 0;">
-    <div class="card card-green" style="flex:1;padding:12px;text-align:center;">
-      <div style="font-size:20px;margin-bottom:4px;">✓</div>
-      <div style="font-weight:700;color:#00B050;">Aprovar</div>
-    </div>
-    <div class="card card-red" style="flex:1;padding:12px;text-align:center;">
-      <div style="font-size:20px;margin-bottom:4px;">✕</div>
-      <div style="font-weight:700;color:#E8001D;">Reprovar</div>
-    </div>
+  <div class="card">
+    <h3>Comentários em Auditorias</h3>
+    <p>Na aba Reuniões, digite seu comentário no campo ao final do card da auditoria e pressione <strong>Enter</strong> ou clique em <strong>Enviar</strong>.</p>
   </div>
 </section>
 
-<!-- ELABORAR PLANO -->
-<section id="elaborar">
-  <h1>12. Elaborar Plano de Ação</h1>
-  <p><strong>Quem pode:</strong> Administrador<br/><strong>Caminho:</strong> ✍ Elaborar Plano de Ação</p>
+<section id="elaborar" data-perfis="administrador">
+  <h1>Elaborar Plano de Ação</h1>
+  <p><strong>Caminho:</strong> ✍ Elaborar Plano de Ação</p>
   <p>Exibe os planos gerados pelas auditorias que aguardam elaboração antes de serem enviados ao comitê.</p>
-
-  <div class="mockup" style="padding:16px;">
-    <div style="border:1.5px solid #FF8C00;border-radius:8px;padding:14px;">
-      <div style="display:flex;gap:10px;align-items:flex-start;margin-bottom:12px;">
-        <span class="badge badge-red">NC</span>
-        <div style="flex:1;font-size:13px;font-weight:600;">Os responsáveis conhecem e seguem o procedimento?</div>
-        <span class="badge badge-amber">Pendente</span>
-      </div>
-      <div style="background:#F5F4F2;border-radius:8px;padding:12px;">
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
-          <div><div style="font-size:9px;font-weight:700;text-transform:uppercase;color:#888;margin-bottom:4px;">Responsável *</div><select style="width:100%;padding:6px 8px;border:1.5px solid #FF8C00;border-radius:5px;font-size:12px;font-family:'Barlow',sans-serif;background:#fff;"><option>Selecione o responsável...</option></select></div>
-          <div><div style="font-size:9px;font-weight:700;text-transform:uppercase;color:#888;margin-bottom:4px;">Prazo *</div><input type="date" style="width:100%;padding:6px 8px;border:1.5px solid #FF8C00;border-radius:5px;font-size:12px;font-family:'Barlow',sans-serif;background:#fff;"/></div>
-        </div>
-      </div>
-      <div style="display:flex;justify-content:flex-end;margin-top:12px;">
-        <div style="background:#E5E5E5;color:#999;border:none;border-radius:8px;padding:10px 18px;font-size:12px;font-weight:700;font-family:'Barlow',sans-serif;">⏳ Preencha todos os campos para enviar</div>
-      </div>
-    </div>
-  </div>
-  <div class="tip">💡 O botão muda automaticamente para <span style="background:#00B050;color:#fff;padding:2px 8px;border-radius:5px;font-size:11px;font-weight:700;">✓ Enviar para Enquete do Comitê</span> quando todos os campos estão preenchidos.</div>
+  <h3>Para cada plano:</h3>
+  <ol>
+    <li>Preencha a <strong>Descrição detalhada</strong></li>
+    <li>Selecione o <strong>Responsável</strong></li>
+    <li>Defina o <strong>Prazo</strong></li>
+    <li>Selecione a <strong>Causa Raiz</strong></li>
+    <li>Defina a <strong>Prioridade</strong></li>
+  </ol>
+  <div class="tip">💡 O botão <strong>"✓ Enviar para Enquete do Comitê"</strong> ativa automaticamente quando todos os campos estão preenchidos.</div>
 </section>
 
-<!-- PLANOS -->
-<section id="planos">
-  <h1>13. Relatórios de Conclusão</h1>
-  <p><strong>Caminho:</strong> Menu lateral → Relatórios de Conclusão</p>
-
-  <h3>Seção: Aguardando Aprovação</h3>
-  <p>Planos que passaram pelo comitê e aguardam aprovação formal do administrador. Botões <strong>✓ Aprovar</strong> e <strong>✕ Rejeitar</strong> por plano.</p>
-
-  <h3>Seção: Planos Aprovados</h3>
-  <table>
-    <thead><tr><th>Elemento</th><th>Descrição</th></tr></thead>
-    <tbody>
-      <tr><td><strong>Avatar</strong></td><td>Iniciais do responsável com fundo vermelho</td></tr>
-      <tr><td><strong>Causa Raiz</strong></td><td>Exibida em coluna dedicada</td></tr>
-      <tr><td><strong>Status</strong></td><td>Select: Aberto / Em Andamento / Concluído</td></tr>
-      <tr><td><strong>Justificar Atraso</strong></td><td>Botão âmbar para planos vencidos — abre modal para motivo e novo prazo</td></tr>
-      <tr><td><strong>⊙ Histórico</strong></td><td>Linha do tempo completa de alterações do plano</td></tr>
-    </tbody>
-  </table>
-
-  <h3>Extensão de Prazo</h3>
-  <div class="flow">
-    <div class="flow-box" style="border-color:#E8001D;color:#E8001D;">Plano<br/>atrasado</div>
-    <div class="flow-arrow">→</div>
-    <div class="flow-box">Gestor solicita<br/>extensão</div>
-    <div class="flow-arrow">→</div>
-    <div class="flow-box" style="border-color:#FF8C00;color:#FF8C00;">Badge<br/>Extensão Pendente</div>
-    <div class="flow-arrow">→</div>
-    <div class="flow-box" style="border-color:#00B050;color:#00B050;">Admin<br/>aprova/rejeita</div>
+<section id="relatorio-conclusao" data-perfis="todos">
+  <h1>Relatório de Conclusão</h1>
+  <p><strong>Caminho:</strong> 📋 Relatório de Conclusão</p>
+  <p>Esta aba exibe os <strong>relatórios finais elaborados pelo Auditor Líder</strong> após a consolidação das auditorias. É uma view de <em>recebimento</em> — não de elaboração.</p>
+  <div class="card card-green">Cada relatório exibe: score, NCs com evidências, conclusões, recomendações, ciência do auditado e comentários do comitê.</div>
+  <div class="card card-blue" style="display:none" id="card-gestor-relatorio">
+    <strong>Gestor da Área:</strong> você visualiza apenas o relatório <strong>consolidado</strong> do Auditor Líder referente à sua área — não os relatórios individuais de cada auditor.
   </div>
 </section>
 
-<!-- CIÊNCIA -->
-<section id="ciencia">
-  <h1>14. Ciência do Auditado</h1>
-  <p><strong>Quem pode:</strong> Gestor da Área<br/><strong>Onde aparece:</strong> Tela inicial do Gestor (Relatórios de Conclusão)</p>
+<section id="planos" data-perfis="administrador gestor">
+  <h1>Planos de Ação</h1>
+  <p><strong>Caminho:</strong> Planos de Ação</p>
 
-  <div class="card card-green">
-    <strong>✔ Sua área foi auditada — registre sua ciência</strong>
-    <p style="margin-top:6px;font-size:13px;">Banner verde que aparece automaticamente quando uma auditoria da área do gestor ainda não tem ciência registrada.</p>
+  <div class="card card-amber" style="display:none" id="card-admin-planos">
+    <h3>Seção: Aguardando Aprovação <span class="badge badge-amber">Admin</span></h3>
+    <p>Planos que passaram pelo comitê e aguardam aprovação formal. Clique em <strong>✓ Aprovar</strong> ou <strong>✕ Rejeitar</strong>.</p>
   </div>
 
-  <h3>Passos:</h3>
-  <ol style="line-height:2;padding-left:20px;">
+  <div class="card">
+    <h3>Planos Aprovados</h3>
+    <ul>
+      <li><strong>Status:</strong> selecione Aberto / Em Andamento / Concluído</li>
+      <li><strong>📎 Evidências:</strong> adicione texto ou link de comprovação da execução</li>
+      <li><strong>⏱ Solicitar Extensão:</strong> para planos atrasados, informe o motivo e o novo prazo</li>
+      <li><strong>⊙ Histórico:</strong> veja a linha do tempo completa de alterações</li>
+    </ul>
+  </div>
+</section>
+
+<section id="ciencia" data-perfis="gestor">
+  <h1>Ciência do Auditado</h1>
+  <p>Após uma auditoria da sua área, você deve registrar formalmente que foi informado dos resultados.</p>
+  <div class="card card-green">Um banner verde aparece automaticamente na sua tela inicial quando há auditorias aguardando sua ciência.</div>
+  <h3>Passo a passo:</h3>
+  <ol>
     <li>Clique em <strong>"✔ Registrar Ciência"</strong></li>
     <li>Confirme a data</li>
     <li>Adicione observações ou discordâncias (opcional)</li>
@@ -572,49 +350,39 @@
   </ol>
 </section>
 
-<!-- USUÁRIOS -->
-<section id="usuarios">
-  <h1>15. Usuários</h1>
-  <p><strong>Caminho:</strong> Menu lateral → Usuários → + Novo Usuário <em>(somente Administrador)</em></p>
+<section id="usuarios" data-perfis="administrador">
+  <h1>Usuários</h1>
+  <p><strong>Caminho:</strong> Usuários → + Novo Usuário</p>
   <table>
     <thead><tr><th>Campo</th><th>Descrição</th></tr></thead>
     <tbody>
-      <tr><td><strong>Nome completo</strong></td><td>Nome exibido no portal</td></tr>
+      <tr><td><strong>Nome</strong></td><td>Nome exibido no portal</td></tr>
       <tr><td><strong>Iniciais</strong></td><td>2–3 letras para o avatar (ex: JS)</td></tr>
       <tr><td><strong>E-mail</strong></td><td>E-mail Microsoft 365</td></tr>
-      <tr><td><strong>Perfil</strong></td><td>Administrador / Auditor Líder / Auditor / Comitê / Gestor de Área / Diretoria / Operacional</td></tr>
+      <tr><td><strong>Perfil</strong></td><td>Administrador / Auditor Líder / Auditor / Comitê / Gestor / Diretoria / Operacional</td></tr>
       <tr><td><strong>Área</strong></td><td>Obrigatório para Gestores</td></tr>
     </tbody>
   </table>
   <div class="tip">💡 Usuários adicionados aparecem automaticamente na tela de login agrupados pelo perfil.</div>
 </section>
 
-<!-- EXPORTAÇÃO -->
-<section id="exportar">
-  <h1>16. Exportação e PDF</h1>
-
+<section id="exportar" data-perfis="administrador auditor-lider">
+  <h1>Exportação e PDF</h1>
   <div class="card card-red">
     <h3>Relatório Geral do Dashboard</h3>
-    <p><strong>Caminho:</strong> Topbar → ↓ Exportar Relatório <em>(Administrador e Auditor)</em></p>
-    <p>Inclui: resumo executivo, conformidade por área, histórico de auditorias, planos de ação. Na aba aberta clique em <strong>"🖨 Imprimir / Salvar PDF"</strong>.</p>
+    <p><strong>Botão "↓ Exportar Relatório"</strong> na barra superior. Abre uma nova aba com resumo, conformidade por área, histórico de auditorias e planos. Clique em <strong>"🖨 Imprimir / Salvar PDF"</strong>.</p>
   </div>
-
   <div class="card card-blue">
-    <h3>Relatório Final de Auditoria PDF</h3>
-    <p><strong>Caminho:</strong> Auditorias → "📄 Ver Relatório" → "🖨 Gerar PDF"</p>
-    <p>Inclui: logo Fast, score, NCs com evidências, conclusões, recomendações, comentários do comitê e data da reunião.</p>
+    <h3>Relatório Final de Auditoria</h3>
+    <p>No modal "📄 Ver Relatório" → botão <strong>"🖨 Salvar PDF"</strong>. Inclui logo Fast, score, NCs com evidências, conclusões, recomendações e comentários do comitê.</p>
   </div>
 </section>
 
-<!-- DADOS -->
-<section id="dados">
-  <h1>17. Dados e Reset do Portal</h1>
-  <p>Todos os dados são salvos automaticamente no <code>localStorage</code> do navegador.</p>
-
+<section id="dados" data-perfis="administrador">
+  <h1>Dados e Reset do Portal</h1>
   <div class="warning">
-    <strong>🗑 Limpar todos os dados:</strong> no rodapé do menu lateral (somente Administrador), clique em 🗑 e confirme. Os dados são apagados permanentemente.
+    <strong>🗑 Limpar todos os dados:</strong> ícone 🗑 no rodapé do menu lateral (somente Admin). Os dados são apagados permanentemente — use com cautela.
   </div>
-
   <p>Os usuários padrão são restaurados automaticamente após o reset:</p>
   <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;">
     <span class="badge badge-red">AD — Administrador</span>
@@ -625,7 +393,6 @@
   </div>
 </section>
 
-<!-- RODAPÉ -->
 <div style="margin-top:48px;padding-top:20px;border-top:1px solid #E5E5E5;text-align:center;color:#aaa;font-size:12px;line-height:2;">
   Fast Sistemas Construtivos — Portal de Gestão e Auditoria Interna<br/>
   Manual de Instruções v1.0 — 2026 — Uso Interno
@@ -637,5 +404,43 @@
 
 <button class="print-btn" onclick="window.print()">🖨 Imprimir / Salvar PDF</button>
 
+<script>
+  const PERFIL_CONFIG = {
+    administrador: { label: "Administrador", cor: "#E8001D", bg: "rgba(232,0,29,.12)" },
+    "auditor-lider": { label: "Auditor Líder", cor: "#00875A", bg: "rgba(0,135,90,.12)" },
+    auditor: { label: "Auditor", cor: "#00B050", bg: "rgba(0,176,80,.12)" },
+    comite: { label: "Comitê", cor: "#9b6dff", bg: "rgba(155,109,255,.12)" },
+    gestor: { label: "Gestor da Área", cor: "#0066CC", bg: "rgba(0,102,204,.12)" },
+  };
+
+  const params = new URLSearchParams(window.location.search);
+  const perfil = params.get("perfil") || "administrador";
+  const cfg = PERFIL_CONFIG[perfil] || PERFIL_CONFIG.administrador;
+
+  // Badge de perfil no header
+  const badgeWrap = document.getElementById("perfil-badge-wrap");
+  badgeWrap.innerHTML = `<span style="display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:20px;background:${cfg.bg};color:${cfg.cor};font-size:11px;font-weight:700;font-family:'Barlow Condensed',sans-serif;text-transform:uppercase;letter-spacing:0.5px;margin-top:4px;">● ${cfg.label}</span>`;
+
+  // Exibe seções e nav items do perfil
+  document.querySelectorAll("[data-perfis]").forEach(el => {
+    const perfis = el.getAttribute("data-perfis").split(" ");
+    if (perfis.includes("todos") || perfis.includes(perfil)) {
+      el.classList.add("visivel");
+    }
+  });
+
+  // Cards condicionais dentro de seções
+  if (perfil === "gestor") {
+    const c = document.getElementById("card-gestor-relatorio");
+    if (c) c.style.display = "block";
+  }
+  if (perfil === "administrador") {
+    const c = document.getElementById("card-admin-planos");
+    if (c) c.style.display = "block";
+  }
+
+  // Título da página
+  document.title = `Manual — ${cfg.label} — Portal Fast`;
+</script>
 </body>
 </html>
