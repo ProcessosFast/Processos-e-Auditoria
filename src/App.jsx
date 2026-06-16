@@ -1246,6 +1246,7 @@ ${db.planos.length ? `<table>
               {navItems.find(n => n.id === view)?.label || "Dashboard"}
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <a href="/manual.html" target="_blank" rel="noreferrer" style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "8px 14px", borderRadius: 6, fontSize: 13, fontWeight: 600, color: F.gray3, background: F.offWhite, border: `1.5px solid ${F.gray6}`, textDecoration: "none", fontFamily: "'Barlow',sans-serif", transition: "all 0.15s" }} onMouseEnter={e => { e.currentTarget.style.borderColor = F.red; e.currentTarget.style.color = F.red; }} onMouseLeave={e => { e.currentTarget.style.borderColor = F.gray6; e.currentTarget.style.color = F.gray3; }}>? Suporte</a>
               {podeExecutar(perfil, "exportar") && <Btn variant="ghost" onClick={exportarRelatorio}>↓ Exportar Relatório</Btn>}
               {view === "areas" && podeExecutar(perfil, "criar") && <Btn onClick={() => openModal("area")}>+ Nova Área</Btn>}
               {view === "processos" && podeExecutar(perfil, "criar") && <Btn onClick={() => openModal("processo")}>+ Novo Processo</Btn>}
