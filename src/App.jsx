@@ -491,7 +491,7 @@ function LoginScreen({ usuarios, onLogin }) {
           <div style={{ fontSize: 36, marginBottom: 12, opacity: 0.18 }}>○</div>
           <div style={{ fontSize: 15, fontWeight: 700, color: F.charcoal, marginBottom: 10 }}>Nenhum usuário cadastrado</div>
           <div style={{ fontSize: 13, color: F.gray3, lineHeight: 1.8 }}>
-            Adicione um usuário administrador no <code style={{ background: F.offWhite, padding: "1px 6px", borderRadius: 3, fontSize: 12 }}>localStorage</code> com a chave <code style={{ background: F.offWhite, padding: "1px 6px", borderRadius: 3, fontSize: 12 }}>portal-fast-db</code>.
+            Adicione um usuário administrador no <code style={{ background: F.offWhite, padding: "1px 6px", borderRadius: 3, fontSize: 12 }}>localStorage</code> com a chave <code style={{ background: F.offWhite, padding: "1px 6px", borderRadius: 3, fontSize: 12 }}>portal-fast-db-v2</code>.
           </div>
         </div>
       ) : (
@@ -581,7 +581,7 @@ export default function App() {
       { id: "u-gestor", nome: "Gestor da Área", ini: "GA", email: "gestor@fastdrywall.com.br", perfil: "gestor", areaId: "", areaNome: "—" },
     ];
     try {
-      const salvo = localStorage.getItem("portal-fast-db");
+      const salvo = localStorage.getItem("portal-fast-db-v2");
       const base = salvo ? JSON.parse(salvo) : { areas: [], processos: [], auditorias: [], planos: [], ciclos: [], comite: [], usuarios: [], modulos: [], notificacoes: [], consolidacoes: [] };
       if (!base.usuarios) base.usuarios = [];
       if (!base.modulos) base.modulos = [];
@@ -598,7 +598,7 @@ export default function App() {
   });
 
   useEffect(() => {
-    localStorage.setItem("portal-fast-db", JSON.stringify(db));
+    localStorage.setItem("portal-fast-db-v2", JSON.stringify(db));
   }, [db]);
   const [toast, setToast] = useState(null);
   const [modals, setModals] = useState({});
@@ -1245,7 +1245,7 @@ ${db.planos.length ? `<table>
                   title="Limpar todos os dados"
                   onClick={() => {
                     if (window.confirm("Apagar TODOS os dados do portal? Esta ação não pode ser desfeita.")) {
-                      localStorage.removeItem("portal-fast-db");
+                      localStorage.removeItem("portal-fast-db-v2");
                       window.location.reload();
                     }
                   }}
