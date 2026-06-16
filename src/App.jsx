@@ -644,6 +644,33 @@ export default function App() {
     window.addEventListener("resize", onResize);
     return () => window.removeEventListener("resize", onResize);
   }, []);
+
+  // ── AUTOMAÍSCULO GLOBAL ──
+  useEffect(() => {
+    const SKIP_TYPES = new Set(["email","url","date","password","number","tel","time","month","week","color","file","range","search"]);
+    const inputSetter  = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype,  "value")?.set;
+    const textaSetter  = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype,"value")?.set;
+    function handleInput(e) {
+      const el = e.target;
+      const tag = el.tagName;
+      if (tag !== "INPUT" && tag !== "TEXTAREA") return;
+      if (SKIP_TYPES.has((el.type || "").toLowerCase())) return;
+      const ph = (el.placeholder || "").toLowerCase();
+      const val = el.value || "";
+      // não converter URLs e campos de link
+      if (ph.includes("http") || ph.includes("link") || val.startsWith("http")) return;
+      const upper = val.toUpperCase();
+      if (upper === val) return;
+      const selS = el.selectionStart, selE = el.selectionEnd;
+      if (tag === "INPUT"    && inputSetter) { inputSetter.call(el, upper); }
+      else if (tag === "TEXTAREA" && textaSetter) { textaSetter.call(el, upper); }
+      else { el.value = upper; }
+      el.dispatchEvent(new Event("input", { bubbles: true }));
+      try { el.setSelectionRange(selS, selE); } catch(_) {}
+    }
+    document.addEventListener("input", handleInput, true);
+    return () => document.removeEventListener("input", handleInput, true);
+  }, []);
   const [calMes, setCalMes] = useState(() => { const d = new Date(); return { ano: d.getFullYear(), mes: d.getMonth() }; });
   const [viewRelatorioAudId, setViewRelatorioAudId] = useState(null);
   const planosIdsRef = useRef(new Set());
