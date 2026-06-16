@@ -121,6 +121,10 @@ const PERMISSOES = {
     views: ["dashboard","areas","processos","auditorias","relatorio-conclusao","planos","elaborar","ncs","ciclos","comite","usuarios","modulos"],
     acoes: new Set(["criar","excluir","aprovar","exportar","auditar","atualizar-status","gerir-modulos","gerir-ciclos","gerir-comite","liberar-relatorios","agendar-reuniao","comentar-auditoria","relatorio-final","elaborar-plano"])
   },
+  "area-processos": {
+    views: ["dashboard","areas","processos","auditorias","relatorio-conclusao","planos","elaborar","ncs","ciclos","comite","usuarios","modulos"],
+    acoes: new Set(["criar","excluir","aprovar","exportar","atualizar-status","gerir-modulos","gerir-ciclos","gerir-comite","liberar-relatorios","agendar-reuniao","elaborar-plano"])
+  },
   "auditor-lider": {
     views: ["dashboard","areas","processos","auditorias","relatorio-conclusao","consolidar","planos","ncs","ciclos","comite","modulos"],
     acoes: new Set(["auditar","exportar","gerir-ciclos","gerir-comite","agendar-reuniao","relatorio-final","comentar-auditoria","consolidar"])
@@ -141,11 +145,11 @@ const PERMISSOES = {
 function podeAcessar(perfil, viewId) { return PERMISSOES[perfil]?.views.includes(viewId) ?? false; }
 function podeExecutar(perfil, acao) { return PERMISSOES[perfil]?.acoes.has(acao) ?? false; }
 const PERFIL_LABEL = {
-  administrador: "Administrador", comite: "Comitê", gestor: "Gestor de Área",
+  administrador: "Administrador", "area-processos": "Área de Processos", comite: "Comitê", gestor: "Gestor de Área",
   "auditor-lider": "Auditor Líder", auditor: "Auditor", diretoria: "Diretoria", operacional: "Operacional"
 };
 const PERFIL_COR = {
-  administrador: "#E8001D", comite: "#9b6dff", gestor: "#0066CC",
+  administrador: "#E8001D", "area-processos": "#D4580A", comite: "#9b6dff", gestor: "#0066CC",
   "auditor-lider": "#00875A", auditor: "#00B050", diretoria: "#FF8C00", operacional: "#555555"
 };
 
@@ -471,7 +475,7 @@ function ComentarioInline({ audId, onSave }) {
 }
 
 // ── LOGIN SCREEN ─────────────────────────────────────────────────
-const PERFIL_ORDEM = ["administrador","auditor-lider","auditor","gestor","comite","diretoria","operacional"];
+const PERFIL_ORDEM = ["administrador","area-processos","auditor-lider","auditor","gestor","comite","diretoria","operacional"];
 
 function LoginScreen({ usuarios, onLogin }) {
   const [logoSrc, setLogoSrc] = useState("");
@@ -594,6 +598,7 @@ export default function App() {
   const [db, setDb] = useState(() => {
     const USUARIOS_PADRAO = [
       { id: "u-admin", nome: "Administrador", ini: "AD", email: "admin@fastdrywall.com.br", perfil: "administrador", areaId: "", areaNome: "—" },
+      { id: "u-area-processos", nome: "Área de Processos", ini: "AP", email: "processos@fastdrywall.com.br", perfil: "area-processos", areaId: "", areaNome: "—" },
       { id: "u-auditor-lider", nome: "Auditor Líder", ini: "AL", email: "auditor.lider@fastdrywall.com.br", perfil: "auditor-lider", areaId: "", areaNome: "—" },
       { id: "u-auditor", nome: "Auditor", ini: "AU", email: "auditor@fastdrywall.com.br", perfil: "auditor", areaId: "", areaNome: "—" },
       { id: "u-comite", nome: "Comitê", ini: "CO", email: "comite@fastdrywall.com.br", perfil: "comite", areaId: "", areaNome: "—" },
@@ -3542,7 +3547,7 @@ function UsuarioModal({ open, onClose, areas, onSave }) {
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
         <FG label="Perfil">
           <select style={fi} value={f.perfil} onChange={e => setF({ ...f, perfil: e.target.value })}>
-            {[["administrador","Administrador"],["auditor-lider","Auditor Líder"],["auditor","Auditor"],["comite","Comitê"],["gestor","Gestor de Área"],["diretoria","Diretoria"],["operacional","Operacional"]].map(([v,l]) => <option key={v} value={v}>{l}</option>)}
+            {[["administrador","Administrador"],["area-processos","Área de Processos"],["auditor-lider","Auditor Líder"],["auditor","Auditor"],["comite","Comitê"],["gestor","Gestor de Área"],["diretoria","Diretoria"],["operacional","Operacional"]].map(([v,l]) => <option key={v} value={v}>{l}</option>)}
           </select>
         </FG>
         <FG label="Área">
