@@ -70,6 +70,7 @@ const CL_BASE = [
 
 // ── HELPERS ───────────────────────────────────────────────────────
 function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2); }
+const U = v => typeof v === "string" ? v.toUpperCase() : v;
 function fmtDate(d) {
   if (!d) return "—";
   try { return new Date(d + "T00:00").toLocaleDateString("pt-BR"); } catch { return d; }
@@ -903,11 +904,12 @@ ${db.planos.length ? `<table>
   // ── SAVE AREA ──
   function saveArea(form) {
     if (!form.nome?.trim()) { showToast("Informe o nome da área.", "err"); return; }
-    if (form.id) {
-      upd("areas", arr => arr.map(a => a.id === form.id ? { ...a, ...form } : a));
+    const f = { ...form, nome: U(form.nome), categoria: U(form.categoria), diretor: form.diretor ? { ...form.diretor, nome: U(form.diretor.nome) } : form.diretor, subareas: (form.subareas||[]).map(s => ({ ...s, nome: U(s.nome), responsaveis: (s.responsaveis||[]).map(r => ({ ...r, nome: U(r.nome) })) })) };
+    if (f.id) {
+      upd("areas", arr => arr.map(a => a.id === f.id ? { ...a, ...f } : a));
       closeModal("area"); showToast("Área atualizada!");
     } else {
-      upd("areas", a => [...a, { id: uid(), ...form }]);
+      upd("areas", a => [...a, { id: uid(), ...f }]);
       closeModal("area"); showToast("Área cadastrada!");
     }
   }
@@ -916,18 +918,19 @@ ${db.planos.length ? `<table>
   function saveProcesso(form) {
     if (!form.nome?.trim() || !form.areaId) { showToast("Informe nome e área.", "err"); return; }
     const area = db.areas.find(a => a.id === form.areaId);
-    upd("processos", p => [...p, { id: uid(), areaNome: area?.nome || "—", ...form }]);
+    upd("processos", p => [...p, { id: uid(), areaNome: area?.nome || "—", ...form, nome: U(form.nome), resp: U(form.resp) }]);
     closeModal("processo"); showToast("Processo cadastrado!");
   }
 
   // ── SAVE CICLO ──
   function saveCiclo(form) {
     if (!form.nome?.trim()) { showToast("Informe o nome do ciclo.", "err"); return; }
-    if (form.id) {
-      upd("ciclos", arr => arr.map(c => c.id === form.id ? { ...c, ...form } : c));
+    const f = { ...form, nome: U(form.nome), obs: U(form.obs) };
+    if (f.id) {
+      upd("ciclos", arr => arr.map(c => c.id === f.id ? { ...c, ...f } : c));
       closeModal("ciclo"); showToast("Ciclo atualizado!");
     } else {
-      upd("ciclos", c => [...c, { id: uid(), status: "ativo", ...form }]);
+      upd("ciclos", c => [...c, { id: uid(), status: "ativo", ...f }]);
       // Notifica todos os Auditores Líderes
       const periodo = form.ini && form.fim ? ` — Período: ${fmtDate(form.ini)} a ${fmtDate(form.fim)}` : "";
       const areas = db.areas.filter(a => !a.naoAuditada && !a.noa);
@@ -944,8 +947,8 @@ ${db.planos.length ? `<table>
     if (!form.nome?.trim() || !form.email?.trim()) { showToast("Informe nome e e-mail.", "err"); return; }
     const area = db.areas.find(a => a.id === form.areaId);
     upd("usuarios", u => [...u, {
-      id: uid(), ini: form.ini || form.nome.slice(0, 2).toUpperCase(),
-      areaNome: area?.nome || "—", ...form
+      id: uid(), ini: U(form.ini || form.nome.slice(0, 2)),
+      areaNome: area?.nome || "—", ...form, nome: U(form.nome)
     }]);
     closeModal("usuario"); showToast("Usuário cadastrado!");
   }
@@ -965,7 +968,7 @@ ${db.planos.length ? `<table>
     if (!auto && !form.respId) { showToast("Selecione um responsável.", "err"); return; }
     if (!auto && !form.causaRaiz) { showToast("Selecione a causa raiz.", "err"); return; }
     const evt = { data: new Date().toISOString(), acao: "Relatório criado", autor: auto ? "Sistema (Auditoria)" : usuarioLogado?.nome || "Sistema" };
-    upd("planos", p => [...p, { id: uid(), status: "aberto", aprovacao: "pendente", historico: [evt], origem: auto ? "auditoria" : "manual", ...form }]);
+    upd("planos", p => [...p, { id: uid(), status: "aberto", aprovacao: "pendente", historico: [evt], origem: auto ? "auditoria" : "manual", ...form, desc: U(form.desc) }]);
     if (!auto) { closeModal("plano"); showToast("Relatório criado! Aguardando aprovação do administrador."); }
   }
 
@@ -1007,12 +1010,12 @@ ${db.planos.length ? `<table>
 
   function addComentarioAuditoria(audId, texto) {
     if (!texto?.trim()) return;
-    const comentario = { id: uid(), usuarioId: usuarioLogado.id, usuarioNome: usuarioLogado.nome, texto, data: new Date().toISOString() };
+    const comentario = { id: uid(), usuarioId: usuarioLogado.id, usuarioNome: usuarioLogado.nome, texto: U(texto), data: new Date().toISOString() };
     upd("auditorias", arr => arr.map(a => a.id === audId ? { ...a, comentarios: [...(a.comentarios || []), comentario] } : a));
   }
 
   function salvarConsolidacao(form) {
-    const relatorio = { conclusoes: form.conclusoes, recomendacoes: form.recomendacoes, observacoes: form.observacoes, auditorId: usuarioLogado.id, auditorNome: usuarioLogado.nome, data: new Date().toISOString(), status: "enviado", consolidado: true };
+    const relatorio = { conclusoes: U(form.conclusoes), recomendacoes: U(form.recomendacoes), observacoes: U(form.observacoes), auditorId: usuarioLogado.id, auditorNome: usuarioLogado.nome, data: new Date().toISOString(), status: "enviado", consolidado: true };
     // Salva relatorioFinal em TODAS as auditorias do par
     if (form.auditoriaIds?.length) {
       upd("auditorias", arr => arr.map(a => form.auditoriaIds.includes(a.id) ? { ...a, relatorioFinal: relatorio } : a));
@@ -1028,7 +1031,7 @@ ${db.planos.length ? `<table>
   }
 
   function salvarRelatorioFinal(audId, form) {
-    upd("auditorias", arr => arr.map(a => a.id === audId ? { ...a, relatorioFinal: { ...form, auditorId: usuarioLogado.id, auditorNome: usuarioLogado.nome, data: new Date().toISOString(), status: "enviado" } } : a));
+    upd("auditorias", arr => arr.map(a => a.id === audId ? { ...a, relatorioFinal: { ...form, conclusoes: U(form.conclusoes), recomendacoes: U(form.recomendacoes), observacoes: U(form.observacoes), auditorId: usuarioLogado.id, auditorNome: usuarioLogado.nome, data: new Date().toISOString(), status: "enviado" } } : a));
     setRelatorioFinalAudId(null);
     showToast("Relatório final enviado ao administrador!");
   }
@@ -1090,7 +1093,7 @@ ${db.planos.length ? `<table>
   }
   function adicionarEvidenciaExecucao(planoId, texto) {
     if (!texto?.trim()) return;
-    const ev = { id: uid(), texto, data: new Date().toISOString(), autor: usuarioLogado?.nome || "—" };
+    const ev = { id: uid(), texto: texto.startsWith("http") ? texto : U(texto), data: new Date().toISOString(), autor: usuarioLogado?.nome || "—" };
     upd("planos", arr => arr.map(p => p.id === planoId ? { ...p, evidenciasExecucao: [...(p.evidenciasExecucao || []), ev] } : p));
   }
 
@@ -1113,7 +1116,7 @@ ${db.planos.length ? `<table>
       id: audId, areaNome: area?.nome || "—", areaId: audForm.areaId,
       auditorNome: auditor?.nome || "—", data: audForm.data,
       local: audForm.local, cicloNome: ciclo?.nome || "—",
-      score, obs: audForm.obs, status: "concluida",
+      score, obs: U(audForm.obs), status: "concluida",
       processosAuditados: audForm.processosAuditados || [],
       ncs: ncs.map(i => ({ q: i.q, clas: i.clas || "obs", evidencia: i.evidencia || "" })),
       ciencia: null,
@@ -3499,7 +3502,7 @@ function PlanoModal({ open, onClose, areas, usuarios, onSave }) {
   function save() {
     const area = areas.find(a => a.id === f.areaId);
     const resp = usuarios.find(u => u.id === f.respId);
-    onSave({ ...f, areaNome: area?.nome || "—", respNome: resp?.nome || f.respNome });
+    onSave({ ...f, desc: U(f.desc), areaNome: area?.nome || "—", respNome: resp?.nome || f.respNome });
     setF(empty);
   }
   return (
@@ -3863,7 +3866,7 @@ function RelatorioFinalModal({ open, onClose, auditoria, onSave }) {
   if (!auditoria) return null;
   return (
     <Modal open={open} onClose={onClose} title="Relatório Final de Auditoria" width={560}
-      footer={<><Btn variant="ghost" onClick={onClose}>Cancelar</Btn><Btn onClick={() => { if (!f.conclusoes.trim()) { alert("Informe as conclusões."); return; } onSave(auditoria.id, f); }}>✓ Enviar ao Administrador</Btn></>}>
+      footer={<><Btn variant="ghost" onClick={onClose}>Cancelar</Btn><Btn onClick={() => { if (!f.conclusoes.trim()) { alert("Informe as conclusões."); return; } onSave(auditoria.id, { conclusoes: U(f.conclusoes), recomendacoes: U(f.recomendacoes), observacoes: U(f.observacoes) }); }}>✓ Enviar ao Administrador</Btn></>}>
       <div style={{ background: F.offWhite, borderRadius: 8, padding: "10px 14px", marginBottom: 16, fontSize: 12.5, color: F.charcoal }}>
         <strong>{auditoria.areaNome}</strong> · {fmtDate(auditoria.data)} · Score: <strong style={{ color: scoreColor(auditoria.score) }}>{auditoria.score}%</strong>
       </div>
@@ -3939,7 +3942,7 @@ function JustificativaModal({ open, onClose, plano, onSave }) {
   function save() {
     if (!f.motivo.trim()) { alert("Informe o motivo do atraso."); return; }
     if (!f.novoPrazo) { alert("Informe o novo prazo solicitado."); return; }
-    onSave(f);
+    onSave({ ...f, motivo: U(f.motivo) });
   }
   return (
     <Modal open={open} onClose={onClose} title="Justificar Atraso" width={480}
