@@ -1571,6 +1571,66 @@ ${db.planos.length ? `<table>
                     )}
                   </Card>
                 </div>
+
+                {/* Cronograma de Ciclos */}
+                {db.ciclos.length > 0 && (
+                  <Card className="anim4" style={{ marginTop: 14 }}>
+                    <div style={{ fontFamily: "'Barlow Condensed',sans-serif", fontSize: 14, fontWeight: 800, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 16, color: F.charcoal }}>
+                      Cronograma de Auditorias
+                    </div>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                      {[...db.ciclos].sort((a, b) => (a.ini || "").localeCompare(b.ini || "")).map(ciclo => {
+                        const audsNoCiclo = db.auditorias.filter(a => a.cicloNome === ciclo.nome);
+                        const areasAuditadasIds = new Set(audsNoCiclo.map(a => a.areaId));
+                        const total = areasAuditaveis.length;
+                        const feitas = areasAuditaveis.filter(a => areasAuditadasIds.has(a.id)).length;
+                        const pct = total > 0 ? Math.round((feitas / total) * 100) : 0;
+                        const hoje = new Date().toISOString().split("T")[0];
+                        const emAndamento = ciclo.ini && ciclo.fim && ciclo.ini <= hoje && ciclo.fim >= hoje;
+                        const futuro = ciclo.ini && ciclo.ini > hoje;
+                        const statusCor = ciclo.status === "realizada" || pct === 100 ? F.green : emAndamento ? F.blue : futuro ? F.amber : F.gray3;
+                        const statusLabel = pct === 100 ? "Concluído" : emAndamento ? "Em Andamento" : futuro ? "Programado" : ciclo.status === "ativo" ? "Ativo" : "Encerrado";
+                        return (
+                          <div key={ciclo.id} style={{ border: `1px solid ${F.gray6}`, borderRadius: 8, padding: "12px 14px", borderLeft: `4px solid ${statusCor}` }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+                              <div style={{ flex: 1, minWidth: 120 }}>
+                                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                                  <span style={{ fontFamily: "'Barlow Condensed',sans-serif", fontSize: 15, fontWeight: 800, color: F.charcoal }}>{ciclo.nome}</span>
+                                  <span style={{ fontSize: 10, fontWeight: 700, padding: "1px 7px", borderRadius: 20, background: `${statusCor}18`, color: statusCor, textTransform: "uppercase", letterSpacing: 0.5, fontFamily: "'Barlow Condensed',sans-serif" }}>{statusLabel}</span>
+                                </div>
+                                <div style={{ fontSize: 11, color: F.gray4, marginTop: 2 }}>
+                                  {ciclo.ini ? fmtDate(ciclo.ini) : "—"} {ciclo.fim ? `→ ${fmtDate(ciclo.fim)}` : ""}
+                                </div>
+                              </div>
+                              <div style={{ textAlign: "right", flexShrink: 0 }}>
+                                <div style={{ fontSize: 12, fontWeight: 700, color: statusCor }}>{feitas}/{total} áreas</div>
+                                <div style={{ fontSize: 10, color: F.gray4 }}>{pct}% concluído</div>
+                              </div>
+                            </div>
+                            {/* Barra de progresso */}
+                            <div style={{ marginTop: 10, height: 6, background: F.gray6, borderRadius: 4, overflow: "hidden" }}>
+                              <div style={{ height: "100%", width: `${pct}%`, background: statusCor, borderRadius: 4, transition: "width 0.4s ease" }} />
+                            </div>
+                            {/* Áreas */}
+                            {total > 0 && (
+                              <div style={{ display: "flex", gap: 5, flexWrap: "wrap", marginTop: 10 }}>
+                                {areasAuditaveis.map(a => {
+                                  const auditada = areasAuditadasIds.has(a.id);
+                                  return (
+                                    <span key={a.id} style={{ fontSize: 10.5, fontWeight: 600, padding: "2px 8px", borderRadius: 5, fontFamily: "'Barlow Condensed',sans-serif", letterSpacing: 0.3, background: auditada ? F.greenDim : F.offWhite, color: auditada ? F.green : F.gray4, border: `1px solid ${auditada ? F.green + "44" : F.gray6}` }}>
+                                      {auditada ? "✓ " : "○ "}{a.nome}
+                                    </span>
+                                  );
+                                })}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                    <button onClick={() => setView("ciclos")} style={{ fontSize: 11.5, color: F.red, background: "none", border: "none", cursor: "pointer", fontFamily: "'Barlow',sans-serif", fontWeight: 600, marginTop: 12 }}>Ver todos os ciclos →</button>
+                  </Card>
+                )}
               </div>
             )}
 
