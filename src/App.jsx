@@ -118,19 +118,19 @@ function scoreAreaCiclo(areaId, auditorias) {
 // ── PERMISSÕES ───────────────────────────────────────────────────
 const PERMISSOES = {
   administrador: {
-    views: ["dashboard","areas","processos","auditorias","relatorio-conclusao","planos","elaborar","ncs","ciclos","comite","usuarios","modulos"],
+    views: ["dashboard","cronograma","areas","processos","auditorias","relatorio-conclusao","planos","elaborar","ncs","ciclos","comite","usuarios","modulos"],
     acoes: new Set(["criar","excluir","aprovar","exportar","auditar","atualizar-status","gerir-modulos","gerir-ciclos","gerir-comite","liberar-relatorios","agendar-reuniao","comentar-auditoria","relatorio-final","elaborar-plano"])
   },
   "area-processos": {
-    views: ["dashboard","areas","processos","auditorias","relatorio-conclusao","planos","elaborar","ncs","ciclos","comite","usuarios","modulos"],
+    views: ["dashboard","cronograma","areas","processos","auditorias","relatorio-conclusao","planos","elaborar","ncs","ciclos","comite","usuarios","modulos"],
     acoes: new Set(["criar","excluir","aprovar","exportar","atualizar-status","gerir-modulos","gerir-ciclos","gerir-comite","liberar-relatorios","agendar-reuniao","elaborar-plano"])
   },
   auditor: {
-    views: ["dashboard","areas","processos","auditorias","relatorio-conclusao","consolidar","planos","ncs","ciclos","comite","modulos"],
+    views: ["dashboard","cronograma","areas","processos","auditorias","relatorio-conclusao","consolidar","planos","ncs","ciclos","comite","modulos"],
     acoes: new Set(["auditar","exportar","gerir-ciclos","gerir-comite","agendar-reuniao","relatorio-final","comentar-auditoria","consolidar"])
   },
   comite: {
-    views: ["dashboard","auditorias","processos","relatorio-conclusao","planos","comite"],
+    views: ["dashboard","cronograma","auditorias","processos","relatorio-conclusao","planos","comite"],
     acoes: new Set(["exportar","comentar-auditoria","votar-enquete"])
   },
   gestor: {
@@ -577,6 +577,240 @@ function LoginScreen({ usuarios, onLogin, onSalvarSenha }) {
   );
 }
 
+// ── CRONOGRAMA DE AUDITORIA ──────────────────────────────────────
+// Calendário de Auditoria Interna: os mesmos itens são verificados todo mês
+const CRONOGRAMA_ITENS = [
+  { cat: "Contas a pagar", itens: [
+    "Conferir relatório de contas a pagar e realizar comparativo com documentos fiscais",
+    "Validar se as contas pagas obedeceram segregação na autorização de pagamento (Um usuário lança e o outro valida/autoriza)",
+    "Verificar se existe algum fornecedor com pagamento em aberto (em atraso) no relatório de Contas a Pagar",
+    "Realizar consulta de saldo de adiantamento de fornecedores e conferir com movimentação financeira",
+    "Realizar consulta de relatório de títulos a receber com vencimento prorrogado e validar processo de autorização da prorrogação",
+    "Verificar se existe devolução a fornecedores (Nota de Débito) em aberto e acompanhar acertos",
+  ]},
+  { cat: "Contas a receber", itens: [
+    "Analisar relatório de Contas a Receber acima de 120 dias",
+    "Realizar consulta de relatório de títulos a receber com vencimento prorrogado e validar processo de autorização da prorrogação",
+    "Realizar consulta de saldo de adiantamento de clientes e conferir com extrato bancário",
+    "Validar créditos não identificados no sistema",
+    "Validar descontos concedidos, e verificar se estão de acordo com a política de descontos",
+  ]},
+  { cat: "Conciliação Bancária", itens: [
+    "Validar saldos dos extratos bancários X saldos de conciliação bancária no sistema",
+    "Validar se os lançamentos do extrato bancário estão em conformidade com o sistema",
+    "Identificar transferências no extrato bancário realizadas para pessoa física (CPF) e conferir com o documento fiscal",
+  ]},
+  { cat: "Caixa", itens: [
+    "Validar relatório de extrato de dinheiro físico no sistema com os documentos",
+    "Validar se as contas pagas no caixa obedeceram segregação na autorização de pagamento (Um usuário lança e o outro valida/autoriza)",
+    "Validar saldo de dinheiro no sistema com dinheiro em espécie disponível",
+    "Validar adiantamentos pendentes de acerto",
+  ]},
+  { cat: "Cobrança", itens: [
+    "Validar relatório de clientes a receber atrasados e analisar a negociação realizada no sistema",
+    "Validar relatório de títulos encaminhados para cobrança especializada (jurídico) e analisar status da negociação no sistema",
+  ]},
+  { cat: "Faturamento", itens: [
+    "Verificar se existe faturamento em aberto",
+    "Validar NFs canceladas no mês e motivos",
+    "Validar se existe alguma NF que precisaria ser cancelada e não foi",
+  ]},
+  { cat: "Departamento Pessoal", itens: [
+    "Validar relatório do planejamento anual de férias",
+    "Validar relatório de horas extras do mês e verificar se foram autorizadas pelo líder imediato",
+    "Validar benefícios de funcionários (vale transporte, alimentação, convênio etc.) e verificar se a saída no extrato bancário confere com o valor devido",
+  ]},
+  { cat: "Qualificação de fornecedores", itens: [
+    "Verificar se existe processo de qualificação de fornecedores (preço, prazo de entrega, qualidade, atendimento, etc.) e quais são os fornecedores críticos para exclusão",
+  ]},
+  { cat: "Compras", itens: [
+    "Verificar se toda compra realizada possui Pedido de Compra no sistema",
+    "Validar novos cadastros de produtos e fornecedores realizados no mês",
+    "Validar se todas as compras possuem pelo menos 3 cotações no sistema",
+    "Validar lista de fornecedores exclusivos (que estão dispensados de realizar cotação, por exemplo por contratos)",
+    "Verificar se as compras realizadas no mês obedeceram os critérios de estoque mínimo e máximo, ou correto atendimento das requisições",
+    "Validar as requisições de compras de usuários, avaliando a necessidade de compra",
+    "Validar se as compras realizadas no mês passaram por aprovação no sistema",
+  ]},
+  { cat: "Estoque", itens: [
+    "Analisar inventários realizados e apurar divergências relevantes junto ao responsável",
+    "Verificar se o calendário de contagem de mercadorias está sendo cumprido",
+    "Verificar se houve ajustes manuais de estoques no mês",
+  ]},
+  { cat: "Recebimento de Materiais", itens: [
+    "Validar se todo recebimento de materiais é conferido com o Pedido de Compra no sistema",
+    "Conferir NF X Pedido de compra no sistema",
+  ]},
+  { cat: "Expedição", itens: [
+    "Validar controle interno de expedição, que garante a conferência do produto junto aos documentos fiscais",
+  ]},
+  { cat: "Vendas", itens: [
+    "Validar descontos concedidos no mês",
+    "Validar vendas realizadas com margem negativa",
+    "Verificar vendas futuras em aberto no sistema",
+    "Avaliar processo de devolução de vendas futuras realizadas no mês",
+    "Avaliação de campanhas comerciais para produtos danificados",
+  ]},
+  { cat: "Segurança da informação", itens: [
+    "Validar se os perfis de usuários do sistema estão em conformidade com os acessos liberados",
+    "Validar se os perfis de usuários de rede estão em conformidade com os acessos liberados",
+    "Validar usuários liberados no sistema para realizar ajuste de estoque",
+    "Validar se a política de desconto está em conformidade com os acessos do sistema",
+    "Validar evidências de backups realizados do sistema",
+    "Validar evidências de backups realizados de rede",
+    "Verificar se os colaboradores desligados no mês continuam com acessos ativos",
+  ]},
+  { cat: "Infraestrutura", itens: [
+    "Validar controle de ativos de TI e analisar a alocação dos bens",
+  ]},
+  { cat: "Fiscal", itens: [
+    "Validar se existem NFs que foram emitidas contra o CNPJ da Fast e não deram entrada no sistema",
+    "Validar operações de triangulação",
+    "Validar memória de cálculo dos impostos do mês",
+  ]},
+].map((g, gi) => ({ ...g, itens: g.itens.map((texto, ii) => ({ id: `c${gi + 1}-${ii + 1}`, texto })) }));
+
+const MESES = ["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
+
+function statusCronograma(r, hoje) {
+  if (r?.realizada) return r.prevista && r.realizada > r.prevista
+    ? { key: "realizado", label: "Realizado c/ atraso", cor: F.amber, bg: F.amberDim }
+    : { key: "realizado", label: "Realizado", cor: F.green, bg: F.greenDim };
+  if (r?.prevista && r.prevista < hoje) return { key: "atrasado", label: "Atrasado", cor: F.red, bg: F.redDim };
+  if (r?.prevista) return { key: "pendente", label: "Previsto", cor: F.blue, bg: F.blueDim };
+  return { key: "sem-data", label: "Sem data", cor: F.gray4, bg: F.gray6 };
+}
+
+function CronogramaAuditoria({ dados, usuarios, podeEditar, onChange }) {
+  const [mes, setMes] = useState(() => new Date().toISOString().slice(0, 7));
+  const [filtroStatus, setFiltroStatus] = useState("");
+  const [filtroResp, setFiltroResp] = useState("");
+  const hoje = new Date().toISOString().split("T")[0];
+  const [ano, m] = mes.split("-").map(Number);
+  const doMes = dados[mes] || {};
+  const ultimoDia = new Date(ano, m, 0).getDate();
+  const responsaveis = usuarios.filter(u => ["auditor", "administrador"].includes(u.perfil));
+
+  function mudarMes(delta) {
+    const d = new Date(ano, m - 1 + delta, 1);
+    setMes(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`);
+  }
+
+  const todos = CRONOGRAMA_ITENS.flatMap(g => g.itens.map(i => statusCronograma(doMes[i.id], hoje).key));
+  const cont = k => todos.filter(x => x === k).length;
+  const pct = Math.round(cont("realizado") / todos.length * 100);
+
+  const passaFiltro = item => {
+    const r = doMes[item.id];
+    if (filtroStatus && statusCronograma(r, hoje).key !== filtroStatus) return false;
+    if (filtroResp && (r?.responsavelId || "") !== filtroResp) return false;
+    return true;
+  };
+
+  const inp = { ...fi, padding: "5px 8px", fontSize: 12.5 };
+  const navBtn = { background: "#fff", border: `1.5px solid ${F.gray6}`, borderRadius: 6, width: 32, height: 32, cursor: "pointer", fontSize: 15, color: F.gray3 };
+
+  return (
+    <div>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12, marginBottom: 16 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <button style={navBtn} onClick={() => mudarMes(-1)} title="Mês anterior">‹</button>
+          <div style={{ fontFamily: "'Barlow Condensed',sans-serif", fontSize: 22, fontWeight: 900, textTransform: "uppercase", color: F.charcoal, minWidth: 170, textAlign: "center" }}>
+            {MESES[m - 1]} / {ano}
+          </div>
+          <button style={navBtn} onClick={() => mudarMes(1)} title="Próximo mês">›</button>
+        </div>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <select style={{ ...inp, width: "auto" }} value={filtroStatus} onChange={e => setFiltroStatus(e.target.value)}>
+            <option value="">Todos os status</option>
+            <option value="sem-data">Sem data</option>
+            <option value="pendente">Previsto</option>
+            <option value="atrasado">Atrasado</option>
+            <option value="realizado">Realizado</option>
+          </select>
+          <select style={{ ...inp, width: "auto" }} value={filtroResp} onChange={e => setFiltroResp(e.target.value)}>
+            <option value="">Todos os responsáveis</option>
+            {responsaveis.map(u => <option key={u.id} value={u.id}>{u.nome}</option>)}
+          </select>
+        </div>
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 12, marginBottom: 16 }}>
+        <StatCard label="Itens no mês" value={todos.length} sub={`${pct}% concluído`} accent={F.charcoal} />
+        <StatCard label="Realizados" value={cont("realizado")} sub="com data realizada" accent={F.green} />
+        <StatCard label="Previstos" value={cont("pendente")} sub="dentro do prazo" accent={F.blue} />
+        <StatCard label="Atrasados" value={cont("atrasado")} sub="prevista já passou" accent={F.red} />
+        <StatCard label="Sem data" value={cont("sem-data")} sub="falta planejar" accent={F.gray5} />
+      </div>
+
+      <Card style={{ padding: 0 }}>
+        <div className="table-scroll">
+          <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 960 }}>
+            <thead>
+              <tr>
+                {["Atividade", "Responsável", "Data Prevista", "Data Realizada", "Status", "Observações"].map(c => (
+                  <th key={c} style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: 1, color: F.gray4, padding: "10px 10px", textAlign: "left", borderBottom: `1.5px solid ${F.gray6}`, fontFamily: "'Barlow Condensed',sans-serif", whiteSpace: "nowrap" }}>{c}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {CRONOGRAMA_ITENS.map(g => {
+                const itens = g.itens.filter(passaFiltro);
+                if (!itens.length) return null;
+                const feitos = g.itens.filter(i => doMes[i.id]?.realizada).length;
+                return [
+                  <tr key={g.cat}>
+                    <td colSpan={6} style={{ background: F.charcoal, color: "#fff", padding: "7px 10px", fontFamily: "'Barlow Condensed',sans-serif", fontSize: 13, fontWeight: 800, textTransform: "uppercase", letterSpacing: 0.5 }}>
+                      {g.cat} <span style={{ color: F.gray5, fontWeight: 600, marginLeft: 6 }}>{feitos}/{g.itens.length}</span>
+                    </td>
+                  </tr>,
+                  ...itens.map(item => {
+                    const r = doMes[item.id] || {};
+                    const st = statusCronograma(r, hoje);
+                    const set = (campo, valor) => onChange(mes, item.id, campo, valor);
+                    return (
+                      <tr key={item.id} style={{ borderBottom: `1px solid ${F.gray6}` }}>
+                        <td style={{ padding: "8px 10px", fontSize: 12.5, color: F.charcoal, lineHeight: 1.45, minWidth: 320 }}>{item.texto}</td>
+                        <td style={{ padding: "8px 6px", width: 160 }}>
+                          {podeEditar ? (
+                            <select style={inp} value={r.responsavelId || ""} onChange={e => set("responsavelId", e.target.value)}>
+                              <option value="">—</option>
+                              {responsaveis.map(u => <option key={u.id} value={u.id}>{u.nome}</option>)}
+                            </select>
+                          ) : <span style={{ fontSize: 12.5, color: F.gray3 }}>{usuarios.find(u => u.id === r.responsavelId)?.nome || "—"}</span>}
+                        </td>
+                        <td style={{ padding: "8px 6px", width: 140 }}>
+                          {podeEditar
+                            ? <input type="date" style={inp} value={r.prevista || ""} min={`${mes}-01`} max={`${mes}-${String(ultimoDia).padStart(2, "0")}`} onChange={e => set("prevista", e.target.value)} />
+                            : <span style={{ fontSize: 12.5 }}>{r.prevista ? fmtDate(r.prevista) : "—"}</span>}
+                        </td>
+                        <td style={{ padding: "8px 6px", width: 140 }}>
+                          {podeEditar
+                            ? <input type="date" style={inp} value={r.realizada || ""} onChange={e => set("realizada", e.target.value)} />
+                            : <span style={{ fontSize: 12.5 }}>{r.realizada ? fmtDate(r.realizada) : "—"}</span>}
+                        </td>
+                        <td style={{ padding: "8px 6px", width: 130 }}><Tag color={st.cor} bg={st.bg}>{st.label}</Tag></td>
+                        <td style={{ padding: "8px 10px 8px 6px", minWidth: 180 }}>
+                          {podeEditar
+                            ? <input style={inp} value={r.obs || ""} onChange={e => set("obs", e.target.value)} placeholder="Observação..." />
+                            : <span style={{ fontSize: 12.5, color: F.gray3 }}>{r.obs || "—"}</span>}
+                        </td>
+                      </tr>
+                    );
+                  })
+                ];
+              })}
+            </tbody>
+          </table>
+          {CRONOGRAMA_ITENS.every(g => !g.itens.some(passaFiltro)) && (
+            <div style={{ textAlign: "center", padding: "36px 0", fontSize: 13, color: F.gray4 }}>Nenhum item com esses filtros.</div>
+          )}
+        </div>
+      </Card>
+    </div>
+  );
+}
+
 // ══════════════════════════════════════════════════════════════════
 // MAIN APP
 // ══════════════════════════════════════════════════════════════════
@@ -593,11 +827,12 @@ export default function App() {
     ];
     try {
       const salvo = localStorage.getItem("portal-fast-db-v2");
-      const base = salvo ? JSON.parse(salvo) : { areas: [], processos: [], auditorias: [], planos: [], ciclos: [], comite: [], usuarios: [], modulos: [], notificacoes: [], consolidacoes: [] };
+      const base = salvo ? JSON.parse(salvo) : { areas: [], processos: [], auditorias: [], planos: [], ciclos: [], comite: [], usuarios: [], modulos: [], notificacoes: [], consolidacoes: [], cronograma: {} };
       if (!base.usuarios) base.usuarios = [];
       if (!base.modulos) base.modulos = [];
       if (!base.notificacoes) base.notificacoes = [];
       if (!base.consolidacoes) base.consolidacoes = [];
+      if (!base.cronograma) base.cronograma = {};
       // Perfil "auditor-lider" foi unificado em "auditor"
       base.usuarios = base.usuarios
         .filter(u => u.id !== "u-auditor-lider")
@@ -608,7 +843,7 @@ export default function App() {
       });
       return base;
     } catch {
-      return { areas: [], processos: [], auditorias: [], planos: [], ciclos: [], comite: [], usuarios: USUARIOS_PADRAO, modulos: [] };
+      return { areas: [], processos: [], auditorias: [], planos: [], ciclos: [], comite: [], usuarios: USUARIOS_PADRAO, modulos: [], cronograma: {} };
     }
   });
 
@@ -1236,7 +1471,8 @@ ${db.planos.length ? `<table>
   // ── SIDEBAR ──
   const navItems = [
     { id: "dashboard", icon: "▦", label: "Dashboard", section: "Visão Geral" },
-    { id: "areas", icon: "◉", label: "Áreas", section: "Operação" },
+    { id: "cronograma", icon: "▤", label: "Cronograma de Auditoria", section: "Operação" },
+    { id: "areas", icon: "◉", label: "Áreas" },
     { id: "processos", icon: "⬡", label: "Processos" },
     { id: "auditorias", icon: "◎", label: "Auditorias", badge: auditoriasVisiveis.filter(a => a.status === "aberta").length },
     { id: "consolidar", icon: "⊕", label: "Consolidar Auditorias", badge: (() => { const pares = {}; db.auditorias.forEach(a => { if (a.cicloNome && a.cicloNome !== "—") { const k = `${a.areaId}-${a.cicloNome}`; pares[k] = (pares[k] || 0) + 1; } }); return Object.values(pares).filter(v => v >= 2).length; })() || 0 },
@@ -2995,6 +3231,20 @@ ${db.planos.length ? `<table>
                   empty={{ icon: "⚑", title: "Nenhuma não conformidade", sub: "As NCs das auditorias aparecerão aqui." }}
                 />
               </Card>
+            )}
+
+            {/* ── CRONOGRAMA DE AUDITORIA ── */}
+            {view === "cronograma" && (
+              <CronogramaAuditoria
+                dados={db.cronograma || {}}
+                usuarios={db.usuarios}
+                podeEditar={podeExecutar(perfil, "auditar") || podeExecutar(perfil, "criar")}
+                onChange={(mes, itemId, campo, valor) => setDb(d => {
+                  const cron = d.cronograma || {};
+                  const doMes = cron[mes] || {};
+                  return { ...d, cronograma: { ...cron, [mes]: { ...doMes, [itemId]: { ...(doMes[itemId] || {}), [campo]: valor } } } };
+                })}
+              />
             )}
 
             {/* ── CICLOS ── */}

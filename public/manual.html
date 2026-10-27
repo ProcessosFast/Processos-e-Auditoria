@@ -79,6 +79,7 @@
   <a href="#acesso" data-perfis="todos">Acesso e Login</a>
   <a href="#perfis" data-perfis="todos">Perfis de Usuário</a>
   <a href="#dashboard" data-perfis="todos">Dashboard</a>
+  <a href="#cronograma" data-perfis="administrador auditor comite">Cronograma de Auditoria</a>
 
   <div class="nav-section" data-perfis="administrador">Cadastros</div>
   <a href="#areas" data-perfis="administrador">Áreas</a>
@@ -128,6 +129,23 @@
       <tr><td><span class="badge badge-blue">Gestor da Área</span></td><td>Acompanha auditorias e planos da sua área, registra ciência e atualiza status dos planos</td></tr>
     </tbody>
   </table>
+</section>
+
+<section id="cronograma" data-perfis="administrador auditor comite">
+  <h1>Cronograma de Auditoria</h1>
+  <p>Calendário mensal de auditoria interna com todas as verificações por área (Contas a pagar, Contas a receber, Conciliação Bancária, Caixa, Cobrança, Faturamento, Departamento Pessoal, Compras, Estoque, Vendas, Segurança da informação, Fiscal e outras).</p>
+  <div class="card card-blue">Use ‹ › para trocar de mês. Cada mês tem o seu próprio preenchimento.</div>
+  <table>
+    <thead><tr><th>Campo</th><th>Descrição</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Responsável</strong></td><td>Auditor que executa a verificação</td></tr>
+      <tr><td><strong>Data Prevista</strong></td><td>Dia planejado dentro do mês</td></tr>
+      <tr><td><strong>Data Realizada</strong></td><td>Dia em que a verificação foi feita</td></tr>
+      <tr><td><strong>Status</strong></td><td>Automático: Sem data, Previsto, Atrasado (prevista já passou), Realizado ou Realizado c/ atraso</td></tr>
+      <tr><td><strong>Observações</strong></td><td>Achados ou comentários da verificação</td></tr>
+    </tbody>
+  </table>
+  <div class="tip">💡 Comitê visualiza o cronograma; Administrador, Área de Processos e Auditores preenchem.</div>
 </section>
 
 <section id="dashboard" data-perfis="todos">
