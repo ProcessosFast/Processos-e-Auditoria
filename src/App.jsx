@@ -534,7 +534,7 @@ function LoginScreen({ usuarios, onLogin, onSalvarSenha }) {
   async function entrar(e) {
     e.preventDefault();
     setErro("");
-    const u = usuarios.find(x => x.email?.trim().toLowerCase() === email.trim().toLowerCase());
+    const u = email.trim() && usuarios.find(x => x.email?.trim().toLowerCase() === email.trim().toLowerCase());
     if (!u || !(await senhaConfere(u, senha))) { setErro("E-mail ou senha incorretos."); return; }
     if (!u.senhaHash || u.trocarSenha) { setPendente(u); return; }
     onLogin(u);
@@ -820,6 +820,12 @@ export default function App() {
     const USUARIOS_PADRAO = [
       { id: "u-admin", nome: "Administrador", ini: "AD", email: "admin@fastdrywall.com.br", perfil: "administrador", areaId: "", areaNome: "—" },
       { id: "u-leticia-werneck", nome: "Letícia Werneck", ini: "LW", email: "leticia.werneck@cscempresarial.com.br", perfil: "administrador", areaId: "", areaNome: "—" },
+      // Time de auditoria (e-mail pendente: sem e-mail o login não funciona)
+      { id: "u-gustavo-silva", nome: "Gustavo Silva", ini: "GS", email: "", perfil: "auditor", areaId: "", areaNome: "—" },
+      { id: "u-gustavo-queiroz", nome: "Gustavo Queiroz", ini: "GQ", email: "", perfil: "auditor", areaId: "", areaNome: "—" },
+      { id: "u-julianna-vianna", nome: "Julianna Vianna", ini: "JV", email: "", perfil: "auditor", areaId: "", areaNome: "—" },
+      { id: "u-rodrigo-monsores", nome: "Rodrigo Monsores", ini: "RM", email: "", perfil: "auditor", areaId: "", areaNome: "—" },
+      { id: "u-thauan-simas", nome: "Thauan Simas", ini: "TS", email: "", perfil: "auditor", areaId: "", areaNome: "—" },
       { id: "u-area-processos", nome: "Área de Processos", ini: "AP", email: "processos@fastdrywall.com.br", perfil: "area-processos", areaId: "", areaNome: "—" },
       { id: "u-auditor", nome: "Auditor", ini: "AU", email: "auditor@fastdrywall.com.br", perfil: "auditor", areaId: "", areaNome: "—" },
       { id: "u-comite", nome: "Comitê", ini: "CO", email: "comite@fastdrywall.com.br", perfil: "comite", areaId: "", areaNome: "—" },
