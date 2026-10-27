@@ -82,8 +82,6 @@
   <a href="#cronograma" data-perfis="administrador auditor comite">Cronograma de Auditoria</a>
 
   <div class="nav-section" data-perfis="administrador">Cadastros</div>
-  <a href="#areas" data-perfis="administrador">Áreas</a>
-  <a href="#processos" data-perfis="administrador">Processos</a>
   <a href="#categorias" data-perfis="administrador">Categorias de Avaliação</a>
   <a href="#ciclos" data-perfis="administrador auditor">Ciclos</a>
 
@@ -145,6 +143,7 @@
       <tr><td><strong>Observações</strong></td><td>Achados ou comentários da verificação</td></tr>
     </tbody>
   </table>
+  <div class="card card-red"><strong>◎ Auditar:</strong> cada área do cronograma tem o botão <strong>Auditar</strong>, que abre a auditoria já com as atividades daquela área no checklist. Ao finalizar, cada atividade respondida recebe a <strong>Data Realizada</strong> (data da auditoria), o resultado (Conforme / Não conforme / N/A) e fica vinculada à auditoria.</div>
   <div class="tip">💡 Comitê visualiza o cronograma; Administrador, Área de Processos e Auditores preenchem.</div>
 </section>
 
@@ -161,41 +160,10 @@
   </div>
 </section>
 
-<section id="areas" data-perfis="administrador">
-  <h1>Cadastro de Áreas</h1>
-  <p><strong>Caminho:</strong> Áreas → + Nova Área</p>
-  <table>
-    <thead><tr><th>Campo</th><th>Descrição</th></tr></thead>
-    <tbody>
-      <tr><td><strong>Nome da Área</strong></td><td>Identificador principal</td></tr>
-      <tr><td><strong>Categoria</strong></td><td>CSC / FAST HOMES E OBRAS / FRANQUIAS / COMERCIAL / SUPLY / INDUSTRIA / LOGÍSTICA / UNITY</td></tr>
-      <tr><td><strong>Diretor da Área</strong></td><td>Nome e e-mail do responsável</td></tr>
-      <tr><td><strong>Categorias de Avaliação</strong></td><td>Checklists adicionais vinculados à área</td></tr>
-      <tr><td><strong>Subáreas</strong></td><td>Divisões internas com responsáveis (nome, e-mail, cargo)</td></tr>
-    </tbody>
-  </table>
-  <div class="tip">💡 Clique em ✎ para editar uma área já cadastrada.</div>
-</section>
-
-<section id="processos" data-perfis="administrador">
-  <h1>Cadastro de Processos</h1>
-  <p><strong>Caminho:</strong> Processos → + Novo Processo</p>
-  <p>Processos vinculados a uma área ficam disponíveis para seleção no <strong>Step 1 da auditoria</strong>.</p>
-  <table>
-    <thead><tr><th>Campo</th><th>Descrição</th></tr></thead>
-    <tbody>
-      <tr><td><strong>Nome</strong></td><td>Nome do processo</td></tr>
-      <tr><td><strong>Área</strong></td><td>Área à qual pertence</td></tr>
-      <tr><td><strong>Responsável</strong></td><td>Nome do responsável</td></tr>
-      <tr><td><strong>Link SharePoint</strong></td><td>URL do documento oficial</td></tr>
-    </tbody>
-  </table>
-</section>
-
 <section id="categorias" data-perfis="administrador">
   <h1>Categorias de Avaliação</h1>
   <p><strong>Caminho:</strong> Categorias de Avaliação → + Nova Categoria</p>
-  <p>Blocos de perguntas personalizados que complementam o checklist padrão. O bloco <strong>"Verificação Geral"</strong> é fixo e sempre incluído.</p>
+  <p>Blocos de perguntas personalizados que complementam o checklist padrão. As <strong>atividades do cronograma</strong> da área auditada entram sempre no checklist; as categorias vinculadas à área são somadas a elas.</p>
   <div class="card card-blue">
     <strong>Peso das Perguntas:</strong>
     <span class="badge badge-gray" style="margin-left:8px;">1 — Normal</span>

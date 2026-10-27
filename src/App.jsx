@@ -71,14 +71,6 @@ const CAUSAS_RAIZ = [
   "Falha de controle",
 ];
 
-const CL_BASE = [
-  "O processo está documentado e atualizado?",
-  "Os responsáveis conhecem e seguem o procedimento?",
-  "Os registros de execução estão sendo mantidos?",
-  "Há evidências de treinamento da equipe envolvida?",
-  "O processo foi revisado nos últimos 6 meses?",
-  "Existem indicadores de desempenho definidos?",
-];
 
 // ── HELPERS ───────────────────────────────────────────────────────
 function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2); }
@@ -118,19 +110,19 @@ function scoreAreaCiclo(areaId, auditorias) {
 // ── PERMISSÕES ───────────────────────────────────────────────────
 const PERMISSOES = {
   administrador: {
-    views: ["dashboard","cronograma","areas","processos","auditorias","relatorio-conclusao","planos","elaborar","ncs","ciclos","comite","usuarios","modulos"],
+    views: ["dashboard","cronograma","auditorias","relatorio-conclusao","planos","elaborar","ncs","ciclos","comite","usuarios","modulos"],
     acoes: new Set(["criar","excluir","aprovar","exportar","auditar","atualizar-status","gerir-modulos","gerir-ciclos","gerir-comite","liberar-relatorios","agendar-reuniao","comentar-auditoria","relatorio-final","elaborar-plano"])
   },
   "area-processos": {
-    views: ["dashboard","cronograma","areas","processos","auditorias","relatorio-conclusao","planos","elaborar","ncs","ciclos","comite","usuarios","modulos"],
+    views: ["dashboard","cronograma","auditorias","relatorio-conclusao","planos","elaborar","ncs","ciclos","comite","usuarios","modulos"],
     acoes: new Set(["criar","excluir","aprovar","exportar","atualizar-status","gerir-modulos","gerir-ciclos","gerir-comite","liberar-relatorios","agendar-reuniao","elaborar-plano"])
   },
   auditor: {
-    views: ["dashboard","cronograma","areas","processos","auditorias","relatorio-conclusao","consolidar","planos","ncs","ciclos","comite","modulos"],
+    views: ["dashboard","cronograma","auditorias","relatorio-conclusao","consolidar","planos","ncs","ciclos","comite","modulos"],
     acoes: new Set(["auditar","exportar","gerir-ciclos","gerir-comite","agendar-reuniao","relatorio-final","comentar-auditoria","consolidar"])
   },
   comite: {
-    views: ["dashboard","cronograma","auditorias","processos","relatorio-conclusao","planos","comite"],
+    views: ["dashboard","cronograma","auditorias","relatorio-conclusao","planos","comite"],
     acoes: new Set(["exportar","comentar-auditoria","votar-enquete"])
   },
   gestor: {
@@ -670,6 +662,9 @@ const CRONOGRAMA_ITENS = [
   ]},
 ].map((g, gi) => ({ ...g, itens: g.itens.map((texto, ii) => ({ id: `c${gi + 1}-${ii + 1}`, texto })) }));
 
+// As áreas auditáveis são as áreas do cronograma (substituem o cadastro de áreas)
+const AREAS_CRONOGRAMA = CRONOGRAMA_ITENS.map((g, gi) => ({ id: `cat-${gi + 1}`, nome: g.cat }));
+
 const MESES = ["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
 
 function statusCronograma(r, hoje) {
@@ -681,7 +676,7 @@ function statusCronograma(r, hoje) {
   return { key: "sem-data", label: "Sem data", cor: F.gray4, bg: F.gray6 };
 }
 
-function CronogramaAuditoria({ dados, usuarios, podeEditar, onChange }) {
+function CronogramaAuditoria({ dados, usuarios, auditorias, podeEditar, onChange, onAuditar }) {
   const [mes, setMes] = useState(() => new Date().toISOString().slice(0, 7));
   const [filtroStatus, setFiltroStatus] = useState("");
   const [filtroResp, setFiltroResp] = useState("");
@@ -761,7 +756,12 @@ function CronogramaAuditoria({ dados, usuarios, podeEditar, onChange }) {
                 return [
                   <tr key={g.cat}>
                     <td colSpan={6} style={{ background: F.charcoal, color: "#fff", padding: "7px 10px", fontFamily: "'Barlow Condensed',sans-serif", fontSize: 13, fontWeight: 800, textTransform: "uppercase", letterSpacing: 0.5 }}>
-                      {g.cat} <span style={{ color: F.gray5, fontWeight: 600, marginLeft: 6 }}>{feitos}/{g.itens.length}</span>
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+                        <span>{g.cat} <span style={{ color: F.gray5, fontWeight: 600, marginLeft: 6 }}>{feitos}/{g.itens.length}</span></span>
+                        {onAuditar && (
+                          <button onClick={() => onAuditar(AREAS_CRONOGRAMA.find(a => a.nome === g.cat)?.id)} style={{ background: F.red, color: "#fff", border: "none", borderRadius: 5, padding: "3px 10px", fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: "'Barlow',sans-serif", textTransform: "none", letterSpacing: 0 }}>◎ Auditar</button>
+                        )}
+                      </div>
                     </td>
                   </tr>,
                   ...itens.map(item => {
@@ -789,7 +789,14 @@ function CronogramaAuditoria({ dados, usuarios, podeEditar, onChange }) {
                             ? <input type="date" style={inp} value={r.realizada || ""} onChange={e => set("realizada", e.target.value)} />
                             : <span style={{ fontSize: 12.5 }}>{r.realizada ? fmtDate(r.realizada) : "—"}</span>}
                         </td>
-                        <td style={{ padding: "8px 6px", width: 130 }}><Tag color={st.cor} bg={st.bg}>{st.label}</Tag></td>
+                        <td style={{ padding: "8px 6px", width: 130 }}>
+                          <Tag color={st.cor} bg={st.bg}>{st.label}</Tag>
+                          {r.auditoriaId && (() => {
+                            const aud = (auditorias || []).find(a => a.id === r.auditoriaId);
+                            const res = { ok: ["Conforme", F.green], nok: ["Não conforme", F.red], na: ["N/A", F.gray4] }[r.resultado];
+                            return <div style={{ fontSize: 10.5, color: res?.[1] || F.gray4, fontWeight: 700, marginTop: 4 }} title={aud ? `Auditoria de ${fmtDate(aud.data)} · ${aud.auditorNome}` : "Auditoria removida"}>◎ {res?.[0] || "Auditada"}</div>;
+                          })()}
+                        </td>
                         <td style={{ padding: "8px 10px 8px 6px", minWidth: 180 }}>
                           {podeEditar
                             ? <input style={inp} value={r.obs || ""} onChange={e => set("obs", e.target.value)} placeholder="Observação..." />
@@ -940,13 +947,6 @@ export default function App() {
     if (!vp.includes(view)) setView(vp[0] || "dashboard");
   }, [view, usuarioLogado]);
 
-  const prevAreasLenRef = useRef(null);
-  useEffect(() => {
-    if (prevAreasLenRef.current !== null && db.areas.length > prevAreasLenRef.current) {
-      setUsuarioLogado(u => u?.perfil === "gestor" ? { ...u, areaId: "", areaNome: "—" } : u);
-    }
-    prevAreasLenRef.current = db.areas.length;
-  }, [db.areas.length]);
 
   // ── LOGIN GUARD ──
   if (!usuarioLogado) {
@@ -964,7 +964,7 @@ export default function App() {
   if (perfil === "gestor" && !usuarioLogado.areaId) {
     return (
       <AreaSelectionScreen
-        areas={db.areas}
+        areas={AREAS_CRONOGRAMA}
         usuario={usuarioLogado}
         onSelect={a => setUsuarioLogado(u => ({ ...u, areaId: a.id, areaNome: a.nome }))}
         onBack={() => setUsuarioLogado(null)}
@@ -993,7 +993,7 @@ export default function App() {
       : null;
     const atrasados = db.planos.filter(p => p.status !== "concluido" && p.prazo && new Date(p.prazo) < new Date());
 
-    const confPorArea = db.areas.filter(a => !a.naoAuditada && !a.noa).map(a => {
+    const confPorArea = AREAS_CRONOGRAMA.filter(a => !a.naoAuditada && !a.noa).map(a => {
       const auds = db.auditorias.filter(x => x.areaId === a.id);
       const score = auds.length ? Math.round(auds.reduce((s, x) => s + x.score, 0) / auds.length) : null;
       return { nome: a.nome, grupo: a.categoria || a.grupo || "—", auds: auds.length, score, resp: a.diretor?.nome || a.resp || "—" };
@@ -1046,8 +1046,8 @@ export default function App() {
 <div class="stats">
   <div class="stat">
     <div class="stat-label">Áreas Auditáveis</div>
-    <div class="stat-value">${db.areas.filter(a => !a.naoAuditada && !a.noa).length || "—"}</div>
-    <div class="stat-sub">${db.areas.length} área(s) cadastrada(s)</div>
+    <div class="stat-value">${AREAS_CRONOGRAMA.filter(a => !a.naoAuditada && !a.noa).length || "—"}</div>
+    <div class="stat-sub">${AREAS_CRONOGRAMA.length} área(s) cadastrada(s)</div>
   </div>
   <div class="stat">
     <div class="stat-label">Auditorias Realizadas</div>
@@ -1139,7 +1139,7 @@ ${db.planos.length ? `<table>
     : db.auditorias;
 
   // ── STATS ──
-  const areasAuditaveis = db.areas.filter(a => !a.naoAuditada && !a.noa);
+  const areasAuditaveis = AREAS_CRONOGRAMA.filter(a => !a.naoAuditada && !a.noa);
   const audsConcluidas = auditoriasVisiveis.filter(a => a.status === "concluida");
   const planosAprovados = planosVisiveis.filter(p => p.aprovacao === "aprovado");
   const planosPendAprov = planosVisiveis.filter(p => p.aprovacao === "pendente");
@@ -1177,15 +1177,16 @@ ${db.planos.length ? `<table>
 
   // ── CHECKLIST BUILDER ──
   function buildChecklist(areaId) {
-    const area = db.areas.find(a => a.id === areaId);
+    const area = AREAS_CRONOGRAMA.find(a => a.id === areaId);
+    const grupo = CRONOGRAMA_ITENS.find(g => g.cat === area?.nome);
     const secs = [
-      { title: "Verificação Geral", items: CL_BASE.map(q => ({ texto: q, peso: 1 })) }
+      { title: `Cronograma — ${area?.nome || ""}`, items: (grupo?.itens || []).map(i => ({ texto: i.texto, peso: 1, cronItemId: i.id })) }
     ];
     (db.modulos || [])
       .filter(m => m.ativo && (m.areaIds?.includes(areaId) || area?.blocoPerguntas?.includes(m.id)))
       .forEach(m => secs.push({ title: m.nome, items: m.perguntas.map(p => ({ texto: p.texto, peso: p.peso || 1 })) }));
     return secs.flatMap(sec =>
-      sec.items.map(item => ({ id: uid(), sec: sec.title, q: item.texto, peso: item.peso || 1, resp: null, clas: null, obs: "", evidencia: "" }))
+      sec.items.map(item => ({ id: uid(), sec: sec.title, q: item.texto, peso: item.peso || 1, cronItemId: item.cronItemId, resp: null, clas: null, obs: "", evidencia: "" }))
     );
   }
 
@@ -1227,7 +1228,7 @@ ${db.planos.length ? `<table>
   // ── SAVE PROCESSO ──
   function saveProcesso(form) {
     if (!form.nome?.trim() || !form.areaId) { showToast("Informe nome e área.", "err"); return; }
-    const area = db.areas.find(a => a.id === form.areaId);
+    const area = AREAS_CRONOGRAMA.find(a => a.id === form.areaId);
     const f = { ...form, areaNome: area?.nome || "—", nome: U(form.nome), resp: U(form.resp) };
     if (f.id) {
       upd("processos", arr => arr.map(p => p.id === f.id ? { ...p, ...f } : p));
@@ -1249,7 +1250,7 @@ ${db.planos.length ? `<table>
       upd("ciclos", c => [...c, { id: uid(), status: "ativo", ...f }]);
       // Notifica todos os Auditores
       const periodo = form.ini && form.fim ? ` — Período: ${fmtDate(form.ini)} a ${fmtDate(form.fim)}` : "";
-      const areas = db.areas.filter(a => !a.naoAuditada && !a.noa);
+      const areas = AREAS_CRONOGRAMA.filter(a => !a.naoAuditada && !a.noa);
       const msg = `Novo ciclo "${form.nome}" criado${periodo}. ${areas.length} área${areas.length !== 1 ? "s" : ""} para auditar: ${areas.map(a => a.nome).join(", ")}.`;
       db.usuarios.filter(u => u.perfil === "auditor").forEach(u => {
         enviarNotificacao(u.id, `Novo Ciclo de Auditoria: ${form.nome}`, msg, "ciclo", { cicloNome: form.nome, ini: form.ini, fim: form.fim });
@@ -1262,7 +1263,7 @@ ${db.planos.length ? `<table>
   function saveUsuario(form) {
     if (!form.nome?.trim() || !form.email?.trim()) { showToast("Informe nome e e-mail.", "err"); return; }
     if (db.usuarios.some(u => u.email?.trim().toLowerCase() === form.email.trim().toLowerCase())) { showToast("Já existe um usuário com este e-mail.", "err"); return; }
-    const area = db.areas.find(a => a.id === form.areaId);
+    const area = AREAS_CRONOGRAMA.find(a => a.id === form.areaId);
     upd("usuarios", u => [...u, {
       id: uid(), ini: U(form.ini || form.nome.slice(0, 2)),
       areaNome: area?.nome || "—", ...form, nome: U(form.nome)
@@ -1274,7 +1275,7 @@ ${db.planos.length ? `<table>
   function saveMembro(form) {
     if (!form.usuarioId || !form.areaId) { showToast("Selecione usuário e área.", "err"); return; }
     const u = db.usuarios.find(x => x.id === form.usuarioId);
-    const a = db.areas.find(x => x.id === form.areaId);
+    const a = AREAS_CRONOGRAMA.find(x => x.id === form.areaId);
     upd("comite", c => [...c, { id: uid(), uNome: u?.nome || "—", aNome: a?.nome || "—", ...form }]);
     closeModal("membro"); showToast("Membro adicionado!");
   }
@@ -1422,7 +1423,7 @@ ${db.planos.length ? `<table>
 
   // ── FINALIZAR AUDITORIA ──
   function finalizarAuditoria() {
-    const area = db.areas.find(a => a.id === audForm.areaId);
+    const area = AREAS_CRONOGRAMA.find(a => a.id === audForm.areaId);
     const auditor = db.usuarios.find(u => u.id === audForm.auditorId);
     const ciclo = db.ciclos.find(c => c.id === audForm.cicloId);
     const score = calcScore(checklist);
@@ -1455,8 +1456,22 @@ ${db.planos.length ? `<table>
     });
 
     upd("auditorias", a => [...a, auditoria]);
+
+    // Atividades respondidas ganham data realizada e vínculo com a auditoria
+    const mesAud = (audForm.data || new Date().toISOString()).slice(0, 7);
+    const respondidas = checklist.filter(i => i.cronItemId && i.resp);
+    if (respondidas.length) setDb(d => {
+      const cron = d.cronograma || {};
+      const doMes = { ...(cron[mesAud] || {}) };
+      respondidas.forEach(i => {
+        const r = doMes[i.cronItemId] || {};
+        doMes[i.cronItemId] = { ...r, realizada: audForm.data || r.realizada, responsavelId: r.responsavelId || audForm.auditorId || "", auditoriaId: audId, resultado: i.resp };
+      });
+      return { ...d, cronograma: { ...cron, [mesAud]: doMes } };
+    });
+
     closeModal("auditoria"); setAudStep(1); setAudForm({}); setChecklist([]);
-    showToast("Auditoria registrada com sucesso!");
+    showToast(respondidas.length ? `Auditoria registrada — ${respondidas.length} atividade(s) marcada(s) no cronograma!` : "Auditoria registrada com sucesso!");
   }
 
   // ── CHART DATA ──
@@ -2318,7 +2333,7 @@ ${db.planos.length ? `<table>
               <Card>
                 <DataTable
                   cols={["Área", "Categoria", "Diretor", "Subáreas", "Status", ...(podeExecutar(perfil, "criar") || podeExecutar(perfil, "excluir") ? [""] : [])]}
-                  rows={db.areas.map(a => (
+                  rows={AREAS_CRONOGRAMA.map(a => (
                     <>
                       <TD><strong>{a.nome}</strong></TD>
                       <TD>{(a.categoria || a.grupo) ? <Tag>{a.categoria || a.grupo}</Tag> : "—"}</TD>
@@ -3142,10 +3157,10 @@ ${db.planos.length ? `<table>
                   <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
                     <div style={{ flex: 1 }}>
                       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                        <div style={{ fontFamily: "'Barlow Condensed',sans-serif", fontSize: 15, fontWeight: 800, textTransform: "uppercase", letterSpacing: 0.5 }}>Verificação Geral</div>
+                        <div style={{ fontFamily: "'Barlow Condensed',sans-serif", fontSize: 15, fontWeight: 800, textTransform: "uppercase", letterSpacing: 0.5 }}>Atividades do Cronograma</div>
                         <Tag>Fixo</Tag>
                       </div>
-                      <div style={{ fontSize: 12, color: F.gray4, marginTop: 3 }}>{CL_BASE.length} perguntas · Incluído em todas as auditorias</div>
+                      <div style={{ fontSize: 12, color: F.gray4, marginTop: 3 }}>{CRONOGRAMA_ITENS.reduce((n, g) => n + g.itens.length, 0)} atividades · Incluídas conforme a área auditada</div>
                     </div>
                     <button onClick={() => setExpandedModulos(s => { const n = new Set(s); n.has("base") ? n.delete("base") : n.add("base"); return n; })} style={{ fontSize: 11.5, color: F.red, background: "none", border: "none", cursor: "pointer", fontWeight: 600, fontFamily: "'Barlow',sans-serif" }}>
                       {expandedModulos.has("base") ? "Ocultar" : "Ver perguntas"}
@@ -3153,9 +3168,14 @@ ${db.planos.length ? `<table>
                   </div>
                   {expandedModulos.has("base") && (
                     <div style={{ borderTop: `1px solid ${F.gray6}`, paddingTop: 12, display: "flex", flexDirection: "column", gap: 6 }}>
-                      {CL_BASE.map((q, i) => (
-                        <div key={i} style={{ display: "flex", gap: 10, padding: "7px 10px", background: F.offWhite, borderRadius: 6, fontSize: 13, color: F.gray3 }}>
-                          <span style={{ color: F.gray5, fontSize: 11, fontWeight: 700, minWidth: 18 }}>{i + 1}.</span>{q}
+                      {CRONOGRAMA_ITENS.map(g => (
+                        <div key={g.cat}>
+                          <div style={{ fontSize: 11, fontWeight: 800, color: F.charcoal, textTransform: "uppercase", letterSpacing: 0.5, margin: "6px 0 4px", fontFamily: "'Barlow Condensed',sans-serif" }}>{g.cat}</div>
+                          {g.itens.map((i, n) => (
+                            <div key={i.id} style={{ display: "flex", gap: 10, padding: "7px 10px", background: F.offWhite, borderRadius: 6, fontSize: 13, color: F.gray3, marginBottom: 4 }}>
+                              <span style={{ color: F.gray5, fontSize: 11, fontWeight: 700, minWidth: 18 }}>{n + 1}.</span>{i.texto}
+                            </div>
+                          ))}
                         </div>
                       ))}
                     </div>
@@ -3173,7 +3193,7 @@ ${db.planos.length ? `<table>
                 )}
 
                 {(db.modulos || []).map(m => {
-                  const areasVinc = db.areas.filter(a => m.areaIds?.includes(a.id));
+                  const areasVinc = AREAS_CRONOGRAMA.filter(a => m.areaIds?.includes(a.id));
                   const expanded = expandedModulos.has(m.id);
                   return (
                     <Card key={m.id} style={{ border: `1.5px solid ${m.ativo ? F.gray6 : F.gray6}`, opacity: m.ativo ? 1 : 0.55 }}>
@@ -3244,6 +3264,12 @@ ${db.planos.length ? `<table>
               <CronogramaAuditoria
                 dados={db.cronograma || {}}
                 usuarios={db.usuarios}
+                auditorias={db.auditorias}
+                onAuditar={podeExecutar(perfil, "auditar") ? areaId => {
+                  setAudStep(1); setChecklist([]);
+                  setAudForm({ areaId, auditorId: usuarioLogado.id, data: new Date().toISOString().split("T")[0] });
+                  openModal("auditoria");
+                } : null}
                 podeEditar={podeExecutar(perfil, "auditar") || podeExecutar(perfil, "criar")}
                 onChange={(mes, itemId, campo, valor) => setDb(d => {
                   const cron = d.cronograma || {};
@@ -3568,19 +3594,19 @@ ${db.planos.length ? `<table>
       {/* ══════ MODAIS ══════ */}
 
       {/* MÓDULO */}
-      <ModuloModal open={!!modals.modulo} onClose={() => closeModal("modulo")} areas={db.areas} processos={db.processos} modulo={modals.modulo} onSave={saveModulo} />
+      <ModuloModal open={!!modals.modulo} onClose={() => closeModal("modulo")} areas={AREAS_CRONOGRAMA} processos={db.processos} modulo={modals.modulo} onSave={saveModulo} />
 
       {/* ÁREA */}
       <AreaModal open={!!modals.area} onClose={() => closeModal("area")} modulos={db.modulos} area={modals.area} onSave={saveArea} />
 
       {/* PROCESSO */}
-      <ProcessoModal open={!!modals.processo} onClose={() => closeModal("processo")} areas={db.areas} processo={modals.processo} onSave={saveProcesso} />
+      <ProcessoModal open={!!modals.processo} onClose={() => closeModal("processo")} areas={AREAS_CRONOGRAMA} processo={modals.processo} onSave={saveProcesso} />
 
       {/* CICLO */}
       <CicloModal open={!!modals.ciclo} onClose={() => closeModal("ciclo")} ciclo={modals.ciclo} onSave={saveCiclo} />
 
       {/* USUÁRIO */}
-      <UsuarioModal open={!!modals.usuario} onClose={() => closeModal("usuario")} areas={db.areas} onSave={saveUsuario} />
+      <UsuarioModal open={!!modals.usuario} onClose={() => closeModal("usuario")} areas={AREAS_CRONOGRAMA} onSave={saveUsuario} />
       <Modal open={trocandoSenha} onClose={() => setTrocandoSenha(false)} title="Alterar Senha" width={420}>
         <TrocarSenhaForm
           usuario={usuarioLogado}
@@ -3595,10 +3621,10 @@ ${db.planos.length ? `<table>
       </Modal>
 
       {/* MEMBRO */}
-      <MembroModal open={!!modals.membro} onClose={() => closeModal("membro")} areas={db.areas} usuarios={db.usuarios} onSave={saveMembro} />
+      <MembroModal open={!!modals.membro} onClose={() => closeModal("membro")} areas={AREAS_CRONOGRAMA} usuarios={db.usuarios} onSave={saveMembro} />
 
       {/* PLANO */}
-      <PlanoModal open={!!modals.plano} onClose={() => closeModal("plano")} areas={db.areas} usuarios={db.usuarios} onSave={f => { savePlano(f); }} />
+      <PlanoModal open={!!modals.plano} onClose={() => closeModal("plano")} areas={AREAS_CRONOGRAMA} usuarios={db.usuarios} onSave={f => { savePlano(f); }} />
 
       {/* CONSOLIDAÇÃO */}
       <ConsolidacaoModal
@@ -3664,7 +3690,7 @@ ${db.planos.length ? `<table>
         step={audStep} setStep={setAudStep}
         form={audForm} setForm={setAudForm}
         checklist={checklist} setChecklist={setChecklist}
-        areas={db.areas.filter(a => !a.naoAuditada && !a.noa)}
+        areas={AREAS_CRONOGRAMA.filter(a => !a.naoAuditada && !a.noa)}
         usuarios={db.usuarios}
         ciclos={db.ciclos}
         processos={db.processos}
@@ -4525,7 +4551,7 @@ function AuditoriaModal({ open, onClose, step, setStep, form, setForm, checklist
       {/* STEP 1 */}
       {step === 1 && (
         <div>
-          <FG label="Área a auditar">
+          <FG label="Área do cronograma">
             <select style={fi} value={form.areaId || ""} onChange={e => setForm({ ...form, areaId: e.target.value })}>
               <option value="">Selecione uma área...</option>
               {areas.map(a => <option key={a.id} value={a.id}>{a.nome}</option>)}
