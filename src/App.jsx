@@ -667,6 +667,14 @@ const AREAS_CRONOGRAMA = CRONOGRAMA_ITENS.map((g, gi) => ({ id: `cat-${gi + 1}`,
 
 const MESES = ["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
 
+// Ciclos mensais de auditoria: Nov/2026 a Dez/2027
+const CICLOS_PADRAO = Array.from({ length: 14 }, (_, i) => {
+  const d = new Date(2026, 10 + i, 1);
+  const ano = d.getFullYear(), mm = String(d.getMonth() + 1).padStart(2, "0");
+  const ultimo = new Date(ano, d.getMonth() + 1, 0).getDate();
+  return { id: `ciclo-${ano}-${mm}`, nome: `${MESES[d.getMonth()].slice(0, 3).toUpperCase()}/${ano}`, ini: `${ano}-${mm}-01`, fim: `${ano}-${mm}-${ultimo}`, obs: "", status: "ativo" };
+});
+
 function statusCronograma(r, hoje) {
   if (r?.realizada) return r.prevista && r.realizada > r.prevista
     ? { key: "realizado", label: "Realizado c/ atraso", cor: F.amber, bg: F.amberDim }
@@ -854,9 +862,13 @@ export default function App() {
       USUARIOS_PADRAO.forEach(u => {
         if (!base.usuarios.find(x => x.id === u.id)) base.usuarios.push(u);
       });
+      if (!base.ciclos) base.ciclos = [];
+      CICLOS_PADRAO.forEach(c => {
+        if (!base.ciclos.find(x => x.id === c.id || x.nome === c.nome)) base.ciclos.push(c);
+      });
       return base;
     } catch {
-      return { areas: [], processos: [], auditorias: [], planos: [], ciclos: [], comite: [], usuarios: USUARIOS_PADRAO, modulos: [], cronograma: {} };
+      return { areas: [], processos: [], auditorias: [], planos: [], ciclos: CICLOS_PADRAO, comite: [], usuarios: USUARIOS_PADRAO, modulos: [], cronograma: {} };
     }
   });
 
@@ -3267,7 +3279,9 @@ ${db.planos.length ? `<table>
                 auditorias={db.auditorias}
                 onAuditar={podeExecutar(perfil, "auditar") ? areaId => {
                   setAudStep(1); setChecklist([]);
-                  setAudForm({ areaId, auditorId: usuarioLogado.id, data: new Date().toISOString().split("T")[0] });
+                  const hoje = new Date().toISOString().split("T")[0];
+                  const ciclo = db.ciclos.find(c => c.ini && c.fim && c.ini <= hoje && hoje <= c.fim);
+                  setAudForm({ areaId, auditorId: usuarioLogado.id, data: hoje, cicloId: ciclo?.id || "" });
                   openModal("auditoria");
                 } : null}
                 podeEditar={podeExecutar(perfil, "auditar") || podeExecutar(perfil, "criar")}
