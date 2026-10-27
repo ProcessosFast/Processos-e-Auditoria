@@ -125,13 +125,9 @@ const PERMISSOES = {
     views: ["dashboard","areas","processos","auditorias","relatorio-conclusao","planos","elaborar","ncs","ciclos","comite","usuarios","modulos"],
     acoes: new Set(["criar","excluir","aprovar","exportar","atualizar-status","gerir-modulos","gerir-ciclos","gerir-comite","liberar-relatorios","agendar-reuniao","elaborar-plano"])
   },
-  "auditor-lider": {
+  auditor: {
     views: ["dashboard","areas","processos","auditorias","relatorio-conclusao","consolidar","planos","ncs","ciclos","comite","modulos"],
     acoes: new Set(["auditar","exportar","gerir-ciclos","gerir-comite","agendar-reuniao","relatorio-final","comentar-auditoria","consolidar"])
-  },
-  auditor: {
-    views: ["dashboard","areas","processos","auditorias","relatorio-conclusao","planos","ncs","ciclos","comite","modulos"],
-    acoes: new Set(["auditar","exportar","relatorio-final"])
   },
   comite: {
     views: ["dashboard","auditorias","processos","relatorio-conclusao","planos","comite"],
@@ -146,11 +142,11 @@ function podeAcessar(perfil, viewId) { return PERMISSOES[perfil]?.views.includes
 function podeExecutar(perfil, acao) { return PERMISSOES[perfil]?.acoes.has(acao) ?? false; }
 const PERFIL_LABEL = {
   administrador: "Administrador", "area-processos": "Área de Processos", comite: "Comitê", gestor: "Gestor de Área",
-  "auditor-lider": "Auditor Líder", auditor: "Auditor", diretoria: "Diretoria", operacional: "Operacional"
+  auditor: "Auditor", diretoria: "Diretoria", operacional: "Operacional"
 };
 const PERFIL_COR = {
   administrador: "#E8001D", "area-processos": "#D4580A", comite: "#9b6dff", gestor: "#0066CC",
-  "auditor-lider": "#00875A", auditor: "#00B050", diretoria: "#FF8C00", operacional: "#555555"
+  auditor: "#00B050", diretoria: "#FF8C00", operacional: "#555555"
 };
 
 // ── PILL ──────────────────────────────────────────────────────────
@@ -182,15 +178,15 @@ function Tag({ children, color = F.gray3, bg = F.gray6 }) {
 }
 
 // ── BUTTON ────────────────────────────────────────────────────────
-function Btn({ variant = "primary", onClick, children, style = {} }) {
+function Btn({ variant = "primary", onClick, children, style = {}, type = "button", disabled = false }) {
   const styles = {
     primary: { background: F.red, color: "#fff", border: "none" },
     ghost: { background: "#fff", color: F.charcoal, border: `1.5px solid ${F.gray6}` },
     danger: { background: F.redDim, color: F.red, border: `1.5px solid ${F.redBorder}` },
   };
   return (
-    <button onClick={onClick} style={{
-      ...styles[variant],
+    <button type={type} disabled={disabled} onClick={onClick} style={{
+      ...styles[variant], opacity: disabled ? 0.6 : 1,
       padding: "8px 16px", borderRadius: 6, fontSize: 13,
       fontWeight: 600, cursor: "pointer", display: "inline-flex",
       alignItems: "center", gap: 5, transition: "all 0.15s",
@@ -475,11 +471,58 @@ function ComentarioInline({ audId, onSave }) {
 }
 
 // ── LOGIN SCREEN ─────────────────────────────────────────────────
-const PERFIL_ORDEM = ["administrador","area-processos","auditor-lider","auditor","gestor","comite","diretoria","operacional"];
+// Senha do primeiro acesso: o usuário é obrigado a trocá-la ao entrar
+const SENHA_PADRAO = "Fast@2026";
+const SESSAO_KEY = "portal-fast-sessao";
 
-function LoginScreen({ usuarios, onLogin }) {
+async function hashSenha(userId, senha) {
+  const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(`${userId}:${senha}`));
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, "0")).join("");
+}
+
+async function senhaConfere(u, senha) {
+  if (!u.senhaHash) return senha === SENHA_PADRAO;
+  return (await hashSenha(u.id, senha)) === u.senhaHash;
+}
+
+function TrocarSenhaForm({ usuario, exigirAtual, onSave, onCancel }) {
+  const [f, setF] = useState({ atual: "", nova: "", confirma: "" });
+  const [erro, setErro] = useState("");
+  const [salvando, setSalvando] = useState(false);
+
+  async function salvar(e) {
+    e.preventDefault();
+    setErro("");
+    if (exigirAtual && !(await senhaConfere(usuario, f.atual))) { setErro("Senha atual incorreta."); return; }
+    if (f.nova.length < 6) { setErro("A nova senha precisa ter pelo menos 6 caracteres."); return; }
+    if (f.nova === SENHA_PADRAO) { setErro("Escolha uma senha diferente da senha padrão."); return; }
+    if (f.nova !== f.confirma) { setErro("As senhas não conferem."); return; }
+    setSalvando(true);
+    onSave(await hashSenha(usuario.id, f.nova));
+  }
+
+  return (
+    <form onSubmit={salvar}>
+      {exigirAtual && (
+        <FG label="Senha atual"><input type="password" style={fi} value={f.atual} onChange={e => setF({ ...f, atual: e.target.value })} autoComplete="current-password" autoFocus /></FG>
+      )}
+      <FG label="Nova senha"><input type="password" style={fi} value={f.nova} onChange={e => setF({ ...f, nova: e.target.value })} autoComplete="new-password" autoFocus={!exigirAtual} /></FG>
+      <FG label="Confirmar nova senha"><input type="password" style={fi} value={f.confirma} onChange={e => setF({ ...f, confirma: e.target.value })} autoComplete="new-password" /></FG>
+      {erro && <div style={{ fontSize: 12.5, color: F.red, fontWeight: 600, marginBottom: 12 }}>{erro}</div>}
+      <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+        {onCancel && <Btn variant="ghost" onClick={onCancel}>Cancelar</Btn>}
+        <Btn type="submit" disabled={salvando}>Salvar senha</Btn>
+      </div>
+    </form>
+  );
+}
+
+function LoginScreen({ usuarios, onLogin, onSalvarSenha }) {
   const [logoSrc, setLogoSrc] = useState("");
-  const [aberto, setAberto] = useState(null);
+  const [email, setEmail] = useState("");
+  const [senha, setSenha] = useState("");
+  const [erro, setErro] = useState("");
+  const [pendente, setPendente] = useState(null); // usuário que precisa criar senha
 
   useEffect(() => {
     fetch("/logo-fast-sistemas-construtivos.svg")
@@ -488,16 +531,13 @@ function LoginScreen({ usuarios, onLogin }) {
       .catch(() => {});
   }, []);
 
-  // Agrupa usuários por perfil, mantendo a ordem definida
-  const grupos = {};
-  usuarios.forEach(u => {
-    if (!grupos[u.perfil]) grupos[u.perfil] = [];
-    grupos[u.perfil].push(u);
-  });
-  const perfisAtivos = PERFIL_ORDEM.filter(p => grupos[p]?.length > 0);
-
-  function togglePerfil(p) {
-    setAberto(a => a === p ? null : p);
+  async function entrar(e) {
+    e.preventDefault();
+    setErro("");
+    const u = usuarios.find(x => x.email?.trim().toLowerCase() === email.trim().toLowerCase());
+    if (!u || !(await senhaConfere(u, senha))) { setErro("E-mail ou senha incorretos."); return; }
+    if (!u.senhaHash || u.trocarSenha) { setPendente(u); return; }
+    onLogin(u);
   }
 
   return (
@@ -505,86 +545,34 @@ function LoginScreen({ usuarios, onLogin }) {
       <style>{css}</style>
       {logoSrc && <img src={logoSrc} alt="Fast Sistemas Construtivos" style={{ height: 58, marginBottom: 36 }} />}
       <div style={{ fontFamily: "'Barlow Condensed',sans-serif", fontSize: 26, fontWeight: 900, textTransform: "uppercase", letterSpacing: 1, color: F.charcoal, marginBottom: 6 }}>
-        Selecione seu perfil
+        {pendente ? "Crie sua senha" : "Acesse o portal"}
       </div>
-      <div style={{ fontSize: 13, color: F.gray4, marginBottom: 32 }}>Portal de Gestão — Fast Sistemas Construtivos</div>
+      <div style={{ fontSize: 13, color: F.gray4, marginBottom: 32, textAlign: "center" }}>
+        {pendente ? `Olá, ${pendente.nome}. Defina uma senha pessoal para continuar.` : "Portal de Gestão — Fast Sistemas Construtivos"}
+      </div>
 
-      {usuarios.length === 0 ? (
-        <div style={{ background: "#fff", borderRadius: 12, padding: 32, maxWidth: 420, border: `1.5px solid ${F.redBorder}`, textAlign: "center" }}>
-          <div style={{ fontSize: 36, marginBottom: 12, opacity: 0.18 }}>○</div>
-          <div style={{ fontSize: 15, fontWeight: 700, color: F.charcoal, marginBottom: 10 }}>Nenhum usuário cadastrado</div>
-          <div style={{ fontSize: 13, color: F.gray3, lineHeight: 1.8 }}>
-            Adicione um usuário administrador no <code style={{ background: F.offWhite, padding: "1px 6px", borderRadius: 3, fontSize: 12 }}>localStorage</code> com a chave <code style={{ background: F.offWhite, padding: "1px 6px", borderRadius: 3, fontSize: 12 }}>portal-fast-db-v2</code>.
-          </div>
-        </div>
-      ) : (
-        <div style={{ width: "100%", maxWidth: 420, display: "flex", flexDirection: "column", gap: 10 }}>
-          {perfisAtivos.map((p, idx) => {
-            const cor = PERFIL_COR[p] || F.gray3;
-            const isOpen = aberto === p;
-            const lista = grupos[p];
-            return (
-              <div key={p} className="anim" style={{ animationDelay: `${idx * 0.06}s` }}>
-                {/* Card do perfil */}
-                <div
-                  onClick={() => togglePerfil(p)}
-                  style={{
-                    background: "#fff", padding: "14px 18px", cursor: "pointer",
-                    borderRadius: isOpen ? "10px 10px 0 0" : 10,
-                    border: `1.5px solid ${isOpen ? cor : F.gray6}`,
-                    display: "flex", alignItems: "center", gap: 14,
-                    transition: "border-color 0.15s, box-shadow 0.15s",
-                    boxShadow: isOpen ? `0 2px 12px ${cor}22` : "none"
-                  }}
-                  onMouseEnter={e => { if (!isOpen) { e.currentTarget.style.borderColor = cor; e.currentTarget.style.boxShadow = `0 2px 12px ${cor}22`; } }}
-                  onMouseLeave={e => { if (!isOpen) { e.currentTarget.style.borderColor = F.gray6; e.currentTarget.style.boxShadow = "none"; } }}
-                >
-                  <div style={{ width: 40, height: 40, background: cor, borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 14, fontWeight: 900, fontFamily: "'Barlow Condensed',sans-serif", flexShrink: 0 }}>
-                    {lista.length > 1 ? lista.length : (lista[0].ini || lista[0].nome.slice(0, 2).toUpperCase())}
-                  </div>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontFamily: "'Barlow Condensed',sans-serif", fontSize: 15, fontWeight: 900, textTransform: "uppercase", letterSpacing: 0.5, color: F.charcoal }}>
-                      {PERFIL_LABEL[p] || p}
-                    </div>
-                    <div style={{ fontSize: 11, color: F.gray4, marginTop: 1 }}>
-                      {lista.length} usuário{lista.length !== 1 ? "s" : ""}
-                    </div>
-                  </div>
-                  <span style={{ fontSize: 11, color: isOpen ? cor : F.gray4, fontWeight: 700, transition: "transform 0.2s", display: "inline-block", transform: isOpen ? "rotate(180deg)" : "rotate(0deg)" }}>▼</span>
-                </div>
-
-                {/* Lista de usuários expandida */}
-                {isOpen && (
-                  <div style={{ background: "#fff", border: `1.5px solid ${cor}`, borderTop: `1px solid ${F.gray6}`, borderRadius: "0 0 10px 10px", overflow: "hidden" }}>
-                    {lista.map((u, i) => (
-                      <div
-                        key={u.id}
-                        onClick={() => onLogin(u)}
-                        style={{
-                          padding: "11px 18px", display: "flex", alignItems: "center", gap: 12,
-                          cursor: "pointer", borderTop: i > 0 ? `1px solid ${F.gray6}` : "none",
-                          transition: "background 0.12s"
-                        }}
-                        onMouseEnter={e => e.currentTarget.style.background = F.offWhite}
-                        onMouseLeave={e => e.currentTarget.style.background = "#fff"}
-                      >
-                        <div style={{ width: 32, height: 32, background: cor, borderRadius: 7, display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 11, fontWeight: 700, fontFamily: "'Barlow Condensed',sans-serif", flexShrink: 0 }}>
-                          {u.ini || u.nome.slice(0, 2).toUpperCase()}
-                        </div>
-                        <div style={{ flex: 1 }}>
-                          <div style={{ fontSize: 13, fontWeight: 700, color: F.charcoal }}>{u.nome}</div>
-                          {u.areaNome && u.areaNome !== "—" && <div style={{ fontSize: 11, color: F.gray4 }}>{u.areaNome}</div>}
-                        </div>
-                        <span style={{ fontSize: 13, color: F.gray4 }}>→</span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      )}
+      <div className="anim" style={{ width: "100%", maxWidth: 380, background: "#fff", borderRadius: 12, border: `1.5px solid ${F.gray6}`, padding: 24 }}>
+        {pendente ? (
+          <TrocarSenhaForm
+            usuario={pendente}
+            onCancel={() => { setPendente(null); setSenha(""); }}
+            onSave={hash => {
+              onSalvarSenha(pendente.id, hash);
+              onLogin({ ...pendente, senhaHash: hash, trocarSenha: false });
+            }}
+          />
+        ) : (
+          <form onSubmit={entrar}>
+            <FG label="E-mail"><input type="email" style={fi} value={email} onChange={e => setEmail(e.target.value)} placeholder="nome@fastdrywall.com.br" autoComplete="username" autoFocus /></FG>
+            <FG label="Senha"><input type="password" style={fi} value={senha} onChange={e => setSenha(e.target.value)} autoComplete="current-password" /></FG>
+            {erro && <div style={{ fontSize: 12.5, color: F.red, fontWeight: 600, marginBottom: 12 }}>{erro}</div>}
+            <Btn type="submit" style={{ width: "100%", justifyContent: "center" }}>Entrar</Btn>
+            <div style={{ fontSize: 11.5, color: F.gray4, marginTop: 14, lineHeight: 1.6, textAlign: "center" }}>
+              Esqueceu a senha? Peça ao administrador para redefini-la.
+            </div>
+          </form>
+        )}
+      </div>
     </div>
   );
 }
@@ -593,13 +581,11 @@ function LoginScreen({ usuarios, onLogin }) {
 // MAIN APP
 // ══════════════════════════════════════════════════════════════════
 export default function App() {
-  const [usuarioLogado, setUsuarioLogado] = useState(null);
   const [view, setView] = useState("dashboard");
   const [db, setDb] = useState(() => {
     const USUARIOS_PADRAO = [
       { id: "u-admin", nome: "Administrador", ini: "AD", email: "admin@fastdrywall.com.br", perfil: "administrador", areaId: "", areaNome: "—" },
       { id: "u-area-processos", nome: "Área de Processos", ini: "AP", email: "processos@fastdrywall.com.br", perfil: "area-processos", areaId: "", areaNome: "—" },
-      { id: "u-auditor-lider", nome: "Auditor Líder", ini: "AL", email: "auditor.lider@fastdrywall.com.br", perfil: "auditor-lider", areaId: "", areaNome: "—" },
       { id: "u-auditor", nome: "Auditor", ini: "AU", email: "auditor@fastdrywall.com.br", perfil: "auditor", areaId: "", areaNome: "—" },
       { id: "u-comite", nome: "Comitê", ini: "CO", email: "comite@fastdrywall.com.br", perfil: "comite", areaId: "", areaNome: "—" },
       { id: "u-gestor", nome: "Gestor da Área", ini: "GA", email: "gestor@fastdrywall.com.br", perfil: "gestor", areaId: "", areaNome: "—" },
@@ -611,6 +597,10 @@ export default function App() {
       if (!base.modulos) base.modulos = [];
       if (!base.notificacoes) base.notificacoes = [];
       if (!base.consolidacoes) base.consolidacoes = [];
+      // Perfil "auditor-lider" foi unificado em "auditor"
+      base.usuarios = base.usuarios
+        .filter(u => u.id !== "u-auditor-lider")
+        .map(u => u.perfil === "auditor-lider" ? { ...u, perfil: "auditor" } : u);
       // Restaura usuários padrão que estiverem faltando
       USUARIOS_PADRAO.forEach(u => {
         if (!base.usuarios.find(x => x.id === u.id)) base.usuarios.push(u);
@@ -624,6 +614,20 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem("portal-fast-db-v2", JSON.stringify(db));
   }, [db]);
+  const [usuarioLogado, setUsuarioLogado] = useState(() => {
+    try {
+      const id = sessionStorage.getItem(SESSAO_KEY);
+      const u = id && db.usuarios.find(x => x.id === id);
+      return u && u.senhaHash && !u.trocarSenha ? u : null;
+    } catch { return null; }
+  });
+  useEffect(() => {
+    try {
+      if (usuarioLogado) sessionStorage.setItem(SESSAO_KEY, usuarioLogado.id);
+      else sessionStorage.removeItem(SESSAO_KEY);
+    } catch {}
+  }, [usuarioLogado]);
+  const [trocandoSenha, setTrocandoSenha] = useState(false);
   const [toast, setToast] = useState(null);
   const [modals, setModals] = useState({});
   const [audStep, setAudStep] = useState(1);
@@ -704,7 +708,13 @@ export default function App() {
 
   // ── LOGIN GUARD ──
   if (!usuarioLogado) {
-    return <LoginScreen usuarios={db.usuarios} onLogin={u => { setUsuarioLogado(u); setView("dashboard"); }} />;
+    return (
+      <LoginScreen
+        usuarios={db.usuarios}
+        onSalvarSenha={(id, hash) => setDb(d => ({ ...d, usuarios: d.usuarios.map(u => u.id === id ? { ...u, senhaHash: hash, trocarSenha: false } : u) }))}
+        onLogin={u => { setUsuarioLogado(u); setView("dashboard"); }}
+      />
+    );
   }
   const perfil = usuarioLogado.perfil;
 
@@ -995,11 +1005,11 @@ ${db.planos.length ? `<table>
       closeModal("ciclo"); showToast("Ciclo atualizado!");
     } else {
       upd("ciclos", c => [...c, { id: uid(), status: "ativo", ...f }]);
-      // Notifica todos os Auditores Líderes
+      // Notifica todos os Auditores
       const periodo = form.ini && form.fim ? ` — Período: ${fmtDate(form.ini)} a ${fmtDate(form.fim)}` : "";
       const areas = db.areas.filter(a => !a.naoAuditada && !a.noa);
       const msg = `Novo ciclo "${form.nome}" criado${periodo}. ${areas.length} área${areas.length !== 1 ? "s" : ""} para auditar: ${areas.map(a => a.nome).join(", ")}.`;
-      db.usuarios.filter(u => u.perfil === "auditor-lider" || u.perfil === "auditor").forEach(u => {
+      db.usuarios.filter(u => u.perfil === "auditor").forEach(u => {
         enviarNotificacao(u.id, `Novo Ciclo de Auditoria: ${form.nome}`, msg, "ciclo", { cicloNome: form.nome, ini: form.ini, fim: form.fim });
       });
       closeModal("ciclo"); showToast("Ciclo criado — Auditores notificados!");
@@ -1009,12 +1019,13 @@ ${db.planos.length ? `<table>
   // ── SAVE USUARIO ──
   function saveUsuario(form) {
     if (!form.nome?.trim() || !form.email?.trim()) { showToast("Informe nome e e-mail.", "err"); return; }
+    if (db.usuarios.some(u => u.email?.trim().toLowerCase() === form.email.trim().toLowerCase())) { showToast("Já existe um usuário com este e-mail.", "err"); return; }
     const area = db.areas.find(a => a.id === form.areaId);
     upd("usuarios", u => [...u, {
       id: uid(), ini: U(form.ini || form.nome.slice(0, 2)),
       areaNome: area?.nome || "—", ...form, nome: U(form.nome)
     }]);
-    closeModal("usuario"); showToast("Usuário cadastrado!");
+    closeModal("usuario"); showToast(`Usuário cadastrado! Senha do primeiro acesso: ${SENHA_PADRAO}`);
   }
 
   // ── SAVE MEMBRO ──
@@ -1057,7 +1068,7 @@ ${db.planos.length ? `<table>
     const mensagem = `Reunião do Comitê agendada para ${fmtDate(dataReuniao)} — Auditoria: ${aud.areaNome}`;
     const meta = { auditoriaId: audId, areaNome: aud.areaNome, dataReuniao };
     db.usuarios.forEach(u => {
-      if (["comite","administrador","auditor-lider","auditor"].includes(u.perfil)) {
+      if (["comite","administrador","auditor"].includes(u.perfil)) {
         enviarNotificacao(u.id, "Reunião do Comitê Agendada", mensagem, "reuniao", meta);
       }
       if (u.perfil === "gestor" && u.areaId === aud.areaId) {
@@ -1329,6 +1340,13 @@ ${db.planos.length ? `<table>
                 >🗑</button>
               )}
               <button
+                onClick={() => setTrocandoSenha(true)}
+                title="Alterar senha"
+                style={{ background: "none", border: "none", color: F.gray4, cursor: "pointer", fontSize: 13, padding: "2px 4px", flexShrink: 0, transition: "color 0.15s" }}
+                onMouseEnter={e => e.currentTarget.style.color = F.red}
+                onMouseLeave={e => e.currentTarget.style.color = F.gray4}
+              >🔑</button>
+              <button
                 onClick={() => setUsuarioLogado(null)}
                 title="Sair"
                 style={{ background: "none", border: "none", color: F.gray4, cursor: "pointer", fontSize: 16, padding: "2px 4px", flexShrink: 0, transition: "color 0.15s" }}
@@ -1554,16 +1572,16 @@ ${db.planos.length ? `<table>
             {/* ── KANBAN DE FLUXO ── */}
             {view === "dashboard" && (() => {
               const ETAPAS = [
-                { id: "novo-ciclo",   label: "Iniciar Auditoria", icon: "📅", cor: F.red,   perfisResponsaveis: ["auditor-lider","auditor"],
+                { id: "novo-ciclo",   label: "Iniciar Auditoria", icon: "📅", cor: F.red,   perfisResponsaveis: ["auditor"],
                   itens: db.ciclos.filter(c => c.status === "ativo" && c.ini && c.ini <= new Date().toISOString().split("T")[0]).filter(c => !db.auditorias.find(a => a.cicloNome === c.nome)).map(c => ({ titulo: c.nome, sub: `Início: ${fmtDate(c.ini)} · Nenhuma auditoria iniciada`, id: c.id })),
-                  acaoPerfis: ["auditor-lider","auditor"], acao: "Ciclo ativo — iniciar auditorias das áreas" },
-                { id: "auditoria",    label: "Auditoria",         icon: "◎", cor: F.red,    perfisResponsaveis: ["auditor","auditor-lider","administrador"],
+                  acaoPerfis: ["auditor"], acao: "Ciclo ativo — iniciar auditorias das áreas" },
+                { id: "auditoria",    label: "Auditoria",         icon: "◎", cor: F.red,    perfisResponsaveis: ["auditor","administrador"],
                   itens: db.auditorias.filter(a => !a.relatorioFinal?.status).map(a => ({ titulo: a.areaNome, sub: `Score: ${a.score}% · ${fmtDate(a.data)}`, id: a.id })),
-                  acaoPerfis: ["auditor-lider","administrador"], acao: "Elaborar relatório final" },
-                { id: "relatorio",    label: "Relatório Final",   icon: "📄", cor: F.blue,   perfisResponsaveis: ["auditor-lider","administrador"],
+                  acaoPerfis: ["auditor","administrador"], acao: "Elaborar relatório final" },
+                { id: "relatorio",    label: "Relatório Final",   icon: "📄", cor: F.blue,   perfisResponsaveis: ["auditor","administrador"],
                   itens: db.auditorias.filter(a => a.relatorioFinal?.status === "enviado" && a.comite && !a.comite.dataReuniao).map(a => ({ titulo: a.areaNome, sub: `Relatório de ${a.relatorioFinal.auditorNome}`, id: a.id })),
                   acaoPerfis: ["administrador"], acao: "Agendar reunião do comitê" },
-                { id: "reuniao",      label: "Reunião Comitê",    icon: "📅", cor: F.amber,  perfisResponsaveis: ["administrador","auditor-lider","comite"],
+                { id: "reuniao",      label: "Reunião Comitê",    icon: "📅", cor: F.amber,  perfisResponsaveis: ["administrador","auditor","comite"],
                   itens: db.auditorias.filter(a => a.comite?.dataReuniao && a.comite.status !== "realizada").map(a => ({ titulo: a.areaNome, sub: `Reunião: ${fmtDate(a.comite.dataReuniao)}`, id: a.id })),
                   acaoPerfis: ["comite","administrador"], acao: "Revisar resultados e comentar" },
                 { id: "elaborar",     label: "Elaborar Planos",   icon: "✍", cor: "#FF6B35", perfisResponsaveis: ["administrador"],
@@ -2136,14 +2154,14 @@ ${db.planos.length ? `<table>
               return (
                 <div>
                   <div style={{ fontSize: 12.5, color: F.gray3, background: F.blueDim, border: `1px solid ${F.blue}33`, borderRadius: 8, padding: "10px 14px", marginBottom: 20, lineHeight: 1.7 }}>
-                    Esta aba exibe os relatórios de conclusão elaborados pelo <strong>Auditor Líder</strong> após a consolidação das auditorias realizadas.
+                    Esta aba exibe os relatórios de conclusão elaborados pelo <strong>Auditor</strong> após a consolidação das auditorias realizadas.
                   </div>
                   {relFiltrados.length === 0 ? (
                     <Card>
                       <div style={{ textAlign: "center", padding: "48px 0" }}>
                         <div style={{ fontSize: 36, opacity: 0.15, marginBottom: 10 }}>📋</div>
                         <div style={{ fontSize: 15, fontWeight: 700, color: F.gray3, marginBottom: 6 }}>Nenhum relatório disponível</div>
-                        <div style={{ fontSize: 13, color: F.gray4 }}>Os relatórios aparecerão aqui quando o Auditor Líder concluir a consolidação.</div>
+                        <div style={{ fontSize: 13, color: F.gray4 }}>Os relatórios aparecerão aqui quando o Auditor concluir a consolidação.</div>
                       </div>
                     </Card>
                   ) : (
@@ -3245,7 +3263,7 @@ ${db.planos.length ? `<table>
             {view === "usuarios" && (
               <Card>
                 <DataTable
-                  cols={["Usuário", "E-mail", "Perfil", "Área", ...(podeExecutar(perfil, "excluir") ? [""] : [])]}
+                  cols={["Usuário", "E-mail", "Perfil", "Área", "Senha", ...(podeExecutar(perfil, "excluir") ? [""] : [])]}
                   rows={db.usuarios.map(u => {
                     const pc = PERFIL_COR;
                     const pl = PERFIL_LABEL;
@@ -3259,6 +3277,21 @@ ${db.planos.length ? `<table>
                       <TD style={{ color: F.gray3 }}>{u.email}</TD>
                       <TD><span style={{ fontSize: 12, fontWeight: 700, color: pc[u.perfil] || F.gray3, fontFamily: "'Barlow Condensed',sans-serif", textTransform: "uppercase", letterSpacing: 0.5 }}>{pl[u.perfil] || u.perfil}</span></TD>
                       <TD style={{ color: F.gray3 }}>{u.areaNome !== "—" ? u.areaNome : "—"}</TD>
+                      <TD>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                          <span style={{ fontSize: 11, color: u.senhaHash && !u.trocarSenha ? F.green : F.amber, fontWeight: 700 }}>{u.senhaHash && !u.trocarSenha ? "Definida" : "Padrão"}</span>
+                          {podeExecutar(perfil, "criar") && u.id !== usuarioLogado.id && (
+                            <button
+                              onClick={() => {
+                                if (!window.confirm(`Redefinir a senha de ${u.nome} para a senha padrão?`)) return;
+                                upd("usuarios", arr => arr.map(x => x.id === u.id ? { ...x, senhaHash: null, trocarSenha: true } : x));
+                                showToast("Senha redefinida — o usuário cria uma nova no próximo acesso.");
+                              }}
+                              style={{ fontSize: 10.5, color: F.gray3, background: F.offWhite, border: `1px solid ${F.gray6}`, borderRadius: 5, padding: "2px 8px", cursor: "pointer", fontWeight: 700, fontFamily: "'Barlow',sans-serif" }}
+                            >Redefinir</button>
+                          )}
+                        </div>
+                      </TD>
                       {podeExecutar(perfil, "excluir") && <TD><button onClick={() => upd("usuarios", arr => arr.filter(x => x.id !== u.id))} style={{ background: "none", border: "none", color: F.gray4, cursor: "pointer", fontSize: 16, padding: "2px 6px" }}>✕</button></TD>}
                     </>;
                   })}
@@ -3291,6 +3324,18 @@ ${db.planos.length ? `<table>
 
       {/* USUÁRIO */}
       <UsuarioModal open={!!modals.usuario} onClose={() => closeModal("usuario")} areas={db.areas} onSave={saveUsuario} />
+      <Modal open={trocandoSenha} onClose={() => setTrocandoSenha(false)} title="Alterar Senha" width={420}>
+        <TrocarSenhaForm
+          usuario={usuarioLogado}
+          exigirAtual
+          onCancel={() => setTrocandoSenha(false)}
+          onSave={hash => {
+            upd("usuarios", arr => arr.map(u => u.id === usuarioLogado.id ? { ...u, senhaHash: hash, trocarSenha: false } : u));
+            setUsuarioLogado(u => ({ ...u, senhaHash: hash, trocarSenha: false }));
+            setTrocandoSenha(false); showToast("Senha alterada!");
+          }}
+        />
+      </Modal>
 
       {/* MEMBRO */}
       <MembroModal open={!!modals.membro} onClose={() => closeModal("membro")} areas={db.areas} usuarios={db.usuarios} onSave={saveMembro} />
@@ -3547,7 +3592,7 @@ function UsuarioModal({ open, onClose, areas, onSave }) {
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
         <FG label="Perfil">
           <select style={fi} value={f.perfil} onChange={e => setF({ ...f, perfil: e.target.value })}>
-            {[["administrador","Administrador"],["area-processos","Área de Processos"],["auditor-lider","Auditor Líder"],["auditor","Auditor"],["comite","Comitê"],["gestor","Gestor de Área"],["diretoria","Diretoria"],["operacional","Operacional"]].map(([v,l]) => <option key={v} value={v}>{l}</option>)}
+            {[["administrador","Administrador"],["area-processos","Área de Processos"],["auditor","Auditor"],["comite","Comitê"],["gestor","Gestor de Área"],["diretoria","Diretoria"],["operacional","Operacional"]].map(([v,l]) => <option key={v} value={v}>{l}</option>)}
           </select>
         </FG>
         <FG label="Área">
@@ -3821,9 +3866,9 @@ function ConsolidacaoModal({ open, onClose, par, onSave }) {
         <textarea style={{ ...fi, resize: "vertical", minHeight: 90 }} value={f.conclusoes} onChange={e => setF({ ...f, conclusoes: e.target.value })} placeholder="Síntese das conclusões das duas auditorias..." />
       </FG>
       <FG label="Recomendações">
-        <textarea style={{ ...fi, resize: "vertical", minHeight: 70 }} value={f.recomendacoes} onChange={e => setF({ ...f, recomendacoes: e.target.value })} placeholder="Ações e melhorias recomendadas pelo Auditor Líder..." />
+        <textarea style={{ ...fi, resize: "vertical", minHeight: 70 }} value={f.recomendacoes} onChange={e => setF({ ...f, recomendacoes: e.target.value })} placeholder="Ações e melhorias recomendadas pelo Auditor..." />
       </FG>
-      <FG label="Observações do Auditor Líder">
+      <FG label="Observações do Auditor">
         <textarea style={{ ...fi, resize: "vertical", minHeight: 60 }} value={f.observacoes} onChange={e => setF({ ...f, observacoes: e.target.value })} placeholder="Contexto adicional, pontos de convergência ou divergência entre os auditores..." />
       </FG>
     </Modal>
@@ -4233,7 +4278,7 @@ function AuditoriaModal({ open, onClose, step, setStep, form, setForm, checklist
             <FG label="Auditor responsável">
               <select style={fi} value={form.auditorId || ""} onChange={e => setForm({ ...form, auditorId: e.target.value })}>
                 <option value="">Selecione...</option>
-                {usuarios.filter(u => ["administrador","auditor-lider","auditor","gestor"].includes(u.perfil)).map(u => <option key={u.id} value={u.id}>{u.nome}</option>)}
+                {usuarios.filter(u => ["administrador","auditor","gestor"].includes(u.perfil)).map(u => <option key={u.id} value={u.id}>{u.nome}</option>)}
               </select>
             </FG>
             <FG label="Data"><input type="date" style={fi} value={form.data || ""} onChange={e => setForm({ ...form, data: e.target.value })} /></FG>

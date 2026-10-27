@@ -84,15 +84,15 @@
   <a href="#areas" data-perfis="administrador">Áreas</a>
   <a href="#processos" data-perfis="administrador">Processos</a>
   <a href="#categorias" data-perfis="administrador">Categorias de Avaliação</a>
-  <a href="#ciclos" data-perfis="administrador auditor-lider">Ciclos</a>
+  <a href="#ciclos" data-perfis="administrador auditor">Ciclos</a>
 
-  <div class="nav-section" data-perfis="administrador auditor-lider auditor">Auditoria</div>
-  <a href="#auditoria" data-perfis="administrador auditor-lider auditor">Realizar Auditoria</a>
-  <a href="#consolidar" data-perfis="auditor-lider">Consolidação</a>
-  <a href="#relatorio-final" data-perfis="administrador auditor-lider auditor">Relatório Final</a>
+  <div class="nav-section" data-perfis="administrador auditor">Auditoria</div>
+  <a href="#auditoria" data-perfis="administrador auditor">Realizar Auditoria</a>
+  <a href="#consolidar" data-perfis="auditor">Consolidação</a>
+  <a href="#relatorio-final" data-perfis="administrador auditor">Relatório Final</a>
 
-  <div class="nav-section" data-perfis="administrador auditor-lider comite">Comitê</div>
-  <a href="#comite" data-perfis="administrador auditor-lider comite">Reuniões e Enquetes</a>
+  <div class="nav-section" data-perfis="administrador auditor comite">Comitê</div>
+  <a href="#comite" data-perfis="administrador auditor comite">Reuniões e Enquetes</a>
   <a href="#elaborar" data-perfis="administrador">Elaborar Plano de Ação</a>
 
   <div class="nav-section" data-perfis="todos">Conclusão</div>
@@ -102,7 +102,7 @@
 
   <div class="nav-section" data-perfis="administrador">Administração</div>
   <a href="#usuarios" data-perfis="administrador">Usuários</a>
-  <a href="#exportar" data-perfis="administrador auditor-lider">Exportação PDF</a>
+  <a href="#exportar" data-perfis="administrador auditor">Exportação PDF</a>
   <a href="#dados" data-perfis="administrador">Dados e Reset</a>
 </nav>
 
@@ -110,8 +110,10 @@
 
 <section id="acesso" data-perfis="todos">
   <h1>Acesso e Login</h1>
-  <p>Ao abrir o portal, a tela exibe <strong>cards agrupados por perfil</strong>. Clique no perfil para expandir e selecione seu nome.</p>
-  <div class="card card-amber"><strong>Gestor da Área:</strong> após selecionar seu usuário, escolha qual área você gerencia nesta sessão.</div>
+  <p>Entre com seu <strong>e-mail</strong> e sua <strong>senha</strong>.</p>
+  <div class="card card-blue"><strong>Primeiro acesso:</strong> use a senha padrão informada pelo administrador. O portal pede, em seguida, que você crie uma senha pessoal com pelo menos 6 caracteres.</div>
+  <div class="card card-blue"><strong>Alterar senha:</strong> botão 🔑 no rodapé do menu lateral. <strong>Esqueceu a senha?</strong> Peça ao administrador para redefini-la em Usuários → Redefinir.</div>
+  <div class="card card-amber"><strong>Gestor da Área:</strong> após entrar, escolha qual área você gerencia nesta sessão.</div>
   <div class="card card-red"><strong>Sair:</strong> botão ⏏ no rodapé do menu lateral. O ícone 🗑 (somente Admin) apaga todos os dados após confirmação.</div>
 </section>
 
@@ -121,8 +123,7 @@
     <thead><tr><th>Perfil</th><th>Responsabilidades</th></tr></thead>
     <tbody>
       <tr><td><span class="badge badge-red">Administrador</span></td><td>Gerencia todo o portal — cadastros, auditorias, aprovações, comitê e usuários</td></tr>
-      <tr><td><span class="badge" style="background:rgba(0,135,90,.1);color:#00875A;">Auditor Líder</span></td><td>Realiza e consolida auditorias, elabora relatório final, gerencia ciclos e comitê</td></tr>
-      <tr><td><span class="badge badge-green">Auditor</span></td><td>Realiza auditorias e elabora o relatório final</td></tr>
+      <tr><td><span class="badge badge-green">Auditor</span></td><td>Realiza e consolida auditorias, elabora relatório final, gerencia ciclos e comitê</td></tr>
       <tr><td><span class="badge" style="background:rgba(155,109,255,.1);color:#9b6dff;">Comitê</span></td><td>Revisa resultados, comenta auditorias e vota em enquetes de aprovação</td></tr>
       <tr><td><span class="badge badge-blue">Gestor da Área</span></td><td>Acompanha auditorias e planos da sua área, registra ciência e atualiza status dos planos</td></tr>
     </tbody>
@@ -186,15 +187,15 @@
   </div>
 </section>
 
-<section id="ciclos" data-perfis="administrador auditor-lider">
+<section id="ciclos" data-perfis="administrador auditor">
   <h1>Ciclos de Auditoria</h1>
   <p><strong>Caminho:</strong> Ciclos → + Novo Ciclo</p>
   <p>Ciclos organizam as auditorias por período e alimentam o cronograma do dashboard.</p>
-  <div class="card card-blue">Ao criar um ciclo, todos os <strong>Auditores e Auditores Líderes</strong> recebem automaticamente uma notificação 📅 com as áreas a auditar.</div>
+  <div class="card card-blue">Ao criar um ciclo, todos os <strong>Auditores</strong> recebem automaticamente uma notificação 📅 com as áreas a auditar.</div>
   <div class="tip">💡 Clique em ✎ para editar um ciclo já cadastrado.</div>
 </section>
 
-<section id="auditoria" data-perfis="administrador auditor-lider auditor">
+<section id="auditoria" data-perfis="administrador auditor">
   <h1>Realizando uma Auditoria</h1>
   <p><strong>Caminho:</strong> Auditorias → + Nova Auditoria</p>
   <div class="steps">
@@ -232,7 +233,7 @@
   </div>
 </section>
 
-<section id="consolidar" data-perfis="auditor-lider">
+<section id="consolidar" data-perfis="auditor">
   <h1>Consolidação de Auditorias</h1>
   <p><strong>Caminho:</strong> ⊕ Consolidar Auditorias</p>
   <p>Quando dois auditores auditam a mesma área no mesmo ciclo, você consolida em um único relatório.</p>
@@ -249,7 +250,7 @@
   <div class="tip">💡 A consolidação já salva automaticamente o Relatório Final — não é necessário elaborar em separado.</div>
 </section>
 
-<section id="relatorio-final" data-perfis="administrador auditor-lider auditor">
+<section id="relatorio-final" data-perfis="administrador auditor">
   <h1>Relatório Final de Auditoria</h1>
   <p><strong>Caminho:</strong> Auditorias → coluna "Rel. Final" → botão <strong>"Elaborar"</strong></p>
   <table>
@@ -263,12 +264,12 @@
   <p>Após salvar, o relatório fica disponível para o Admin e o Comitê visualizarem com o botão <strong>"📄 Ver Relatório"</strong>.</p>
 </section>
 
-<section id="comite" data-perfis="administrador auditor-lider comite">
+<section id="comite" data-perfis="administrador auditor comite">
   <h1>Comitê — Reuniões, Comentários e Enquetes</h1>
   <p><strong>Caminho:</strong> Comitê (3 abas: Reuniões / Enquetes / Membros)</p>
 
-  <div class="card card-amber" data-perfis-card="administrador auditor-lider">
-    <h3>Aba Reuniões de Auditoria <span class="badge badge-amber">Admin / Aud. Líder</span></h3>
+  <div class="card card-amber" data-perfis-card="administrador auditor">
+    <h3>Aba Reuniões de Auditoria <span class="badge badge-amber">Admin / Auditor</span></h3>
     <ol>
       <li>Selecione a <strong>data da reunião</strong> → notificações automáticas para auditores, comitê e gestor da área</li>
       <li>Após a reunião: clique em <strong>"✓ Reunião Realizada"</strong></li>
@@ -309,10 +310,10 @@
 <section id="relatorio-conclusao" data-perfis="todos">
   <h1>Relatório de Conclusão</h1>
   <p><strong>Caminho:</strong> 📋 Relatório de Conclusão</p>
-  <p>Esta aba exibe os <strong>relatórios finais elaborados pelo Auditor Líder</strong> após a consolidação das auditorias. É uma view de <em>recebimento</em> — não de elaboração.</p>
+  <p>Esta aba exibe os <strong>relatórios finais elaborados pelo Auditor</strong> após a consolidação das auditorias. É uma view de <em>recebimento</em> — não de elaboração.</p>
   <div class="card card-green">Cada relatório exibe: score, NCs com evidências, conclusões, recomendações, ciência do auditado e comentários do comitê.</div>
   <div class="card card-blue" style="display:none" id="card-gestor-relatorio">
-    <strong>Gestor da Área:</strong> você visualiza apenas o relatório <strong>consolidado</strong> do Auditor Líder referente à sua área — não os relatórios individuais de cada auditor.
+    <strong>Gestor da Área:</strong> você visualiza apenas o relatório <strong>consolidado</strong> do Auditor referente à sua área — não os relatórios individuais de cada auditor.
   </div>
 </section>
 
@@ -359,14 +360,14 @@
       <tr><td><strong>Nome</strong></td><td>Nome exibido no portal</td></tr>
       <tr><td><strong>Iniciais</strong></td><td>2–3 letras para o avatar (ex: JS)</td></tr>
       <tr><td><strong>E-mail</strong></td><td>E-mail Microsoft 365</td></tr>
-      <tr><td><strong>Perfil</strong></td><td>Administrador / Auditor Líder / Auditor / Comitê / Gestor / Diretoria / Operacional</td></tr>
+      <tr><td><strong>Perfil</strong></td><td>Administrador / Auditor / Comitê / Gestor / Diretoria / Operacional</td></tr>
       <tr><td><strong>Área</strong></td><td>Obrigatório para Gestores</td></tr>
     </tbody>
   </table>
-  <div class="tip">💡 Usuários adicionados aparecem automaticamente na tela de login agrupados pelo perfil.</div>
+  <div class="tip">💡 O e-mail é o login do usuário. No primeiro acesso ele entra com a senha padrão e cria a própria senha. Para redefinir uma senha esquecida, use o botão <strong>Redefinir</strong> na coluna Senha.</div>
 </section>
 
-<section id="exportar" data-perfis="administrador auditor-lider">
+<section id="exportar" data-perfis="administrador auditor">
   <h1>Exportação e PDF</h1>
   <div class="card card-red">
     <h3>Relatório Geral do Dashboard</h3>
@@ -386,7 +387,6 @@
   <p>Os usuários padrão são restaurados automaticamente após o reset:</p>
   <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;">
     <span class="badge badge-red">AD — Administrador</span>
-    <span class="badge" style="background:rgba(0,135,90,.1);color:#00875A;">AL — Auditor Líder</span>
     <span class="badge badge-green">AU — Auditor</span>
     <span class="badge" style="background:rgba(155,109,255,.1);color:#9b6dff;">CO — Comitê</span>
     <span class="badge badge-blue">GA — Gestor da Área</span>
@@ -407,7 +407,6 @@
 <script>
   const PERFIL_CONFIG = {
     administrador: { label: "Administrador", cor: "#E8001D", bg: "rgba(232,0,29,.12)" },
-    "auditor-lider": { label: "Auditor Líder", cor: "#00875A", bg: "rgba(0,135,90,.12)" },
     auditor: { label: "Auditor", cor: "#00B050", bg: "rgba(0,176,80,.12)" },
     comite: { label: "Comitê", cor: "#9b6dff", bg: "rgba(155,109,255,.12)" },
     gestor: { label: "Gestor da Área", cor: "#0066CC", bg: "rgba(0,102,204,.12)" },
