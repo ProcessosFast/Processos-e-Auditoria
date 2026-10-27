@@ -585,6 +585,7 @@ export default function App() {
   const [db, setDb] = useState(() => {
     const USUARIOS_PADRAO = [
       { id: "u-admin", nome: "Administrador", ini: "AD", email: "admin@fastdrywall.com.br", perfil: "administrador", areaId: "", areaNome: "—" },
+      { id: "u-leticia-werneck", nome: "Letícia Werneck", ini: "LW", email: "leticia.werneck@cscempresarial.com.br", perfil: "administrador", areaId: "", areaNome: "—" },
       { id: "u-area-processos", nome: "Área de Processos", ini: "AP", email: "processos@fastdrywall.com.br", perfil: "area-processos", areaId: "", areaNome: "—" },
       { id: "u-auditor", nome: "Auditor", ini: "AU", email: "auditor@fastdrywall.com.br", perfil: "auditor", areaId: "", areaNome: "—" },
       { id: "u-comite", nome: "Comitê", ini: "CO", email: "comite@fastdrywall.com.br", perfil: "comite", areaId: "", areaNome: "—" },
