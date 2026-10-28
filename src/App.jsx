@@ -556,7 +556,6 @@ const CRONOGRAMA_ITENS = [
     ["c14-3", "Validar usuários liberados no sistema para realizar ajuste de estoque", "Garantir que somente usuários com permissão possam realizar ajustes de estoque", "Sistema", "Todos os usuários liberados para ajuste de estoques"],
     ["c14-4", "Validar se a política de desconto está em conformidade com os acessos do sistema", "Garantir que os descontos estejam parametrizados em conformidade com a política vigente", "Sistema e política de descontos", "Amostragem"],
     ["c14-5", "Validar evidências de backups realizados do sistema", "Garantir backups", "Sistema", "Amostragem"],
-    ["c14-6", "Validar evidências de backups realizados de rede", "Garantir backups", "Sistema", "Amostragem"],
     ["c14-7", "Verificar se os colaboradores desligados no mês continuam com acessos ativos", "Remover acessos de colaboradores desligados", "Sistema", "Amostragem"],
   ]},
   { id: "cat-15", cat: "Infraestrutura", itens: [
