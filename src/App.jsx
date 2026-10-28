@@ -849,7 +849,8 @@ function statusCronograma(r, hoje) {
   return { key: "sem-data", label: "Sem data", cor: F.gray4, bg: F.gray6 };
 }
 
-function CronogramaAuditoria({ dados, usuarios, auditorias, podeEditar, onChange, onAuditar }) {
+// somenteDe: id do auditor — mostra só as atividades em que ele é 1º ou 2º responsável
+function CronogramaAuditoria({ dados, usuarios, auditorias, podeEditar, onChange, onAuditar, somenteDe }) {
   const [mes, setMes] = useState(() => {
     try { return sessionStorage.getItem("portal-fast-mes-cronograma") || new Date().toISOString().slice(0, 7); } catch { return new Date().toISOString().slice(0, 7); }
   });
@@ -866,12 +867,14 @@ function CronogramaAuditoria({ dados, usuarios, auditorias, podeEditar, onChange
     setMes(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`);
   }
 
-  const todos = CRONOGRAMA_ITENS.flatMap(g => g.itens.map(i => statusCronograma(doMes[i.id], hoje).key));
+  const ehMinha = item => !somenteDe || doMes[item.id]?.responsavelId === somenteDe || doMes[item.id]?.responsavel2Id === somenteDe;
+  const todos = CRONOGRAMA_ITENS.flatMap(g => g.itens.filter(ehMinha).map(i => statusCronograma(doMes[i.id], hoje).key));
   const cont = k => todos.filter(x => x === k).length;
-  const pct = Math.round(cont("realizado") / todos.length * 100);
+  const pct = todos.length ? Math.round(cont("realizado") / todos.length * 100) : 0;
 
   const passaFiltro = item => {
     const r = doMes[item.id];
+    if (!ehMinha(item)) return false;
     if (filtroStatus && statusCronograma(r, hoje).key !== filtroStatus) return false;
     if (filtroResp && r?.responsavelId !== filtroResp && r?.responsavel2Id !== filtroResp) return false;
     return true;
@@ -898,10 +901,10 @@ function CronogramaAuditoria({ dados, usuarios, auditorias, podeEditar, onChange
             <option value="atrasado">Atrasado</option>
             <option value="realizado">Realizado</option>
           </select>
-          <select style={{ ...inp, width: "auto" }} value={filtroResp} onChange={e => setFiltroResp(e.target.value)}>
+          {!somenteDe && <select style={{ ...inp, width: "auto" }} value={filtroResp} onChange={e => setFiltroResp(e.target.value)}>
             <option value="">Todos os responsáveis</option>
             {responsaveis.map(u => <option key={u.id} value={u.id}>{u.nome}</option>)}
-          </select>
+          </select>}
         </div>
       </div>
 
@@ -1001,7 +1004,7 @@ function CronogramaAuditoria({ dados, usuarios, auditorias, podeEditar, onChange
             </tbody>
           </table>
           {CRONOGRAMA_ITENS.every(g => !g.itens.some(passaFiltro)) && (
-            <div style={{ textAlign: "center", padding: "36px 0", fontSize: 13, color: F.gray4 }}>Nenhum item com esses filtros.</div>
+            <div style={{ textAlign: "center", padding: "36px 0", fontSize: 13, color: F.gray4 }}>{somenteDe && !todos.length ? "Nenhuma atividade programada com o seu nome neste mês." : "Nenhum item com esses filtros."}</div>
           )}
         </div>
       </Card>
@@ -1016,18 +1019,25 @@ const USUARIOS_PADRAO = [
   { id: "u-admin", nome: "Administrador", ini: "AD", email: "admin@fastdrywall.com.br", perfil: "administrador", areaId: "", areaNome: "—" },
   { id: "u-leticia-werneck", nome: "Letícia Werneck", ini: "LW", email: "leticia.werneck@cscempresarial.com.br", perfil: "administrador", areaId: "", areaNome: "—" },
   // Time de auditoria (e-mail pendente: sem e-mail o login não funciona)
-  { id: "u-gustavo-silva", nome: "Gustavo Silva", ini: "GS", email: "", perfil: "auditor", areaId: "", areaNome: "—" },
+  { id: "u-gustavo-silva", nome: "Gustavo Silva", ini: "GS", email: "gustavo.silva@cscempresarial.com.br", perfil: "auditor", areaId: "", areaNome: "—" },
   { id: "u-gustavo-queiroz", nome: "Gustavo Queiroz", ini: "GQ", email: "", perfil: "auditor", areaId: "", areaNome: "—" },
-  { id: "u-julianna-vianna", nome: "Julianna Vianna", ini: "JV", email: "", perfil: "auditor", areaId: "", areaNome: "—" },
-  { id: "u-rodrigo-monsores", nome: "Rodrigo Monsores", ini: "RM", email: "", perfil: "auditor", areaId: "", areaNome: "—" },
-  { id: "u-thauan-simas", nome: "Thauan Simas", ini: "TS", email: "", perfil: "auditor", areaId: "", areaNome: "—" },
-  { id: "u-arthur-villarge", nome: "Arthur Villarge", ini: "AV", email: "", perfil: "auditor", areaId: "", areaNome: "—" },
+  { id: "u-julianna-vianna", nome: "Julianna Vianna", ini: "JV", email: "juliana.viana@cscempresarial.com.br", perfil: "auditor", areaId: "", areaNome: "—" },
+  { id: "u-rodrigo-monsores", nome: "Rodrigo Monsores", ini: "RM", email: "rodrigo.monsores@cscempresarial.com.br", perfil: "auditor", areaId: "", areaNome: "—" },
+  { id: "u-thauan-simas", nome: "Thauan Simas", ini: "TS", email: "thauan.simas@cscempresarial.com.br", perfil: "auditor", areaId: "", areaNome: "—" },
+  { id: "u-arthur-villarge", nome: "Arthur Villarge", ini: "AV", email: "arthur.villarde@cscempresarial.onmicrosoft.com", perfil: "auditor", areaId: "", areaNome: "—" },
   { id: "u-gilberto", nome: "Gilberto", ini: "GI", email: "", perfil: "administrador", areaId: "", areaNome: "—" },
   { id: "u-guilherme", nome: "Guilherme", ini: "GU", email: "", perfil: "administrador", areaId: "", areaNome: "—" },
   { id: "u-area-processos", nome: "Área de Processos", ini: "AP", email: "processos@fastdrywall.com.br", perfil: "area-processos", areaId: "", areaNome: "—" },
   { id: "u-gestor", nome: "Gestor da Área", ini: "GA", email: "gestor@fastdrywall.com.br", perfil: "gestor", areaId: "", areaNome: "—" },
 ];
 
+const EMAILS_AUDITORES = {
+  "u-thauan-simas": "thauan.simas@cscempresarial.com.br",
+  "u-gustavo-silva": "gustavo.silva@cscempresarial.com.br",
+  "u-julianna-vianna": "juliana.viana@cscempresarial.com.br",
+  "u-arthur-villarge": "arthur.villarde@cscempresarial.onmicrosoft.com",
+  "u-rodrigo-monsores": "rodrigo.monsores@cscempresarial.com.br",
+};
 // Completa campos que faltam e restaura usuários e ciclos padrão
 function normalizarDb(dados) {
   const base = { areas: [], processos: [], auditorias: [], planos: [], ciclos: [], usuarios: [], modulos: [], notificacoes: [], consolidacoes: [], relatoriosSemanais: [], cronograma: {}, ...dados };
@@ -1036,7 +1046,8 @@ function normalizarDb(dados) {
     .filter(u => !["u-auditor-lider", "u-comite", "u-auditor"].includes(u.id))
     .map(({ senhaHash, trocarSenha, ...u }) => u.perfil === "auditor-lider" ? { ...u, perfil: "auditor" } : u)
     // Gilberto e Guilherme entraram como auditores e passaram a administradores
-    .map(u => ["u-gilberto", "u-guilherme"].includes(u.id) && u.perfil === "auditor" ? { ...u, perfil: "administrador" } : u);
+    .map(u => ["u-gilberto", "u-guilherme"].includes(u.id) && u.perfil === "auditor" ? { ...u, perfil: "administrador" } : u)
+    .map(u => !u.email && EMAILS_AUDITORES[u.id] ? { ...u, email: EMAILS_AUDITORES[u.id] } : u);
   base.planos = base.planos.map(({ aguardaComite, elaborado, ...p }) => aguardaComite ? { ...p, aprovacao: "pendente" } : p);
   USUARIOS_PADRAO.forEach(u => {
     if (!base.usuarios.find(x => x.id === u.id)) base.usuarios = [...base.usuarios, u];
@@ -3311,6 +3322,7 @@ ${db.planos.length ? `<table>
             {/* ── CRONOGRAMA DE AUDITORIA ── */}
             {view === "cronograma" && (
               <CronogramaAuditoria
+                somenteDe={perfil === "auditor" ? usuarioLogado.id : null}
                 dados={db.cronograma || {}}
                 usuarios={db.usuarios}
                 auditorias={db.auditorias}
