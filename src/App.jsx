@@ -590,7 +590,7 @@ const CICLOS_PADRAO = Array.from({ length: 14 }, (_, i) => {
 function ymdLocal(d) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
-// Os relatórios semanais começam em 01/11/2026: a primeira semana vai de 01/11 a 05/11
+// Relatório elaborado na quinta, com vigência da sexta anterior até a quinta; o primeiro é o de 05/11/2026
 const INICIO_SEMANAIS = "2026-11-01";
 function semanasDoMes(mes) {
   const [ano, m] = mes.split("-").map(Number);
@@ -598,8 +598,7 @@ function semanasDoMes(mes) {
   for (let dia = 1; dia <= new Date(ano, m, 0).getDate(); dia++) {
     const d = new Date(ano, m - 1, dia);
     if (d.getDay() !== 4 || ymdLocal(d) < INICIO_SEMANAIS) continue;
-    const ini = ymdLocal(new Date(ano, m - 1, dia - 6));
-    semanas.push({ id: `sem-${ymdLocal(d)}`, quinta: ymdLocal(d), ini: ini < INICIO_SEMANAIS ? INICIO_SEMANAIS : ini });
+    semanas.push({ id: `sem-${ymdLocal(d)}`, quinta: ymdLocal(d), ini: ymdLocal(new Date(ano, m - 1, dia - 6)) });
   }
   return semanas;
 }
