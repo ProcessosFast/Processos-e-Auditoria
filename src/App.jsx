@@ -569,6 +569,13 @@ const CRONOGRAMA_ITENS = [
     ["c16-2", "Validar operações de triangulação", "Garantir a conformidade das operações", "Sistema", "Amostragem", "Diário"],
     ["c16-3", "Validar memória de cálculo dos impostos do mês", "Garantir a correta apuração e pagamento dos impostos", "Memória de cálculo X Guias", "Amostragem"],
   ]},
+  { id: "cat-17", cat: "Auditoria de Fretes", itens: [
+    ["c17-1", "Fretes Log solicitados x chamados - Realizados", "", "", ""],
+    ["c17-2", "Unidade e Centro de Custo preenchidos", "", "", ""],
+    ["c17-3", "Valores Cobrados x Margem Calculada", "", "", ""],
+    ["c17-4", "Documentos de Margem Aprovados", "", "", ""],
+    ["c17-5", "Chamados de Fretes Abertos no Sults", "", "", ""],
+  ]},
 ].map(g => ({ ...g, itens: g.itens.map(([id, texto, objetivo, controle, metodologia, periodicidade = "Mensal"]) => ({ id, texto, objetivo, controle, periodicidade, metodologia })) }));
 
 // As áreas auditáveis são as áreas do cronograma (substituem o cadastro de áreas)
