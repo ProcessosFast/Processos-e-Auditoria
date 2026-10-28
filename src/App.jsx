@@ -542,7 +542,7 @@ const CRONOGRAMA_ITENS = [
     ["c9-3", "Validar se todas as compras possuem pelo menos 3 cotações no sistema", "Garantir que o processo de cotações está sendo seguido", "Sistema", "Amostragem", "Bônus (sem data padrão)"],
     ["c9-4", "Validar lista de fornecedores exclusivos (que estão dispensados de realizar cotação, por exemplo por contratos)", "Validar se as compras realizadas sem cotação estão presentes na lista de fornecedores exclusivos", "Controle de fornecedores exclusivos", "Amostragem", "Bônus (sem data padrão)"],
     ["c9-5", "Verificar se as compras realizadas no mês obedeceram os critérios de estoque mínimo e máximo, ou correto atendimento das requisições", "Avaliar o critério de compras utilizado", "Sistema", "Amostragem", "Bônus (sem data padrão)"],
-    ["c9-6", "Validar as requisições de compras de usuários, avaliando a necessidade de compra", "Garantir que as requisições de compras estão em conformidade com a necessidade de compra", "Sistema", "Amostragem"],
+    ["c9-6", "Validar as requisições de compras de usuários, avaliando a necessidade de compra", "Garantir que as requisições de compras estão em conformidade com a necessidade de compra", "Sistema", "Amostragem", "Bônus (sem data padrão)"],
     ["c9-7", "Validar se as compras realizadas no mês passaram por aprovação no sistema", "Validar as alçadas de aprovação no sistema", "Sistema", "Amostragem"],
   ]},
   { id: "cat-13", cat: "Vendas", itens: [
