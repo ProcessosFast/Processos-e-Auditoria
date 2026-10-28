@@ -1032,7 +1032,7 @@ const USUARIOS_PADRAO = [
   { id: "u-rodrigo-monsores", nome: "Rodrigo Monsores", ini: "RM", email: "rodrigo.monsores@cscempresarial.com.br", perfil: "auditor", areaId: "", areaNome: "—" },
   { id: "u-thauan-simas", nome: "Thauan Simas", ini: "TS", email: "thauan.simas@cscempresarial.com.br", perfil: "auditor", areaId: "", areaNome: "—" },
   { id: "u-arthur-villarge", nome: "Arthur Villarge", ini: "AV", email: "arthur.villarde@cscempresarial.onmicrosoft.com", perfil: "auditor", areaId: "", areaNome: "—" },
-  { id: "u-gilberto", nome: "Gilberto", ini: "GI", email: "", perfil: "administrador", areaId: "", areaNome: "—" },
+  { id: "u-gilberto", nome: "Gilberto", ini: "GI", email: "gilberto.souza@cscempresarial.com.br", perfil: "administrador", areaId: "", areaNome: "—" },
   { id: "u-guilherme", nome: "Guilherme", ini: "GU", email: "guilherme@fastdrywall.onmicrosoft.com", perfil: "administrador", areaId: "", areaNome: "—" },
   { id: "u-area-processos", nome: "Área de Processos", ini: "AP", email: "processos@fastdrywall.com.br", perfil: "area-processos", areaId: "", areaNome: "—" },
   { id: "u-gestor", nome: "Gestor da Área", ini: "GA", email: "gestor@fastdrywall.com.br", perfil: "gestor", areaId: "", areaNome: "—" },
@@ -1046,6 +1046,7 @@ const EMAILS_USUARIOS = {
   "u-rodrigo-monsores": "rodrigo.monsores@cscempresarial.com.br",
   "u-guilherme": "guilherme@fastdrywall.onmicrosoft.com",
   "u-gustavo-queiroz": "gustavo.santos@fastdrywall.com.br",
+  "u-gilberto": "gilberto.souza@cscempresarial.com.br",
 };
 // Completa campos que faltam e restaura usuários e ciclos padrão
 function normalizarDb(dados) {
