@@ -1444,7 +1444,8 @@ ${db.planos.length ? `<table>
       local: audForm.local, cicloNome: ciclo?.nome || "—",
       score, obs: U(audForm.obs), status: "concluida",
       processosAuditados: audForm.processosAuditados || [],
-      ncs: ncs.map(i => ({ q: i.q, clas: i.clas || "obs", evidencia: i.evidencia || "" })),
+      ncs: ncs.map(i => ({ q: i.q, clas: i.clas || "obs", evidencia: i.evidencia || "", obs: i.obs || "", chamado: i.chamado || "" })),
+      itensVerificados: checklist.map(i => ({ q: i.q, resp: i.resp || "", obs: i.obs || "", evidencia: i.evidencia || "", chamado: i.chamado || "" })),
       ciencia: null
     };
 
@@ -3518,7 +3519,7 @@ async function gerarPDFRelatorioFinal(auditoria) {
   .ncs-lista { margin-bottom:28px; }
   .nc-item { padding:10px 14px; border-radius:7px; margin-bottom:8px; }
   .nc-tag { display:inline-block; font-size:9px; font-weight:700; text-transform:uppercase; padding:2px 7px; border-radius:3px; margin-right:8px; }
-  .evidencia { font-size:11.5px; margin-top:6px; color:#555; }
+  .evidencia { font-size:11.5px; margin-top:6px; color:#555; white-space:pre-wrap; }
   .elaborador { font-size:11.5px; color:#888; margin-bottom:22px; padding:10px 14px; background:#F5F4F2; border-radius:7px; }
   .footer { margin-top:40px; padding-top:14px; border-top:1px solid #E5E5E5; font-size:11px; color:#aaa; text-align:center; }
   .print-btn { position:fixed; bottom:24px; right:24px; background:#E8001D; color:#fff; border:none; padding:11px 22px; border-radius:7px; font-size:13px; font-weight:700; cursor:pointer; box-shadow:0 4px 16px rgba(232,0,29,0.35); }
@@ -3586,6 +3587,24 @@ ${auditoria.ncs?.length > 0 ? `
       return `<div class="nc-item" style="background:${bg};border:1px solid ${c}33">
         <span class="nc-tag" style="background:${c}22;color:${c}">${lbls[n.clas] || "—"}</span>${n.q}
         ${n.evidencia ? `<div class="evidencia"><strong>Evidência:</strong> ${n.evidencia}</div>` : ""}
+        ${n.obs ? `<div class="evidencia"><strong>Detalhamento:</strong> ${n.obs}</div>` : ""}
+        ${n.chamado ? `<div class="evidencia"><strong>Chamado / SharePoint:</strong> ${n.chamado}</div>` : ""}
+      </div>`;
+    }).join("")}
+  </div>
+</div>` : ""}
+
+${auditoria.itensVerificados?.length > 0 ? `
+<div class="secao">
+  <div class="sec-titulo">Itens Verificados (${auditoria.itensVerificados.length})</div>
+  <div class="ncs-lista">
+    ${auditoria.itensVerificados.map(it => {
+      const lbl = { ok: "Conforme", nok: "Não conforme", na: "N/A" }[it.resp] || "Sem resposta";
+      return `<div class="nc-item" style="background:#FFFFFF;border:1px solid #E5E5E5">
+        <span class="nc-tag" style="background:#F5F4F2;color:#555555">${lbl}</span>${it.q}
+        ${it.obs ? `<div class="evidencia"><strong>Detalhamento:</strong> ${it.obs}</div>` : ""}
+        ${it.evidencia ? `<div class="evidencia"><strong>Evidência:</strong> ${it.evidencia}</div>` : ""}
+        ${it.chamado ? `<div class="evidencia"><strong>Chamado / SharePoint:</strong> ${it.chamado}</div>` : ""}
       </div>`;
     }).join("")}
   </div>
@@ -3737,8 +3756,35 @@ function RelatorioFinalViewModal({ open, onClose, auditoria }) {
                             : n.evidencia}
                         </div>
                       )}
+                      {n.obs && <div style={{ marginTop: 5, fontSize: 12, color: F.gray3, whiteSpace: "pre-wrap" }}><strong style={{ color: F.gray4 }}>Detalhamento: </strong>{n.obs}</div>}
+                      {n.chamado && <div style={{ marginTop: 3, fontSize: 12, color: F.gray3 }}><strong style={{ color: F.gray4 }}>Chamado / SharePoint: </strong>{n.chamado}</div>}
                     </div>
                   </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Todos os itens verificados */}
+      {auditoria.itensVerificados?.length > 0 && (
+        <div style={{ marginBottom: 14 }}>
+          <div style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: 1, color: F.gray4, fontFamily: "'Barlow Condensed',sans-serif", marginBottom: 8 }}>
+            Itens Verificados ({auditoria.itensVerificados.length})
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            {auditoria.itensVerificados.map((it, i) => {
+              const [lbl, c] = { ok: ["Conforme", F.green], nok: ["Não conforme", F.red], na: ["N/A", F.gray4] }[it.resp] || ["Sem resposta", F.gray4];
+              return (
+                <div key={i} style={{ border: `1px solid ${F.gray6}`, borderRadius: 7, padding: "10px 12px", fontSize: 12, color: F.gray3, lineHeight: 1.5 }}>
+                  <div style={{ display: "flex", gap: 8, alignItems: "flex-start" }}>
+                    <div style={{ flex: 1, fontSize: 13, color: F.charcoal }}>{it.q}</div>
+                    <span style={{ fontSize: 10.5, fontWeight: 700, color: c, whiteSpace: "nowrap" }}>{lbl}</span>
+                  </div>
+                  {it.obs && <div style={{ marginTop: 5, whiteSpace: "pre-wrap" }}><strong style={{ color: F.gray4 }}>Detalhamento: </strong>{it.obs}</div>}
+                  {it.evidencia && <div style={{ marginTop: 3, whiteSpace: "pre-wrap" }}><strong style={{ color: F.gray4 }}>Evidência: </strong>{it.evidencia.startsWith("http") ? <a href={it.evidencia} target="_blank" rel="noreferrer" style={{ color: F.red, fontWeight: 600 }}>↗ Acessar documento</a> : it.evidencia}</div>}
+                  {it.chamado && <div style={{ marginTop: 3 }}><strong style={{ color: F.gray4 }}>Chamado / SharePoint: </strong>{it.chamado}</div>}
                 </div>
               );
             })}
@@ -3921,7 +3967,7 @@ function AuditoriaModal({ open, onClose, step, setStep, form, setForm, checklist
   const sections = [...new Set(checklist.map(i => i.sec))];
 
   return (
-    <Modal open={open} onClose={onClose} title={["Nova Auditoria","Checklist de Verificação","Resultado e Relatórios de Conclusão"][step-1]} width={640}
+    <Modal open={open} onClose={onClose} title={["Nova Auditoria","Checklist de Verificação","Resultado e Relatórios de Conclusão"][step-1]} width={820}
       footer={
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%" }}>
           <Btn variant="ghost" onClick={onClose}>Cancelar</Btn>
@@ -4035,18 +4081,27 @@ function AuditoriaModal({ open, onClose, step, setStep, form, setForm, checklist
                       ))}
                     </div>
                   </div>
-                  {/* Evidência — sempre visível */}
-                  <div style={{ marginTop: 7 }}>
-                    <input
-                      style={{ ...fi, fontSize: 12, textTransform: "none", borderColor: item.resp === "nok" && !item.evidencia?.trim() ? F.amber : F.gray6 }}
-                      value={item.evidencia || ""}
-                      onChange={e => setChecklist(cl => cl.map(x => x.id === item.id ? { ...x, evidencia: e.target.value } : x))}
-                      placeholder={item.resp === "nok" ? "Evidência obrigatória — descreva ou informe o link do documento..." : "Evidência ou link do documento (opcional)..."}
-                    />
-                    {item.resp === "nok" && !item.evidencia?.trim() && (
-                      <div style={{ fontSize: 10, color: F.amber, fontWeight: 700, marginTop: 3 }}>Evidência obrigatória</div>
-                    )}
-                  </div>
+                  {/* Registro da verificação — sempre visível */}
+                  {(() => {
+                    const setCampo = (campo, valor) => setChecklist(cl => cl.map(x => x.id === item.id ? { ...x, [campo]: valor } : x));
+                    const rotulo = { fontSize: 10, fontWeight: 700, color: F.gray4, textTransform: "uppercase", letterSpacing: 1, fontFamily: "'Barlow Condensed',sans-serif", margin: "8px 0 3px" };
+                    const area = { ...fi, fontSize: 12.5, textTransform: "none", resize: "vertical", lineHeight: 1.45 };
+                    const faltaEvidencia = item.resp === "nok" && !item.evidencia?.trim();
+                    return (
+                      <div>
+                        <div style={rotulo}>Detalhamento da verificação</div>
+                        <textarea style={{ ...area, minHeight: 110 }} value={item.obs || ""} onChange={e => setCampo("obs", e.target.value)}
+                          placeholder="Descreva o que foi verificado: quais contas, documentos, períodos e valores foram analisados, o que foi encontrado e a conclusão..." />
+                        <div style={rotulo}>Evidência{item.resp === "nok" ? " (obrigatória)" : ""}</div>
+                        <textarea style={{ ...area, minHeight: 64, borderColor: faltaEvidencia ? F.amber : F.gray6 }} value={item.evidencia || ""} onChange={e => setCampo("evidencia", e.target.value)}
+                          placeholder="Qual foi a evidência: relatório, extrato, print, documento ou link..." />
+                        {faltaEvidencia && <div style={{ fontSize: 10, color: F.amber, fontWeight: 700, marginTop: 3 }}>Evidência obrigatória</div>}
+                        <div style={rotulo}>Nº do chamado / documento SharePoint</div>
+                        <input style={{ ...fi, fontSize: 12.5, textTransform: "none" }} value={item.chamado || ""} onChange={e => setCampo("chamado", e.target.value)}
+                          placeholder="Ex.: chamado 12345 ou link do documento no SharePoint" />
+                      </div>
+                    );
+                  })()}
                   {item.resp === "nok" && (
                     <div style={{ marginTop: 8, background: F.offWhite, borderRadius: 7, border: `1px solid ${F.gray6}`, padding: 12 }}>
                       <div style={{ fontSize: 10, fontWeight: 700, color: F.gray4, textTransform: "uppercase", letterSpacing: 1, marginBottom: 7, fontFamily: "'Barlow Condensed',sans-serif" }}>Classificação</div>
@@ -4110,7 +4165,9 @@ function AuditoriaModal({ open, onClose, step, setStep, form, setForm, checklist
                         <span>{item.q}</span>
                         {isCritical && <span style={{ fontSize: 9.5, fontWeight: 700, background: F.red, color: "#fff", padding: "1px 6px", borderRadius: 3, fontFamily: "'Barlow Condensed',sans-serif", textTransform: "uppercase" }}>Item Crítico</span>}
                       </div>
-                      {item.evidencia && <div style={{ fontSize: 11, color: F.gray3, marginTop: 2 }}>Evidência: {item.evidencia}</div>}
+                      {item.obs && <div style={{ fontSize: 11, color: F.gray3, marginTop: 2, whiteSpace: "pre-wrap" }}>Detalhamento: {item.obs}</div>}
+                      {item.evidencia && <div style={{ fontSize: 11, color: F.gray3, marginTop: 2, whiteSpace: "pre-wrap" }}>Evidência: {item.evidencia}</div>}
+                      {item.chamado && <div style={{ fontSize: 11, color: F.gray3, marginTop: 2 }}>Chamado / SharePoint: {item.chamado}</div>}
                       <div style={{ marginTop: 8 }}>
                         <select
                           value={item.causaRaiz || ""}
