@@ -110,15 +110,15 @@ function scoreAreaCiclo(areaId, auditorias) {
 // ── PERMISSÕES ───────────────────────────────────────────────────
 const PERMISSOES = {
   administrador: {
-    views: ["dashboard","cronograma","auditorias","relatorio-conclusao","planos","elaborar","ncs","ciclos","comite","usuarios","modulos"],
-    acoes: new Set(["criar","excluir","aprovar","exportar","auditar","atualizar-status","gerir-modulos","gerir-ciclos","gerir-comite","liberar-relatorios","agendar-reuniao","comentar-auditoria","relatorio-final","elaborar-plano"])
+    views: ["dashboard","cronograma","auditorias","relatorio-conclusao","planos","elaborar","ncs","ciclos","comite","usuarios"],
+    acoes: new Set(["criar","excluir","aprovar","exportar","auditar","atualizar-status","gerir-ciclos","gerir-comite","liberar-relatorios","agendar-reuniao","comentar-auditoria","relatorio-final","elaborar-plano"])
   },
   "area-processos": {
-    views: ["dashboard","cronograma","auditorias","relatorio-conclusao","planos","elaborar","ncs","ciclos","comite","usuarios","modulos"],
-    acoes: new Set(["criar","excluir","aprovar","exportar","atualizar-status","gerir-modulos","gerir-ciclos","gerir-comite","liberar-relatorios","agendar-reuniao","elaborar-plano"])
+    views: ["dashboard","cronograma","auditorias","relatorio-conclusao","planos","elaborar","ncs","ciclos","comite","usuarios"],
+    acoes: new Set(["criar","excluir","aprovar","exportar","atualizar-status","gerir-ciclos","gerir-comite","liberar-relatorios","agendar-reuniao","elaborar-plano"])
   },
   auditor: {
-    views: ["dashboard","cronograma","auditorias","relatorio-conclusao","consolidar","planos","ncs","ciclos","comite","modulos"],
+    views: ["dashboard","cronograma","auditorias","relatorio-conclusao","consolidar","planos","ncs","ciclos","comite"],
     acoes: new Set(["auditar","exportar","gerir-ciclos","gerir-comite","agendar-reuniao","relatorio-final","comentar-auditoria","consolidar"])
   },
   comite: {
@@ -898,7 +898,6 @@ export default function App() {
   const [notifOpen, setNotifOpen] = useState(false);
   const [idsLidos, setIdsLidos] = useState(new Set());
   const [idsNovos, setIdsNovos] = useState(new Set());
-  const [expandedModulos, setExpandedModulos] = useState(new Set());
   const [historicoPlanId, setHistoricoPlanId] = useState(null);
   const [justificandoPlano, setJustificandoPlano] = useState(null);
   const [cienciaAuditoriaId, setCienciaAuditoriaId] = useState(null);
@@ -1194,26 +1193,9 @@ ${db.planos.length ? `<table>
     const secs = [
       { title: `Cronograma — ${area?.nome || ""}`, items: (grupo?.itens || []).map(i => ({ texto: i.texto, peso: 1, cronItemId: i.id })) }
     ];
-    (db.modulos || [])
-      .filter(m => m.ativo && (m.areaIds?.includes(areaId) || area?.blocoPerguntas?.includes(m.id)))
-      .forEach(m => secs.push({ title: m.nome, items: m.perguntas.map(p => ({ texto: p.texto, peso: p.peso || 1 })) }));
     return secs.flatMap(sec =>
       sec.items.map(item => ({ id: uid(), sec: sec.title, q: item.texto, peso: item.peso || 1, cronItemId: item.cronItemId, resp: null, clas: null, obs: "", evidencia: "" }))
     );
-  }
-
-  function saveModulo(form, editId = null) {
-    if (!form.nome?.trim()) { showToast("Informe o nome da categoria.", "err"); return; }
-    if (!form.perguntas?.filter(p => p.texto?.trim()).length) { showToast("Adicione ao menos uma pergunta.", "err"); return; }
-    const clean = { ...form, perguntas: form.perguntas.filter(p => p.texto?.trim()) };
-    if (editId) {
-      upd("modulos", arr => arr.map(m => m.id === editId ? { ...m, ...clean } : m));
-      showToast("Categoria de avaliação atualizada!");
-    } else {
-      upd("modulos", arr => [...arr, { id: uid(), ativo: true, areaIds: [], processoIds: [], ...clean }]);
-      showToast("Categoria de avaliação criada!");
-    }
-    closeModal("modulo");
   }
 
   function calcScore(cl) {
@@ -1514,7 +1496,6 @@ ${db.planos.length ? `<table>
     { id: "planos", icon: "◷", label: "Planos de Ação", badge: planosPendAprov.length || planosAtrasados.length },
     { id: "ncs", icon: "⚑", label: "Não Conformidades" },
     { id: "ciclos", icon: "◈", label: "Ciclos", section: "Gestão" },
-    { id: "modulos", icon: "⊞", label: "Categorias de Avaliação" },
     { id: "comite", icon: "◐", label: "Comitê" },
     { id: "usuarios", icon: "○", label: "Usuários" },
   ].filter(item => podeAcessar(perfil, item.id));
@@ -1664,7 +1645,6 @@ ${db.planos.length ? `<table>
               )}
               {view === "planos" && podeExecutar(perfil, "criar") && <Btn onClick={() => openModal("plano")}>+ Novo Relatório</Btn>}
               {view === "ciclos" && (podeExecutar(perfil, "criar") || podeExecutar(perfil, "gerir-ciclos")) && <Btn onClick={() => openModal("ciclo")}>+ Novo Ciclo</Btn>}
-              {view === "modulos" && podeExecutar(perfil, "gerir-modulos") && <Btn onClick={() => openModal("modulo", {})}>+ Nova Categoria</Btn>}
               {view === "comite" && (podeExecutar(perfil, "criar") || podeExecutar(perfil, "gerir-comite")) && <Btn onClick={() => openModal("membro")}>+ Adicionar Membro</Btn>}
               {view === "usuarios" && podeExecutar(perfil, "criar") && <Btn onClick={() => openModal("usuario")}>+ Novo Usuário</Btn>}
               <div style={{ position: "relative" }}>
@@ -3160,94 +3140,6 @@ ${db.planos.length ? `<table>
               </div>
             )}
 
-            {/* ── MÓDULOS ── */}
-            {view === "modulos" && (
-              <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-
-                {/* Módulo fixo — Verificação Geral */}
-                <Card style={{ border: `1.5px solid ${F.gray6}`, opacity: 0.85 }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                        <div style={{ fontFamily: "'Barlow Condensed',sans-serif", fontSize: 15, fontWeight: 800, textTransform: "uppercase", letterSpacing: 0.5 }}>Atividades do Cronograma</div>
-                        <Tag>Fixo</Tag>
-                      </div>
-                      <div style={{ fontSize: 12, color: F.gray4, marginTop: 3 }}>{CRONOGRAMA_ITENS.reduce((n, g) => n + g.itens.length, 0)} atividades · Incluídas conforme a área auditada</div>
-                    </div>
-                    <button onClick={() => setExpandedModulos(s => { const n = new Set(s); n.has("base") ? n.delete("base") : n.add("base"); return n; })} style={{ fontSize: 11.5, color: F.red, background: "none", border: "none", cursor: "pointer", fontWeight: 600, fontFamily: "'Barlow',sans-serif" }}>
-                      {expandedModulos.has("base") ? "Ocultar" : "Ver perguntas"}
-                    </button>
-                  </div>
-                  {expandedModulos.has("base") && (
-                    <div style={{ borderTop: `1px solid ${F.gray6}`, paddingTop: 12, display: "flex", flexDirection: "column", gap: 6 }}>
-                      {CRONOGRAMA_ITENS.map(g => (
-                        <div key={g.cat}>
-                          <div style={{ fontSize: 11, fontWeight: 800, color: F.charcoal, textTransform: "uppercase", letterSpacing: 0.5, margin: "6px 0 4px", fontFamily: "'Barlow Condensed',sans-serif" }}>{g.cat}</div>
-                          {g.itens.map((i, n) => (
-                            <div key={i.id} style={{ display: "flex", gap: 10, padding: "7px 10px", background: F.offWhite, borderRadius: 6, fontSize: 13, color: F.gray3, marginBottom: 4 }}>
-                              <span style={{ color: F.gray5, fontSize: 11, fontWeight: 700, minWidth: 18 }}>{n + 1}.</span>{i.texto}
-                            </div>
-                          ))}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </Card>
-
-                {/* Módulos customizados */}
-                {(db.modulos || []).length === 0 && (
-                  <div style={{ background: "#fff", border: `1px solid ${F.gray6}`, borderRadius: 10, padding: "40px 20px", textAlign: "center" }}>
-                    <div style={{ fontSize: 28, opacity: 0.18, marginBottom: 8 }}>⊞</div>
-                    <div style={{ fontSize: 14, fontWeight: 600, color: F.gray3, marginBottom: 6 }}>Nenhuma categoria criada</div>
-                    <div style={{ fontSize: 12.5, color: F.gray4, marginBottom: 16 }}>Crie categorias de avaliação para adicionar perguntas específicas por área.</div>
-                    {podeExecutar(perfil, "gerir-modulos") && <Btn onClick={() => openModal("modulo", {})}>+ Criar Primeira Categoria</Btn>}
-                  </div>
-                )}
-
-                {(db.modulos || []).map(m => {
-                  const areasVinc = AREAS_CRONOGRAMA.filter(a => m.areaIds?.includes(a.id));
-                  const expanded = expandedModulos.has(m.id);
-                  return (
-                    <Card key={m.id} style={{ border: `1.5px solid ${m.ativo ? F.gray6 : F.gray6}`, opacity: m.ativo ? 1 : 0.55 }}>
-                      <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
-                        <div style={{ flex: 1 }}>
-                          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4, flexWrap: "wrap" }}>
-                            <div style={{ fontFamily: "'Barlow Condensed',sans-serif", fontSize: 15, fontWeight: 800, textTransform: "uppercase", letterSpacing: 0.5 }}>{m.nome}</div>
-                            <Pill color={m.ativo ? F.green : F.gray3} bg={m.ativo ? F.greenDim : F.gray6}>{m.ativo ? "Ativo" : "Inativo"}</Pill>
-                          </div>
-                          {m.descricao && <div style={{ fontSize: 12, color: F.gray4, marginBottom: 6 }}>{m.descricao}</div>}
-                          <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
-                            <span style={{ fontSize: 11.5, color: F.gray4 }}>{m.perguntas?.length || 0} pergunta{m.perguntas?.length !== 1 ? "s" : ""}</span>
-                            {areasVinc.length > 0 && <span style={{ fontSize: 11, color: F.gray5 }}>·</span>}
-                            {areasVinc.map(a => <Tag key={a.id}>{a.nome}</Tag>)}
-                            {areasVinc.length === 0 && <Tag color={F.amber} bg={F.amberDim}>Sem área vinculada</Tag>}
-                          </div>
-                        </div>
-                        <div style={{ display: "flex", gap: 6, alignItems: "center", flexShrink: 0 }}>
-                          <button onClick={() => setExpandedModulos(s => { const n = new Set(s); n.has(m.id) ? n.delete(m.id) : n.add(m.id); return n; })} style={{ fontSize: 11.5, color: F.red, background: "none", border: "none", cursor: "pointer", fontWeight: 600, fontFamily: "'Barlow',sans-serif", padding: "4px 8px" }}>
-                            {expanded ? "Ocultar" : "Ver perguntas"}
-                          </button>
-                          {podeExecutar(perfil, "gerir-modulos") && <>
-                            <button onClick={() => openModal("modulo", m)} style={{ background: F.offWhite, border: `1px solid ${F.gray6}`, borderRadius: 5, padding: "5px 10px", fontSize: 12, cursor: "pointer", color: F.gray3 }}>✎</button>
-                            <button onClick={() => upd("modulos", arr => arr.filter(x => x.id !== m.id))} style={{ background: "none", border: "none", color: F.gray4, cursor: "pointer", fontSize: 16, padding: "2px 6px" }}>✕</button>
-                          </>}
-                        </div>
-                      </div>
-                      {expanded && (
-                        <div style={{ borderTop: `1px solid ${F.gray6}`, marginTop: 12, paddingTop: 12, display: "flex", flexDirection: "column", gap: 6 }}>
-                          {(m.perguntas || []).map((p, i) => (
-                            <div key={p.id} style={{ display: "flex", gap: 10, padding: "7px 10px", background: F.offWhite, borderRadius: 6, fontSize: 13, color: F.gray3 }}>
-                              <span style={{ color: F.gray5, fontSize: 11, fontWeight: 700, minWidth: 18 }}>{i + 1}.</span>{p.texto}
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </Card>
-                  );
-                })}
-              </div>
-            )}
-
             {/* ── NCS ── */}
             {view === "ncs" && (
               <Card>
@@ -3608,7 +3500,6 @@ ${db.planos.length ? `<table>
       {/* ══════ MODAIS ══════ */}
 
       {/* MÓDULO */}
-      <ModuloModal open={!!modals.modulo} onClose={() => closeModal("modulo")} areas={AREAS_CRONOGRAMA} processos={db.processos} modulo={modals.modulo} onSave={saveModulo} />
 
       {/* ÁREA */}
       <AreaModal open={!!modals.area} onClose={() => closeModal("area")} modulos={db.modulos} area={modals.area} onSave={saveArea} />
@@ -3708,7 +3599,6 @@ ${db.planos.length ? `<table>
         usuarios={db.usuarios}
         ciclos={db.ciclos}
         processos={db.processos}
-        modulos={db.modulos}
         buildChecklist={buildChecklist}
         calcScore={calcScore}
         onFinalizar={finalizarAuditoria}
@@ -4419,110 +4309,7 @@ function HistoricoModal({ open, onClose, plano }) {
   );
 }
 
-function ModuloModal({ open, onClose, areas, processos, modulo, onSave }) {
-  const isEdit = modulo && modulo.id;
-  const empty = { nome: "", descricao: "", areaIds: [], processoIds: [], perguntas: [{ id: "p1", texto: "" }], ativo: true };
-  const [f, setF] = useState(empty);
-
-  useEffect(() => {
-    if (open) setF(isEdit ? { ...modulo, perguntas: modulo.perguntas?.length ? modulo.perguntas : [{ id: uid(), texto: "" }] } : { nome: "", descricao: "", areaIds: [], processoIds: [], perguntas: [{ id: "p1", texto: "" }], ativo: true });
-  }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  function toggleArea(id) { setF(x => ({ ...x, areaIds: x.areaIds.includes(id) ? x.areaIds.filter(a => a !== id) : [...x.areaIds, id] })); }
-  function toggleProcesso(id) { setF(x => ({ ...x, processoIds: x.processoIds.includes(id) ? x.processoIds.filter(p => p !== id) : [...x.processoIds, id] })); }
-  function addPergunta() { setF(x => ({ ...x, perguntas: [...x.perguntas, { id: uid(), texto: "" }] })); }
-  function removePergunta(id) { setF(x => ({ ...x, perguntas: x.perguntas.filter(p => p.id !== id) })); }
-  function editPergunta(id, texto) { setF(x => ({ ...x, perguntas: x.perguntas.map(p => p.id === id ? { ...p, texto } : p) })); }
-  function moverPergunta(idx, dir) {
-    setF(x => {
-      const arr = [...x.perguntas];
-      const dest = idx + dir;
-      if (dest < 0 || dest >= arr.length) return x;
-      [arr[idx], arr[dest]] = [arr[dest], arr[idx]];
-      return { ...x, perguntas: arr };
-    });
-  }
-
-  return (
-    <Modal open={open} onClose={onClose} title={isEdit ? "Editar Categoria de Avaliação" : "Nova Categoria de Avaliação"} width={640}
-      footer={
-        <div style={{ display: "flex", justifyContent: "space-between", width: "100%", alignItems: "center" }}>
-          <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, cursor: "pointer", color: F.gray3 }}>
-            <input type="checkbox" checked={f.ativo} onChange={e => setF({ ...f, ativo: e.target.checked })} style={{ accentColor: F.red, width: 14, height: 14 }} />
-            Categoria ativa
-          </label>
-          <div style={{ display: "flex", gap: 8 }}>
-            <Btn variant="ghost" onClick={onClose}>Cancelar</Btn>
-            <Btn onClick={() => onSave(f, isEdit ? modulo.id : null)}>{isEdit ? "Salvar alterações" : "Criar Categoria"}</Btn>
-          </div>
-        </div>
-      }>
-
-      <FG label="Nome da categoria">
-        <input style={fi} value={f.nome} onChange={e => setF({ ...f, nome: e.target.value })} placeholder="ex: Financeiro" />
-      </FG>
-      <FG label="Descrição (opcional)">
-        <textarea style={{ ...fi, resize: "vertical", minHeight: 54 }} value={f.descricao} onChange={e => setF({ ...f, descricao: e.target.value })} placeholder="Contexto ou objetivo desta categoria..." />
-      </FG>
-
-      <FG label="Vincular a áreas">
-        {areas.filter(a => !a.naoAuditada && !a.noa).length === 0
-          ? <div style={{ fontSize: 12, color: F.gray4 }}>Nenhuma área cadastrada.</div>
-          : <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
-              {areas.filter(a => !a.naoAuditada && !a.noa).map(a => (
-                <label key={a.id} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, cursor: "pointer" }}>
-                  <input type="checkbox" checked={f.areaIds.includes(a.id)} onChange={() => toggleArea(a.id)} style={{ accentColor: F.red, width: 14, height: 14 }} />
-                  <span>{a.nome}</span>
-                  {(a.categoria || a.grupo) && <Tag style={{ marginLeft: 2 }}>{a.categoria || a.grupo}</Tag>}
-                </label>
-              ))}
-            </div>
-        }
-      </FG>
-
-      {processos.length > 0 && (
-        <FG label="Vincular a processos (opcional)">
-          <div style={{ display: "flex", flexDirection: "column", gap: 6, maxHeight: 120, overflowY: "auto" }}>
-            {processos.map(p => (
-              <label key={p.id} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, cursor: "pointer" }}>
-                <input type="checkbox" checked={f.processoIds.includes(p.id)} onChange={() => toggleProcesso(p.id)} style={{ accentColor: F.red, width: 14, height: 14 }} />
-                {p.nome} <span style={{ fontSize: 11, color: F.gray4 }}>· {p.areaNome}</span>
-              </label>
-            ))}
-          </div>
-        </FG>
-      )}
-
-      <FG label="Perguntas da categoria">
-        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-          {f.perguntas.map((p, i) => (
-            <div key={p.id} style={{ display: "flex", gap: 6, alignItems: "center" }}>
-              <span style={{ fontSize: 11, color: F.gray5, fontWeight: 700, minWidth: 20, textAlign: "right" }}>{i + 1}.</span>
-              <input style={{ ...fi, flex: 1 }} value={p.texto} onChange={e => editPergunta(p.id, e.target.value)} placeholder="Digite a pergunta..." />
-              <select value={p.peso || 1} onChange={e => setF(x => ({ ...x, perguntas: x.perguntas.map(q => q.id === p.id ? { ...q, peso: Number(e.target.value) } : q) }))} style={{ background: F.offWhite, border: `1.5px solid ${F.gray6}`, borderRadius: 5, fontSize: 11.5, padding: "6px 6px", color: F.charcoal, flexShrink: 0 }}>
-                <option value={1}>Normal</option>
-                <option value={2}>Importante</option>
-                <option value={3}>Crítico</option>
-              </select>
-              <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-                <button onClick={() => moverPergunta(i, -1)} disabled={i === 0} style={{ background: "none", border: "none", cursor: i === 0 ? "default" : "pointer", fontSize: 10, color: i === 0 ? F.gray6 : F.gray4, padding: "0 3px", lineHeight: 1 }}>▲</button>
-                <button onClick={() => moverPergunta(i, 1)} disabled={i === f.perguntas.length - 1} style={{ background: "none", border: "none", cursor: i === f.perguntas.length - 1 ? "default" : "pointer", fontSize: 10, color: i === f.perguntas.length - 1 ? F.gray6 : F.gray4, padding: "0 3px", lineHeight: 1 }}>▼</button>
-              </div>
-              {f.perguntas.length > 1 && (
-                <button onClick={() => removePergunta(p.id)} style={{ background: "none", border: "none", color: F.gray4, cursor: "pointer", fontSize: 15, padding: "2px 4px" }}>✕</button>
-              )}
-            </div>
-          ))}
-          <button onClick={addPergunta} style={{ alignSelf: "flex-start", fontSize: 12, color: F.red, background: "none", border: `1px dashed ${F.redBorder}`, borderRadius: 6, padding: "6px 14px", cursor: "pointer", fontWeight: 600, fontFamily: "'Barlow',sans-serif", marginTop: 2 }}>
-            + Adicionar Pergunta
-          </button>
-        </div>
-      </FG>
-    </Modal>
-  );
-}
-
-function AuditoriaModal({ open, onClose, step, setStep, form, setForm, checklist, setChecklist, areas, usuarios, ciclos, processos, modulos, buildChecklist, calcScore, onFinalizar }) {
+function AuditoriaModal({ open, onClose, step, setStep, form, setForm, checklist, setChecklist, areas, usuarios, ciclos, processos, buildChecklist, calcScore, onFinalizar }) {
   function next() {
     if (step === 1) {
       if (!form.areaId) { alert("Selecione uma área."); return; }
@@ -4539,13 +4326,6 @@ function AuditoriaModal({ open, onClose, step, setStep, form, setForm, checklist
 
   const score = step === 3 ? calcScore(checklist) : null;
   const noks = checklist.filter(i => i.resp === "nok");
-
-  const area = areas.find(a => a.id === form.areaId);
-  const modCores = [F.amber, F.blue, "#9b6dff", F.green, F.red];
-  const modBgs = [F.amberDim, F.blueDim, "rgba(155,109,255,0.1)", F.greenDim, F.redDim];
-  const mods = area && modulos ? modulos.filter(m =>
-    m.ativo && (m.areaIds?.includes(form.areaId) || area?.blocoPerguntas?.includes(m.id))
-  ).map((m, i) => ({ l: m.nome, c: modCores[i % modCores.length], bg: modBgs[i % modBgs.length] })) : [];
 
   const sections = [...new Set(checklist.map(i => i.sec))];
 
@@ -4623,16 +4403,6 @@ function AuditoriaModal({ open, onClose, step, setStep, form, setForm, checklist
             );
           })()}
 
-          {mods.length > 0 && (
-            <div style={{ marginTop: 12 }}>
-              <div style={{ fontSize: 10, fontWeight: 700, color: F.gray4, textTransform: "uppercase", letterSpacing: 1, marginBottom: 8, fontFamily: "'Barlow Condensed',sans-serif" }}>Categorias incluídas automaticamente</div>
-              <div style={{ display: "flex", gap: 7, flexWrap: "wrap" }}>
-                {mods.map((m, i) => (
-                  <span key={i} style={{ fontSize: 11, fontWeight: 600, padding: "3px 10px", borderRadius: 6, background: m.bg, border: `1px solid ${m.c}44`, color: m.c }}>{m.l}</span>
-                ))}
-              </div>
-            </div>
-          )}
         </div>
       )}
 
