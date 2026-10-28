@@ -1649,6 +1649,22 @@ ${db.planos.length ? `<table>
     }
   }
 
+  // Exclui a auditoria e desfaz o que ela marcou: resultado no cronograma e planos gerados
+  function excluirAuditoria(a) {
+    const planos = db.planos.filter(p => p.auditoriaId === a.id).length;
+    if (!window.confirm(`Excluir a auditoria de ${a.areaNome} (${fmtDate(a.data)})?${planos ? ` Os ${planos} plano(s) de ação gerados por ela também serão excluídos.` : ""} A marcação no cronograma será desfeita.`)) return;
+    setDb(d => {
+      const cronograma = Object.fromEntries(Object.entries(d.cronograma || {}).map(([mes, itens]) => [mes, Object.fromEntries(Object.entries(itens).map(([id, r]) => {
+        if (r.auditoriaId !== a.id) return [id, r];
+        const { auditoriaId, resultado, ...resto } = r;
+        if (resto.realizada === a.data) delete resto.realizada;
+        return [id, resto];
+      }))]));
+      return { ...d, cronograma, auditorias: d.auditorias.filter(x => x.id !== a.id), planos: d.planos.filter(p => p.auditoriaId !== a.id) };
+    });
+    showToast("Auditoria excluída.");
+  }
+
   function salvarRelatorioSemanal(r) {
     const rel = { ...r, conclusoes: U(r.conclusoes), recomendacoes: U(r.recomendacoes), observacoes: U(r.observacoes), autorId: usuarioLogado.id, autorNome: usuarioLogado.nome, data: new Date().toISOString() };
     upd("relatoriosSemanais", arr => [...arr.filter(x => x.id !== r.id), rel]);
@@ -2947,7 +2963,7 @@ ${db.planos.length ? `<table>
                             : <span style={{ color: F.gray5, fontSize: 12 }}>—</span>
                         )}
                       </TD>
-                      {podeExecutar(perfil, "excluir") && <TD><button onClick={() => upd("auditorias", arr => arr.filter(x => x.id !== a.id))} style={{ background: "none", border: "none", color: F.gray4, cursor: "pointer", fontSize: 16, padding: "2px 6px" }}>✕</button></TD>}
+                      {podeExecutar(perfil, "excluir") && <TD><button onClick={() => excluirAuditoria(a)} style={{ background: "none", border: "none", color: F.gray4, cursor: "pointer", fontSize: 16, padding: "2px 6px" }}>✕</button></TD>}
                     </>;
                   })}
                   empty={{
