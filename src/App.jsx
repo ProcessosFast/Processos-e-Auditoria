@@ -584,6 +584,81 @@ const CICLOS_PADRAO = Array.from({ length: 14 }, (_, i) => {
   return { id: `ciclo-${ano}-${mm}`, nome: `${MESES[d.getMonth()].slice(0, 3).toUpperCase()}/${ano}`, ini: `${ano}-${mm}-01`, fim: `${ano}-${mm}-${ultimo}`, obs: "", status: "ativo" };
 });
 
+// ── AUDITORIAS DO MÊS (Relatório de Conclusão) ───────────────────
+function AuditoriasDoMes({ auditorias }) {
+  const [mes, setMes] = useState(() => {
+    try { return sessionStorage.getItem("portal-fast-mes-relatorio") || new Date().toISOString().slice(0, 7); } catch { return new Date().toISOString().slice(0, 7); }
+  });
+  useEffect(() => { try { sessionStorage.setItem("portal-fast-mes-relatorio", mes); } catch {} }, [mes]);
+  const [ano, m] = mes.split("-").map(Number);
+  function mudarMes(delta) {
+    const d = new Date(ano, m - 1 + delta, 1);
+    setMes(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`);
+  }
+  const doMes = auditorias.filter(a => (a.mes || a.data || "").slice(0, 7) === mes)
+    .sort((a, b) => a.areaNome.localeCompare(b.areaNome) || (a.data || "").localeCompare(b.data || ""));
+  // Auditorias antigas não guardavam os itens: usa as não conformidades
+  const itensDe = a => a.itensVerificados?.length ? a.itensVerificados : (a.ncs || []).map(n => ({ q: n.q, resp: "nok", obs: n.obs, evidencia: n.evidencia, chamado: n.chamado }));
+  const todos = doMes.flatMap(itensDe);
+  const conta = r => todos.filter(i => i.resp === r).length;
+  const RES = { ok: ["Conforme", F.green, F.greenDim], nok: ["Não conforme", F.red, F.redDim], na: ["N/A", F.gray4, F.gray6] };
+  const navBtn = { background: "#fff", border: `1.5px solid ${F.gray6}`, borderRadius: 6, width: 32, height: 32, cursor: "pointer", fontSize: 15, color: F.gray3 };
+
+  return (
+    <div style={{ marginBottom: 28 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14, flexWrap: "wrap" }}>
+        <div style={{ fontFamily: "'Barlow Condensed',sans-serif", fontSize: 15, fontWeight: 800, textTransform: "uppercase", letterSpacing: 0.5, color: F.charcoal, marginRight: 8 }}>Auditorias do mês</div>
+        <button style={navBtn} onClick={() => mudarMes(-1)} title="Mês anterior">‹</button>
+        <div style={{ fontFamily: "'Barlow Condensed',sans-serif", fontSize: 20, fontWeight: 900, textTransform: "uppercase", color: F.charcoal, minWidth: 160, textAlign: "center" }}>{MESES[m - 1]} / {ano}</div>
+        <button style={navBtn} onClick={() => mudarMes(1)} title="Próximo mês">›</button>
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 12, marginBottom: 16 }}>
+        <StatCard label="Auditorias" value={doMes.length} sub="realizadas no mês" accent={F.charcoal} />
+        <StatCard label="Itens verificados" value={todos.length} sub="atividades auditadas" accent={F.blue} />
+        <StatCard label="Conformes" value={conta("ok")} sub={todos.length ? `${Math.round(conta("ok") / todos.length * 100)}% dos itens` : "—"} accent={F.green} />
+        <StatCard label="Não conformes" value={conta("nok")} sub="resultados encontrados" accent={F.red} />
+        <StatCard label="N/A" value={conta("na")} sub="não se aplica" accent={F.gray5} />
+      </div>
+
+      {doMes.length === 0 ? (
+        <Card><div style={{ textAlign: "center", padding: "32px 0", fontSize: 13, color: F.gray4 }}>Nenhuma auditoria registrada em {MESES[m - 1].toLowerCase()} de {ano}.</div></Card>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          {doMes.map(a => (
+            <Card key={a.id} style={{ border: `1.5px solid ${F.gray6}` }}>
+              <div style={{ display: "flex", alignItems: "flex-start", gap: 12, flexWrap: "wrap", marginBottom: 10 }}>
+                <div style={{ flex: 1, minWidth: 220 }}>
+                  <div style={{ fontFamily: "'Barlow Condensed',sans-serif", fontSize: 17, fontWeight: 900, color: F.charcoal }}>{a.areaNome}</div>
+                  <div style={{ fontSize: 12, color: F.gray4, marginTop: 2 }}>{a.auditorNome} · {fmtDate(a.data)}{a.cicloNome && a.cicloNome !== "—" ? ` · Ciclo ${a.cicloNome}` : ""}</div>
+                </div>
+                <div style={{ fontFamily: "'Barlow Condensed',sans-serif", fontSize: 22, fontWeight: 900, color: scoreColor(a.score) }}>{a.score}%</div>
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                {itensDe(a).map((it, i) => {
+                  const [lbl, c, bg] = RES[it.resp] || ["Sem resposta", F.gray4, F.gray6];
+                  return (
+                    <div key={i} style={{ border: `1px solid ${F.gray6}`, borderLeft: `4px solid ${c}`, borderRadius: 7, padding: "9px 12px", fontSize: 12, color: F.gray3, lineHeight: 1.5 }}>
+                      <div style={{ display: "flex", gap: 8, alignItems: "flex-start" }}>
+                        <div style={{ flex: 1, fontSize: 13, color: F.charcoal }}>{it.q}</div>
+                        <Tag color={c} bg={bg}>{lbl}</Tag>
+                      </div>
+                      {it.obs && <div style={{ marginTop: 5, whiteSpace: "pre-wrap" }}><strong style={{ color: F.gray4 }}>Detalhamento: </strong>{it.obs}</div>}
+                      {it.evidencia && <div style={{ marginTop: 3, whiteSpace: "pre-wrap" }}><strong style={{ color: F.gray4 }}>Evidência: </strong>{it.evidencia.startsWith("http") ? <a href={it.evidencia} target="_blank" rel="noreferrer" style={{ color: F.red, fontWeight: 600 }}>↗ Acessar documento</a> : it.evidencia}</div>}
+                      {it.chamado && <div style={{ marginTop: 3 }}><strong style={{ color: F.gray4 }}>Chamado / SharePoint: </strong>{it.chamado}</div>}
+                    </div>
+                  );
+                })}
+                {a.obs && <div style={{ fontSize: 12, color: F.gray3, marginTop: 4, whiteSpace: "pre-wrap" }}><strong style={{ color: F.gray4 }}>Observações gerais: </strong>{a.obs}</div>}
+              </div>
+            </Card>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function DetalheAtividade({ item }) {
   if (!item.objetivo) return null;
   const campos = [["Objetivo", item.objetivo], ["Controle interno", item.controle], ["Periodicidade", item.periodicidade], ["Metodologia", item.metodologia]].filter(c => c[1]);
@@ -1439,6 +1514,7 @@ ${db.planos.length ? `<table>
     const audId = uid();
     const auditoria = {
       id: audId, areaNome: area?.nome || "—", areaId: audForm.areaId,
+      mes: audForm.cronMes || (audForm.data || new Date().toISOString()).slice(0, 7),
       atividadeId: audForm.atividadeId || "", atividadeTexto: CRONOGRAMA_ITENS.flatMap(g => g.itens).find(i => i.id === audForm.atividadeId)?.texto || "",
       auditorNome: auditor?.nome || "—", data: audForm.data,
       local: audForm.local, cicloNome: ciclo?.nome || "—",
@@ -2377,21 +2453,15 @@ ${db.planos.length ? `<table>
 
             {/* ── RELATÓRIO DE CONCLUSÃO ── */}
             {view === "relatorio-conclusao" && (() => {
-              const relatorios = db.auditorias.filter(a => a.relatorioFinal?.status === "enviado");
-              // Para o gestor: só relatórios consolidados da sua área (evita ver os dois individuais)
-              const relFiltrados = perfil === "gestor"
-                ? (() => {
-                    const daArea = relatorios.filter(a => a.areaId === usuarioLogado.areaId || a.areaNome === usuarioLogado.areaNome);
-                    // Se houver consolidado, mostrar só ele; senão mostrar o único disponível
-                    const consolidados = daArea.filter(a => a.relatorioFinal?.consolidado);
-                    return consolidados.length > 0 ? consolidados : daArea.slice(0,1);
-                  })()
-                : relatorios;
+              // Todos os perfis veem todos os relatórios
+              const relFiltrados = db.auditorias.filter(a => a.relatorioFinal?.status === "enviado");
               const cmap = { nc: [F.red, F.redDim, "NC"], mel: [F.blue, F.blueDim, "Melhoria"], obs: [F.gray3, F.gray6, "Obs"] };
               return (
                 <div>
+                  <AuditoriasDoMes auditorias={db.auditorias} />
+                  <div style={{ fontFamily: "'Barlow Condensed',sans-serif", fontSize: 15, fontWeight: 800, textTransform: "uppercase", letterSpacing: 0.5, color: F.charcoal, marginBottom: 10 }}>Relatórios finais</div>
                   <div style={{ fontSize: 12.5, color: F.gray3, background: F.blueDim, border: `1px solid ${F.blue}33`, borderRadius: 8, padding: "10px 14px", marginBottom: 20, lineHeight: 1.7 }}>
-                    Esta aba exibe os relatórios de conclusão elaborados pelo <strong>Auditor</strong> após a consolidação das auditorias realizadas.
+                    Relatórios de conclusão elaborados pelo <strong>Auditor</strong> após a consolidação das auditorias realizadas.
                   </div>
                   {relFiltrados.length === 0 ? (
                     <Card>
