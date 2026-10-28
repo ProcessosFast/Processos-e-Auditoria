@@ -509,7 +509,7 @@ function TrocarSenhaForm({ usuario, exigirAtual, onSave, onCancel }) {
   );
 }
 
-function LoginScreen({ usuarios, onLogin, onSalvarSenha }) {
+function LoginScreen({ usuarios, carregando, onLogin, onSalvarSenha }) {
   const [logoSrc, setLogoSrc] = useState("");
   const [email, setEmail] = useState("");
   const [senha, setSenha] = useState("");
@@ -526,6 +526,7 @@ function LoginScreen({ usuarios, onLogin, onSalvarSenha }) {
   async function entrar(e) {
     e.preventDefault();
     setErro("");
+    if (carregando) return;
     const u = email.trim() && usuarios.find(x => x.email?.trim().toLowerCase() === email.trim().toLowerCase());
     if (!u || !(await senhaConfere(u, senha))) { setErro("E-mail ou senha incorretos."); return; }
     if (!u.senhaHash || u.trocarSenha) { setPendente(u); return; }
@@ -558,7 +559,7 @@ function LoginScreen({ usuarios, onLogin, onSalvarSenha }) {
             <FG label="E-mail"><input type="email" style={fi} value={email} onChange={e => setEmail(e.target.value)} placeholder="nome@fastdrywall.com.br" autoComplete="username" autoFocus /></FG>
             <FG label="Senha"><input type="password" style={fi} value={senha} onChange={e => setSenha(e.target.value)} autoComplete="current-password" /></FG>
             {erro && <div style={{ fontSize: 12.5, color: F.red, fontWeight: 600, marginBottom: 12 }}>{erro}</div>}
-            <Btn type="submit" style={{ width: "100%", justifyContent: "center" }}>Entrar</Btn>
+            <Btn type="submit" disabled={carregando} style={{ width: "100%", justifyContent: "center" }}>{carregando ? "Carregando dados..." : "Entrar"}</Btn>
             <div style={{ fontSize: 11.5, color: F.gray4, marginTop: 14, lineHeight: 1.6, textAlign: "center" }}>
               Esqueceu a senha? Peça ao administrador para redefini-la.
             </div>
@@ -827,53 +828,206 @@ function CronogramaAuditoria({ dados, usuarios, auditorias, podeEditar, onChange
 }
 
 // ══════════════════════════════════════════════════════════════════
+// DADOS
+// ══════════════════════════════════════════════════════════════════
+const USUARIOS_PADRAO = [
+  { id: "u-admin", nome: "Administrador", ini: "AD", email: "admin@fastdrywall.com.br", perfil: "administrador", areaId: "", areaNome: "—" },
+  { id: "u-leticia-werneck", nome: "Letícia Werneck", ini: "LW", email: "leticia.werneck@cscempresarial.com.br", perfil: "administrador", areaId: "", areaNome: "—" },
+  // Time de auditoria (e-mail pendente: sem e-mail o login não funciona)
+  { id: "u-gustavo-silva", nome: "Gustavo Silva", ini: "GS", email: "", perfil: "auditor", areaId: "", areaNome: "—" },
+  { id: "u-gustavo-queiroz", nome: "Gustavo Queiroz", ini: "GQ", email: "", perfil: "auditor", areaId: "", areaNome: "—" },
+  { id: "u-julianna-vianna", nome: "Julianna Vianna", ini: "JV", email: "", perfil: "auditor", areaId: "", areaNome: "—" },
+  { id: "u-rodrigo-monsores", nome: "Rodrigo Monsores", ini: "RM", email: "", perfil: "auditor", areaId: "", areaNome: "—" },
+  { id: "u-thauan-simas", nome: "Thauan Simas", ini: "TS", email: "", perfil: "auditor", areaId: "", areaNome: "—" },
+  { id: "u-area-processos", nome: "Área de Processos", ini: "AP", email: "processos@fastdrywall.com.br", perfil: "area-processos", areaId: "", areaNome: "—" },
+  { id: "u-auditor", nome: "Auditor", ini: "AU", email: "auditor@fastdrywall.com.br", perfil: "auditor", areaId: "", areaNome: "—" },
+  { id: "u-comite", nome: "Comitê", ini: "CO", email: "comite@fastdrywall.com.br", perfil: "comite", areaId: "", areaNome: "—" },
+  { id: "u-gestor", nome: "Gestor da Área", ini: "GA", email: "gestor@fastdrywall.com.br", perfil: "gestor", areaId: "", areaNome: "—" },
+];
+
+// Completa campos que faltam e restaura usuários e ciclos padrão
+function normalizarDb(dados) {
+  const base = { areas: [], processos: [], auditorias: [], planos: [], ciclos: [], comite: [], usuarios: [], modulos: [], notificacoes: [], consolidacoes: [], cronograma: {}, ...dados };
+  // Perfil "auditor-lider" foi unificado em "auditor"
+  base.usuarios = base.usuarios
+    .filter(u => u.id !== "u-auditor-lider")
+    .map(u => u.perfil === "auditor-lider" ? { ...u, perfil: "auditor" } : u);
+  USUARIOS_PADRAO.forEach(u => {
+    if (!base.usuarios.find(x => x.id === u.id)) base.usuarios = [...base.usuarios, u];
+  });
+  CICLOS_PADRAO.forEach(c => {
+    if (!base.ciclos.find(x => x.id === c.id || x.nome === c.nome)) base.ciclos = [...base.ciclos, c];
+  });
+  return base;
+}
+
+// ── BANCO COMPARTILHADO (Upstash Redis via /api/state) ───────────
+// O localStorage continua como cache: a tela abre na hora e funciona sem rede.
+// Cada registro é um item próprio no banco, para que duas pessoas editando
+// coisas diferentes ao mesmo tempo não se sobrescrevam:
+//   o:<coleção>                    → ordem dos ids
+//   l:<coleção>:<id>               → um registro
+//   m:cronograma:<mês>|<atividade> → uma linha do cronograma
+const COLECOES = ["areas", "processos", "auditorias", "planos", "ciclos", "comite", "usuarios", "modulos", "notificacoes", "consolidacoes"];
+const SINC_KEY = "portal-fast-sincronizado";
+const BACKUP_KEY = "portal-fast-backup-antes-do-banco";
+
+function encodeDb(db) {
+  const out = {};
+  COLECOES.forEach(c => {
+    const arr = db[c] || [];
+    out[`o:${c}`] = arr.map(x => x.id);
+    arr.forEach(x => { out[`l:${c}:${x.id}`] = x; });
+  });
+  Object.entries(db.cronograma || {}).forEach(([mes, itens]) =>
+    Object.entries(itens || {}).forEach(([id, r]) => { out[`m:cronograma:${mes}|${id}`] = r; }));
+  return out;
+}
+
+function decodeDb(items) {
+  const db = { cronograma: {} };
+  COLECOES.forEach(c => {
+    const prefixo = `l:${c}:`;
+    const ids = [...(items[`o:${c}`] || [])];
+    // Registros que outra pessoa criou ao mesmo tempo podem não estar na ordem salva
+    Object.keys(items).forEach(k => {
+      if (k.startsWith(prefixo) && !ids.includes(k.slice(prefixo.length))) ids.push(k.slice(prefixo.length));
+    });
+    db[c] = ids.map(id => items[prefixo + id]).filter(Boolean);
+  });
+  Object.entries(items).forEach(([k, r]) => {
+    if (!k.startsWith("m:cronograma:")) return;
+    const [mes, id] = k.slice("m:cronograma:".length).split("|");
+    db.cronograma[mes] = { ...db.cronograma[mes], [id]: r };
+  });
+  return db;
+}
+
+function diffItens(antes, depois) {
+  const patch = {};
+  Object.keys(depois).forEach(k => { if (JSON.stringify(antes[k]) !== JSON.stringify(depois[k])) patch[k] = depois[k]; });
+  Object.keys(antes).forEach(k => { if (!(k in depois)) patch[k] = null; });
+  return patch;
+}
+
+// Primeira conexão de um navegador: soma ao banco o que só existia nele.
+// O que o banco já tem prevalece.
+function somarLocal(servidor, local) {
+  const db = { ...servidor, cronograma: { ...servidor.cronograma } };
+  COLECOES.forEach(c => {
+    const ids = new Set((servidor[c] || []).map(x => x.id));
+    db[c] = [...(servidor[c] || []), ...(local[c] || []).filter(x => x?.id && !ids.has(x.id))];
+  });
+  Object.entries(local.cronograma || {}).forEach(([mes, itens]) => {
+    db.cronograma[mes] = { ...itens, ...db.cronograma[mes] };
+  });
+  return db;
+}
+
+// Status: "carregando" | "online" | "offline" | "local" (banco não configurado)
+function useBancoCompartilhado(db, setDb) {
+  const [status, setStatus] = useState("carregando");
+  const ref = useRef({ last: null, pending: {}, timer: null, lastWrite: 0, marcarSinc: false, enviar: () => {} });
+  ref.current.db = db;
+
+  useEffect(() => {
+    const s = ref.current;
+    let parado = false;
+
+    async function enviar() {
+      s.timer = null;
+      const patches = s.pending;
+      s.pending = {};
+      if (!Object.keys(patches).length) return;
+      try {
+        const res = await fetch("/api/state", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ patches }) });
+        if (!res.ok) throw new Error(String(res.status));
+        s.lastWrite = Date.now();
+        if (s.marcarSinc) { try { localStorage.setItem(SINC_KEY, "1"); } catch {} s.marcarSinc = false; }
+        setStatus("online");
+      } catch {
+        // Devolve para a fila e tenta de novo depois
+        s.pending = { ...patches, ...s.pending };
+        setStatus("offline");
+        s.timer = setTimeout(enviar, 10000);
+      }
+    }
+    s.enviar = () => { clearTimeout(s.timer); s.timer = setTimeout(enviar, 400); };
+
+    async function puxar() {
+      const inicio = Date.now();
+      try {
+        const res = await fetch("/api/state", { cache: "no-store" });
+        if (res.status === 503 || !(res.headers.get("content-type") || "").includes("json")) { setStatus("local"); return; }
+        if (!res.ok) throw new Error(String(res.status));
+        const items = (await res.json()).items || {};
+        // Ignora a leitura se houve edição local enquanto ela estava em andamento
+        if (parado || inicio < s.lastWrite || Object.keys(s.pending).length) return;
+
+        let primeira = false;
+        try { primeira = !localStorage.getItem(SINC_KEY); } catch {}
+        if (primeira) {
+          try { if (!localStorage.getItem(BACKUP_KEY)) localStorage.setItem(BACKUP_KEY, JSON.stringify(s.db)); } catch {}
+        }
+        const servidor = decodeDb(items);
+        const novo = normalizarDb(primeira ? somarLocal(servidor, s.db) : servidor);
+        const proximo = encodeDb(novo);
+
+        const patch = diffItens(items, proximo);
+        s.last = proximo;
+        if (Object.keys(patch).length) {
+          s.pending = { ...s.pending, ...patch };
+          s.marcarSinc = primeira;
+          s.enviar();
+        } else if (primeira) {
+          try { localStorage.setItem(SINC_KEY, "1"); } catch {}
+        }
+        if (Object.keys(diffItens(encodeDb(s.db), proximo)).length) setDb(novo);
+        setStatus("online");
+      } catch {
+        setStatus(st => st === "local" ? st : "offline");
+      }
+    }
+
+    puxar();
+    const intervalo = setInterval(puxar, 15000);
+    window.addEventListener("focus", puxar);
+    return () => { parado = true; clearInterval(intervalo); window.removeEventListener("focus", puxar); clearTimeout(s.timer); };
+  }, [setDb]);
+
+  // Cada alteração local vira um patch para o banco
+  useEffect(() => {
+    const s = ref.current;
+    if (!s.last) return;
+    const proximo = encodeDb(db);
+    const patch = diffItens(s.last, proximo);
+    if (!Object.keys(patch).length) return;
+    s.last = proximo;
+    s.lastWrite = Date.now();
+    s.pending = { ...s.pending, ...patch };
+    s.enviar();
+  }, [db]);
+
+  return status;
+}
+
+// ══════════════════════════════════════════════════════════════════
 // MAIN APP
 // ══════════════════════════════════════════════════════════════════
 export default function App() {
   const [view, setView] = useState("dashboard");
   const [db, setDb] = useState(() => {
-    const USUARIOS_PADRAO = [
-      { id: "u-admin", nome: "Administrador", ini: "AD", email: "admin@fastdrywall.com.br", perfil: "administrador", areaId: "", areaNome: "—" },
-      { id: "u-leticia-werneck", nome: "Letícia Werneck", ini: "LW", email: "leticia.werneck@cscempresarial.com.br", perfil: "administrador", areaId: "", areaNome: "—" },
-      // Time de auditoria (e-mail pendente: sem e-mail o login não funciona)
-      { id: "u-gustavo-silva", nome: "Gustavo Silva", ini: "GS", email: "", perfil: "auditor", areaId: "", areaNome: "—" },
-      { id: "u-gustavo-queiroz", nome: "Gustavo Queiroz", ini: "GQ", email: "", perfil: "auditor", areaId: "", areaNome: "—" },
-      { id: "u-julianna-vianna", nome: "Julianna Vianna", ini: "JV", email: "", perfil: "auditor", areaId: "", areaNome: "—" },
-      { id: "u-rodrigo-monsores", nome: "Rodrigo Monsores", ini: "RM", email: "", perfil: "auditor", areaId: "", areaNome: "—" },
-      { id: "u-thauan-simas", nome: "Thauan Simas", ini: "TS", email: "", perfil: "auditor", areaId: "", areaNome: "—" },
-      { id: "u-area-processos", nome: "Área de Processos", ini: "AP", email: "processos@fastdrywall.com.br", perfil: "area-processos", areaId: "", areaNome: "—" },
-      { id: "u-auditor", nome: "Auditor", ini: "AU", email: "auditor@fastdrywall.com.br", perfil: "auditor", areaId: "", areaNome: "—" },
-      { id: "u-comite", nome: "Comitê", ini: "CO", email: "comite@fastdrywall.com.br", perfil: "comite", areaId: "", areaNome: "—" },
-      { id: "u-gestor", nome: "Gestor da Área", ini: "GA", email: "gestor@fastdrywall.com.br", perfil: "gestor", areaId: "", areaNome: "—" },
-    ];
     try {
       const salvo = localStorage.getItem("portal-fast-db-v2");
-      const base = salvo ? JSON.parse(salvo) : { areas: [], processos: [], auditorias: [], planos: [], ciclos: [], comite: [], usuarios: [], modulos: [], notificacoes: [], consolidacoes: [], cronograma: {} };
-      if (!base.usuarios) base.usuarios = [];
-      if (!base.modulos) base.modulos = [];
-      if (!base.notificacoes) base.notificacoes = [];
-      if (!base.consolidacoes) base.consolidacoes = [];
-      if (!base.cronograma) base.cronograma = {};
-      // Perfil "auditor-lider" foi unificado em "auditor"
-      base.usuarios = base.usuarios
-        .filter(u => u.id !== "u-auditor-lider")
-        .map(u => u.perfil === "auditor-lider" ? { ...u, perfil: "auditor" } : u);
-      // Restaura usuários padrão que estiverem faltando
-      USUARIOS_PADRAO.forEach(u => {
-        if (!base.usuarios.find(x => x.id === u.id)) base.usuarios.push(u);
-      });
-      if (!base.ciclos) base.ciclos = [];
-      CICLOS_PADRAO.forEach(c => {
-        if (!base.ciclos.find(x => x.id === c.id || x.nome === c.nome)) base.ciclos.push(c);
-      });
-      return base;
+      return normalizarDb(salvo ? JSON.parse(salvo) : {});
     } catch {
-      return { areas: [], processos: [], auditorias: [], planos: [], ciclos: CICLOS_PADRAO, comite: [], usuarios: USUARIOS_PADRAO, modulos: [], cronograma: {} };
+      return normalizarDb({});
     }
   });
+  const nuvem = useBancoCompartilhado(db, setDb);
 
   useEffect(() => {
-    localStorage.setItem("portal-fast-db-v2", JSON.stringify(db));
+    try { localStorage.setItem("portal-fast-db-v2", JSON.stringify(db)); } catch {}
   }, [db]);
   const [usuarioLogado, setUsuarioLogado] = useState(() => {
     try {
@@ -963,6 +1117,7 @@ export default function App() {
   if (!usuarioLogado) {
     return (
       <LoginScreen
+        carregando={nuvem === "carregando"}
         usuarios={db.usuarios}
         onSalvarSenha={(id, hash) => setDb(d => ({ ...d, usuarios: d.usuarios.map(u => u.id === id ? { ...u, senhaHash: hash, trocarSenha: false } : u) }))}
         onLogin={u => { setUsuarioLogado(u); setView("dashboard"); }}
@@ -1576,20 +1731,6 @@ ${db.planos.length ? `<table>
                 <div style={{ fontSize: 12, fontWeight: 600, color: "#fff", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{usuarioLogado.nome}</div>
                 <div style={{ fontSize: 9, color: F.gray3, textTransform: "uppercase", letterSpacing: 0.5 }}>{PERFIL_LABEL[perfil] || perfil}</div>
               </div>
-              {perfil === "administrador" && (
-                <button
-                  title="Limpar todos os dados"
-                  onClick={() => {
-                    if (window.confirm("Apagar TODOS os dados do portal? Esta ação não pode ser desfeita.")) {
-                      localStorage.removeItem("portal-fast-db-v2");
-                      window.location.reload();
-                    }
-                  }}
-                  style={{ background: "none", border: "none", color: F.gray2, cursor: "pointer", fontSize: 13, padding: "2px 4px", flexShrink: 0, transition: "color 0.15s" }}
-                  onMouseEnter={e => e.currentTarget.style.color = F.red}
-                  onMouseLeave={e => e.currentTarget.style.color = F.gray2}
-                >🗑</button>
-              )}
               <button
                 onClick={() => setTrocandoSenha(true)}
                 title="Alterar senha"
@@ -1605,6 +1746,15 @@ ${db.planos.length ? `<table>
                 onMouseLeave={e => e.currentTarget.style.color = F.gray4}
               >⏏</button>
             </div>
+            {(() => {
+              const st = {
+                carregando: [F.gray4, "Conectando ao banco..."],
+                online: [F.green, "Dados salvos no banco"],
+                offline: [F.amber, "Sem conexão — salvando neste navegador"],
+                local: [F.amber, "Banco não configurado — só neste navegador"],
+              }[nuvem];
+              return <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 10.5, color: F.gray4, padding: "8px 10px 0" }}><span style={{ width: 7, height: 7, borderRadius: "50%", background: st[0], flexShrink: 0 }} />{st[1]}</div>;
+            })()}
           </div>
         </aside>
 
