@@ -1027,7 +1027,7 @@ const USUARIOS_PADRAO = [
   { id: "u-leticia-werneck", nome: "Letícia Werneck", ini: "LW", email: "leticia.werneck@cscempresarial.com.br", perfil: "administrador", areaId: "", areaNome: "—" },
   // Time de auditoria (e-mail pendente: sem e-mail o login não funciona)
   { id: "u-gustavo-silva", nome: "Gustavo Silva", ini: "GS", email: "gustavo.silva@cscempresarial.com.br", perfil: "auditor", areaId: "", areaNome: "—" },
-  { id: "u-gustavo-queiroz", nome: "Gustavo Queiroz", ini: "GQ", email: "", perfil: "auditor", areaId: "", areaNome: "—" },
+  { id: "u-gustavo-queiroz", nome: "Gustavo Queiroz", ini: "GQ", email: "gustavo.santos@fastdrywall.com.br", perfil: "auditor", areaId: "", areaNome: "—" },
   { id: "u-julianna-vianna", nome: "Julianna Vianna", ini: "JV", email: "juliana.viana@cscempresarial.com.br", perfil: "auditor", areaId: "", areaNome: "—" },
   { id: "u-rodrigo-monsores", nome: "Rodrigo Monsores", ini: "RM", email: "rodrigo.monsores@cscempresarial.com.br", perfil: "auditor", areaId: "", areaNome: "—" },
   { id: "u-thauan-simas", nome: "Thauan Simas", ini: "TS", email: "thauan.simas@cscempresarial.com.br", perfil: "auditor", areaId: "", areaNome: "—" },
@@ -1045,6 +1045,7 @@ const EMAILS_USUARIOS = {
   "u-arthur-villarge": "arthur.villarde@cscempresarial.onmicrosoft.com",
   "u-rodrigo-monsores": "rodrigo.monsores@cscempresarial.com.br",
   "u-guilherme": "guilherme@fastdrywall.onmicrosoft.com",
+  "u-gustavo-queiroz": "gustavo.santos@fastdrywall.com.br",
 };
 // Completa campos que faltam e restaura usuários e ciclos padrão
 function normalizarDb(dados) {
