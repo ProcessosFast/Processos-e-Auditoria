@@ -1768,15 +1768,15 @@ ${db.planos.length ? `<table>
   const navItems = [
     { id: "dashboard", icon: "▦", label: "Dashboard", section: "Visão Geral" },
     { id: "cronograma", icon: "▤", label: "Cronograma de Auditoria", section: "Operação" },
-    { id: "areas", icon: "◉", label: "Áreas" },
-    { id: "processos", icon: "⬡", label: "Processos" },
-    { id: "auditorias", icon: "◎", label: "Auditorias", badge: auditoriasVisiveis.filter(a => a.status === "aberta").length },
-    { id: "consolidar", icon: "⊕", label: "Consolidar Auditorias", badge: (() => { const pares = {}; db.auditorias.forEach(a => { if (a.cicloNome && a.cicloNome !== "—") { const k = `${a.areaId}-${a.cicloNome}`; pares[k] = (pares[k] || 0) + 1; } }); return Object.values(pares).filter(v => v >= 2).length; })() || 0 },
-    { id: "relatorio-conclusao", icon: "📋", label: "Relatório de Conclusão", section: "Melhoria", badge: perfil === "administrador" ? semanasDoMes(ymdLocal(new Date()).slice(0, 7)).filter(sem => sem.quinta <= ymdLocal(new Date()) && !(db.relatoriosSemanais || []).some(r => r.id === sem.id)).length || 0 : 0 },
-    { id: "planos", icon: "◷", label: "Planos de Ação", badge: planosPendAprov.length || planosAtrasados.length },
-    { id: "ncs", icon: "⚑", label: "Não Conformidades" },
+    { id: "areas", icon: "◉", label: "Áreas", section: "Operação" },
+    { id: "processos", icon: "⬡", label: "Processos", section: "Operação" },
+    { id: "auditorias", icon: "◎", label: "Auditorias", section: "Operação", badge: auditoriasVisiveis.filter(a => a.status === "aberta").length },
+    { id: "consolidar", icon: "⊕", label: "Consolidar Auditorias", section: "Operação", badge: (() => { const pares = {}; db.auditorias.forEach(a => { if (a.cicloNome && a.cicloNome !== "—") { const k = `${a.areaId}-${a.cicloNome}`; pares[k] = (pares[k] || 0) + 1; } }); return Object.values(pares).filter(v => v >= 2).length; })() || 0 },
+    { id: "relatorio-conclusao", icon: "📋", label: "Relatório de Conclusão", section: "Operação", badge: perfil === "administrador" ? semanasDoMes(ymdLocal(new Date()).slice(0, 7)).filter(sem => sem.quinta <= ymdLocal(new Date()) && !(db.relatoriosSemanais || []).some(r => r.id === sem.id)).length || 0 : 0 },
+    { id: "planos", icon: "◷", label: "Planos de Ação", section: "Operação", badge: planosPendAprov.length || planosAtrasados.length },
+    { id: "ncs", icon: "⚑", label: "Não Conformidades", section: "Operação" },
     { id: "ciclos", icon: "◈", label: "Ciclos", section: "Gestão" },
-    { id: "usuarios", icon: "○", label: "Usuários" },
+    { id: "usuarios", icon: "○", label: "Usuários", section: "Gestão" },
   ].filter(item => podeAcessar(perfil, item.id));
 
   return (
@@ -1812,9 +1812,9 @@ ${db.planos.length ? `<table>
 
           {/* NAV */}
           <nav style={{ padding: "12px 10px", flex: 1, display: "flex", flexDirection: "column", gap: 2, overflowY: "auto" }}>
-            {navItems.map(item => (
+            {navItems.map((item, i) => (
               <>
-                {item.section && (
+                {item.section !== navItems[i - 1]?.section && (
                   <div style={{
                     fontSize: 9, fontWeight: 700, letterSpacing: 2,
                     textTransform: "uppercase", color: F.gray3,
