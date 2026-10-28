@@ -599,7 +599,10 @@ function statusCronograma(r, hoje) {
 }
 
 function CronogramaAuditoria({ dados, usuarios, auditorias, podeEditar, onChange, onAuditar }) {
-  const [mes, setMes] = useState(() => new Date().toISOString().slice(0, 7));
+  const [mes, setMes] = useState(() => {
+    try { return sessionStorage.getItem("portal-fast-mes-cronograma") || new Date().toISOString().slice(0, 7); } catch { return new Date().toISOString().slice(0, 7); }
+  });
+  useEffect(() => { try { sessionStorage.setItem("portal-fast-mes-cronograma", mes); } catch {} }, [mes]);
   const [filtroStatus, setFiltroStatus] = useState("");
   const [filtroResp, setFiltroResp] = useState("");
   const hoje = new Date().toISOString().split("T")[0];
@@ -661,10 +664,17 @@ function CronogramaAuditoria({ dados, usuarios, auditorias, podeEditar, onChange
 
       <Card style={{ padding: 0 }}>
         <div className="table-scroll">
-          <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 1100 }}>
+          <table style={{ width: "100%", borderCollapse: "collapse", tableLayout: "fixed", minWidth: 760 }}>
+            <colgroup>
+              <col />
+              <col style={{ width: 150 }} />
+              <col style={{ width: 140 }} />
+              <col style={{ width: 112 }} />
+              <col style={{ width: 170 }} />
+            </colgroup>
             <thead>
               <tr>
-                {["Atividade", "Responsável", "Data Prevista", "Prevista de Conclusão", "Data Realizada", "Status", "Observações"].map(c => (
+                {["Atividade", "Responsável", "Datas", "Status", "Observações"].map(c => (
                   <th key={c} style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: 1, color: F.gray4, padding: "10px 10px", textAlign: "left", borderBottom: `1.5px solid ${F.gray6}`, fontFamily: "'Barlow Condensed',sans-serif", whiteSpace: "nowrap" }}>{c}</th>
                 ))}
               </tr>
@@ -676,7 +686,7 @@ function CronogramaAuditoria({ dados, usuarios, auditorias, podeEditar, onChange
                 const feitos = g.itens.filter(i => doMes[i.id]?.realizada).length;
                 return [
                   <tr key={g.cat}>
-                    <td colSpan={7} style={{ background: F.charcoal, color: "#fff", padding: "7px 10px", fontFamily: "'Barlow Condensed',sans-serif", fontSize: 13, fontWeight: 800, textTransform: "uppercase", letterSpacing: 0.5 }}>
+                    <td colSpan={5} style={{ background: F.charcoal, color: "#fff", padding: "7px 10px", fontFamily: "'Barlow Condensed',sans-serif", fontSize: 13, fontWeight: 800, textTransform: "uppercase", letterSpacing: 0.5 }}>
                       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
                         <span>{g.cat} <span style={{ color: F.gray5, fontWeight: 600, marginLeft: 6 }}>{feitos}/{g.itens.length}</span></span>
                         {onAuditar && (
@@ -691,11 +701,11 @@ function CronogramaAuditoria({ dados, usuarios, auditorias, podeEditar, onChange
                     const set = (campo, valor) => onChange(mes, item.id, campo, valor);
                     return (
                       <tr key={item.id} style={{ borderBottom: `1px solid ${F.gray6}` }}>
-                        <td style={{ padding: "8px 10px", fontSize: 12.5, color: F.charcoal, lineHeight: 1.45, minWidth: 320 }}>
+                        <td style={{ padding: "8px 10px", fontSize: 12.5, color: F.charcoal, lineHeight: 1.45, overflowWrap: "anywhere", verticalAlign: "top" }}>
                           {item.texto}
                           <DetalheAtividade item={item} />
                         </td>
-                        <td style={{ padding: "8px 6px", width: 160 }}>
+                        <td style={{ padding: "8px 6px", verticalAlign: "top" }}>
                           {podeEditar ? (
                             <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
                               <select style={inp} value={r.responsavelId || ""} onChange={e => set("responsavelId", e.target.value)}>
@@ -703,28 +713,23 @@ function CronogramaAuditoria({ dados, usuarios, auditorias, podeEditar, onChange
                                 {responsaveis.filter(u => u.id !== r.responsavel2Id).map(u => <option key={u.id} value={u.id}>{u.nome}</option>)}
                               </select>
                               <select style={{ ...inp, color: r.responsavel2Id ? F.charcoal : F.gray4 }} value={r.responsavel2Id || ""} onChange={e => set("responsavel2Id", e.target.value)}>
-                                <option value="">+ 2º responsável</option>
+                                <option value="">+ 2º resp.</option>
                                 {responsaveis.filter(u => u.id !== r.responsavelId).map(u => <option key={u.id} value={u.id}>{u.nome}</option>)}
                               </select>
                             </div>
                           ) : <span style={{ fontSize: 12.5, color: F.gray3 }}>{[r.responsavelId, r.responsavel2Id].map(id => usuarios.find(u => u.id === id)?.nome).filter(Boolean).join(" e ") || "—"}</span>}
                         </td>
-                        <td style={{ padding: "8px 6px", width: 140 }}>
-                          {podeEditar
-                            ? <input type="date" style={inp} value={r.prevista || ""} onChange={e => set("prevista", e.target.value)} />
-                            : <span style={{ fontSize: 12.5 }}>{r.prevista ? fmtDate(r.prevista) : "—"}</span>}
+                        <td style={{ padding: "8px 6px", verticalAlign: "top" }}>
+                          {[["prevista", "Prevista"], ["previstaConclusao", "Conclusão prevista"], ["realizada", "Realizada"]].map(([campo, rotulo]) => (
+                            <div key={campo} style={{ marginBottom: 4 }}>
+                              <div style={{ fontSize: 9.5, fontWeight: 700, color: F.gray4, textTransform: "uppercase", letterSpacing: 0.5, fontFamily: "'Barlow Condensed',sans-serif" }}>{rotulo}</div>
+                              {podeEditar
+                                ? <input type="date" style={{ ...inp, padding: "3px 6px" }} value={r[campo] || ""} min={campo === "previstaConclusao" ? r.prevista || undefined : undefined} onChange={e => set(campo, e.target.value)} />
+                                : <span style={{ fontSize: 12.5 }}>{r[campo] ? fmtDate(r[campo]) : "—"}</span>}
+                            </div>
+                          ))}
                         </td>
-                        <td style={{ padding: "8px 6px", width: 140 }}>
-                          {podeEditar
-                            ? <input type="date" style={inp} value={r.previstaConclusao || ""} min={r.prevista || undefined} onChange={e => set("previstaConclusao", e.target.value)} />
-                            : <span style={{ fontSize: 12.5 }}>{r.previstaConclusao ? fmtDate(r.previstaConclusao) : "—"}</span>}
-                        </td>
-                        <td style={{ padding: "8px 6px", width: 140 }}>
-                          {podeEditar
-                            ? <input type="date" style={inp} value={r.realizada || ""} onChange={e => set("realizada", e.target.value)} />
-                            : <span style={{ fontSize: 12.5 }}>{r.realizada ? fmtDate(r.realizada) : "—"}</span>}
-                        </td>
-                        <td style={{ padding: "8px 6px", width: 130 }}>
+                        <td style={{ padding: "8px 6px", verticalAlign: "top" }}>
                           <Tag color={st.cor} bg={st.bg}>{st.label}</Tag>
                           {r.auditoriaId && (() => {
                             const aud = (auditorias || []).find(a => a.id === r.auditoriaId);
@@ -732,10 +737,10 @@ function CronogramaAuditoria({ dados, usuarios, auditorias, podeEditar, onChange
                             return <div style={{ fontSize: 10.5, color: res?.[1] || F.gray4, fontWeight: 700, marginTop: 4 }} title={aud ? `Auditoria de ${fmtDate(aud.data)} · ${aud.auditorNome}` : "Auditoria removida"}>◎ {res?.[0] || "Auditada"}</div>;
                           })()}
                         </td>
-                        <td style={{ padding: "8px 10px 8px 6px", minWidth: 180 }}>
+                        <td style={{ padding: "8px 10px 8px 6px", verticalAlign: "top" }}>
                           {podeEditar
-                            ? <input style={inp} value={r.obs || ""} onChange={e => set("obs", e.target.value)} placeholder="Observação..." />
-                            : <span style={{ fontSize: 12.5, color: F.gray3 }}>{r.obs || "—"}</span>}
+                            ? <textarea style={{ ...inp, resize: "vertical", minHeight: 64, lineHeight: 1.4 }} value={r.obs || ""} onChange={e => set("obs", e.target.value)} placeholder="Observação..." />
+                            : <span style={{ fontSize: 12.5, color: F.gray3, overflowWrap: "anywhere" }}>{r.obs || "—"}</span>}
                         </td>
                       </tr>
                     );
@@ -947,7 +952,10 @@ function useBancoCompartilhado(db, setDb) {
 // MAIN APP
 // ══════════════════════════════════════════════════════════════════
 export default function App() {
-  const [view, setView] = useState("dashboard");
+  const [view, setView] = useState(() => {
+    try { return sessionStorage.getItem("portal-fast-view") || "dashboard"; } catch { return "dashboard"; }
+  });
+  useEffect(() => { try { sessionStorage.setItem("portal-fast-view", view); } catch {} }, [view]);
   const [db, setDb] = useState(() => {
     try {
       const salvo = localStorage.getItem("portal-fast-db-v2");
