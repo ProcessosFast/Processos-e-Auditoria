@@ -498,7 +498,7 @@ function LoginScreen({ usuarios, carregando, onLogin }) {
 // Calendário de Auditoria Interna: os mesmos itens são verificados todo mês.
 // Ids fixos: as datas do cronograma e as auditorias ficam ligadas a eles,
 // então atividade nova ganha id novo e id de atividade removida não é reaproveitado.
-// Cada atividade: [id, ação, objetivo, controle interno, metodologia] — periodicidade mensal
+// Cada atividade: [id, ação, objetivo, controle interno, metodologia, periodicidade (padrão: Mensal)]
 const CRONOGRAMA_ITENS = [
   { id: "cat-1", cat: "Contas a pagar", itens: [
     ["c1-1", "Conferir relatório de contas a pagar e realizar comparativo com documentos fiscais", "Garantir que os lançamentos do sistema estejam em conformidade com os documentos fiscais", "Sistema e documentos fiscais", "Amostragem"],
@@ -559,10 +559,10 @@ const CRONOGRAMA_ITENS = [
   ]},
   { id: "cat-16", cat: "Fiscal", itens: [
     ["c16-1", "Validar se existem NFs que foram emitidas contra o CNPJ da Fast e não deram entrada no sistema", "Garantir que os documentos fiscais estejam registrados no sistema", "Sistema", "Todas as NFs emitidas sem entrada no sistema"],
-    ["c16-2", "Validar operações de triangulação", "Garantir a conformidade das operações", "Sistema", "Amostragem"],
+    ["c16-2", "Validar operações de triangulação", "Garantir a conformidade das operações", "Sistema", "Amostragem", "Diário"],
     ["c16-3", "Validar memória de cálculo dos impostos do mês", "Garantir a correta apuração e pagamento dos impostos", "Memória de cálculo X Guias", "Amostragem"],
   ]},
-].map(g => ({ ...g, itens: g.itens.map(([id, texto, objetivo, controle, metodologia]) => ({ id, texto, objetivo, controle, periodicidade: "Mensal", metodologia })) }));
+].map(g => ({ ...g, itens: g.itens.map(([id, texto, objetivo, controle, metodologia, periodicidade = "Mensal"]) => ({ id, texto, objetivo, controle, periodicidade, metodologia })) }));
 
 // As áreas auditáveis são as áreas do cronograma (substituem o cadastro de áreas)
 const AREAS_CRONOGRAMA = CRONOGRAMA_ITENS.map(g => ({ id: g.id, nome: g.cat }));
