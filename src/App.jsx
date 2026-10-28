@@ -857,8 +857,22 @@ function statusCronograma(r, hoje) {
 // Até três responsáveis por atividade
 const CAMPOS_RESPONSAVEL = ["responsavelId", "responsavel2Id", "responsavel3Id"];
 
+// Último mês coberto pelos ciclos (padrão: dez/2027)
+const ultimoMesCiclos = ciclos => (ciclos || []).reduce((max, c) => (c.fim || "").slice(0, 7) > max ? c.fim.slice(0, 7) : max, "2027-12");
+
+// Meses de "mes" até "ate" (inclusive), no formato AAAA-MM
+function mesesAte(mes, ate) {
+  const meses = [];
+  let [a, m] = mes.split("-").map(Number);
+  while (`${a}-${String(m).padStart(2, "0")}` <= ate && meses.length < 60) {
+    meses.push(`${a}-${String(m).padStart(2, "0")}`);
+    m++; if (m > 12) { m = 1; a++; }
+  }
+  return meses;
+}
+
 // somenteDe: id do auditor — mostra só as atividades em que ele é um dos responsáveis
-function CronogramaAuditoria({ dados, usuarios, auditorias, podeEditar, onChange, onAuditar, somenteDe, bonus }) {
+function CronogramaAuditoria({ dados, usuarios, auditorias, podeEditar, onChange, onAuditar, onRepetirResponsaveis, somenteDe, bonus }) {
   const GRUPOS = CRONOGRAMA_ITENS.map(g => ({ ...g, itens: g.itens.filter(i => i.bonus === !!bonus) })).filter(g => g.itens.length);
   const [mes, setMes] = useState(() => {
     try { return sessionStorage.getItem("portal-fast-mes-cronograma") || new Date().toISOString().slice(0, 7); } catch { return new Date().toISOString().slice(0, 7); }
@@ -913,6 +927,7 @@ function CronogramaAuditoria({ dados, usuarios, auditorias, podeEditar, onChange
             <option value="atrasado">Atrasado</option>
             <option value="realizado">Realizado</option>
           </select>
+          {podeEditar && !bonus && onRepetirResponsaveis && <Btn variant="ghost" onClick={() => onRepetirResponsaveis(mes)}>↻ Repetir responsáveis nos meses seguintes</Btn>}
           {!somenteDe && <select style={{ ...inp, width: "auto" }} value={filtroResp} onChange={e => setFiltroResp(e.target.value)}>
             <option value="">Todos os responsáveis</option>
             {responsaveis.map(u => <option key={u.id} value={u.id}>{u.nome}</option>)}
@@ -3351,10 +3366,33 @@ ${db.planos.length ? `<table>
                 } : null}
                 podeEditar={perfil === "administrador"}
                 onChange={(mes, itemId, campo, valor) => setDb(d => {
-                  const cron = d.cronograma || {};
-                  const doMes = cron[mes] || {};
-                  return { ...d, cronograma: { ...cron, [mes]: { ...doMes, [itemId]: { ...(doMes[itemId] || {}), [campo]: valor } } } };
+                  const cron = { ...(d.cronograma || {}) };
+                  // Responsável se repete nos meses seguintes, até o último ciclo; datas e observações valem só para o mês
+                  const meses = CAMPOS_RESPONSAVEL.includes(campo) ? mesesAte(mes, ultimoMesCiclos(d.ciclos)) : [mes];
+                  meses.forEach(mm => {
+                    const doMes = cron[mm] || {};
+                    cron[mm] = { ...doMes, [itemId]: { ...(doMes[itemId] || {}), [campo]: valor } };
+                  });
+                  return { ...d, cronograma: cron };
                 })}
+                onRepetirResponsaveis={mes => {
+                  if (!window.confirm("Repetir os responsáveis de todas as atividades deste mês em todos os meses seguintes? Os responsáveis já definidos nos meses seguintes serão substituídos.")) return;
+                  setDb(d => {
+                    const cron = { ...(d.cronograma || {}) };
+                    const base = cron[mes] || {};
+                    mesesAte(mes, ultimoMesCiclos(d.ciclos)).slice(1).forEach(mm => {
+                      const doMes = { ...(cron[mm] || {}) };
+                      Object.entries(base).forEach(([itemId, r]) => {
+                        if (!CAMPOS_RESPONSAVEL.some(c => r[c])) return;
+                        const resp = Object.fromEntries(CAMPOS_RESPONSAVEL.map(c => [c, r[c] || ""]));
+                        doMes[itemId] = { ...(doMes[itemId] || {}), ...resp };
+                      });
+                      cron[mm] = doMes;
+                    });
+                    return { ...d, cronograma: cron };
+                  });
+                  showToast("Responsáveis repetidos nos meses seguintes!");
+                }}
               />
             )}
 
