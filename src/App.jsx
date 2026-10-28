@@ -1033,17 +1033,18 @@ const USUARIOS_PADRAO = [
   { id: "u-thauan-simas", nome: "Thauan Simas", ini: "TS", email: "thauan.simas@cscempresarial.com.br", perfil: "auditor", areaId: "", areaNome: "—" },
   { id: "u-arthur-villarge", nome: "Arthur Villarge", ini: "AV", email: "arthur.villarde@cscempresarial.onmicrosoft.com", perfil: "auditor", areaId: "", areaNome: "—" },
   { id: "u-gilberto", nome: "Gilberto", ini: "GI", email: "", perfil: "administrador", areaId: "", areaNome: "—" },
-  { id: "u-guilherme", nome: "Guilherme", ini: "GU", email: "", perfil: "administrador", areaId: "", areaNome: "—" },
+  { id: "u-guilherme", nome: "Guilherme", ini: "GU", email: "guilherme@fastdrywall.onmicrosoft.com", perfil: "administrador", areaId: "", areaNome: "—" },
   { id: "u-area-processos", nome: "Área de Processos", ini: "AP", email: "processos@fastdrywall.com.br", perfil: "area-processos", areaId: "", areaNome: "—" },
   { id: "u-gestor", nome: "Gestor da Área", ini: "GA", email: "gestor@fastdrywall.com.br", perfil: "gestor", areaId: "", areaNome: "—" },
 ];
 
-const EMAILS_AUDITORES = {
+const EMAILS_USUARIOS = {
   "u-thauan-simas": "thauan.simas@cscempresarial.com.br",
   "u-gustavo-silva": "gustavo.silva@cscempresarial.com.br",
   "u-julianna-vianna": "juliana.viana@cscempresarial.com.br",
   "u-arthur-villarge": "arthur.villarde@cscempresarial.onmicrosoft.com",
   "u-rodrigo-monsores": "rodrigo.monsores@cscempresarial.com.br",
+  "u-guilherme": "guilherme@fastdrywall.onmicrosoft.com",
 };
 // Completa campos que faltam e restaura usuários e ciclos padrão
 function normalizarDb(dados) {
@@ -1054,7 +1055,7 @@ function normalizarDb(dados) {
     .map(({ senhaHash, trocarSenha, ...u }) => u.perfil === "auditor-lider" ? { ...u, perfil: "auditor" } : u)
     // Gilberto e Guilherme entraram como auditores e passaram a administradores
     .map(u => ["u-gilberto", "u-guilherme"].includes(u.id) && u.perfil === "auditor" ? { ...u, perfil: "administrador" } : u)
-    .map(u => !u.email && EMAILS_AUDITORES[u.id] ? { ...u, email: EMAILS_AUDITORES[u.id] } : u);
+    .map(u => !u.email && EMAILS_USUARIOS[u.id] ? { ...u, email: EMAILS_USUARIOS[u.id] } : u);
   base.planos = base.planos.map(({ aguardaComite, elaborado, ...p }) => aguardaComite ? { ...p, aprovacao: "pendente" } : p);
   USUARIOS_PADRAO.forEach(u => {
     if (!base.usuarios.find(x => x.id === u.id)) base.usuarios = [...base.usuarios, u];
