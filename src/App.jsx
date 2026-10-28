@@ -856,7 +856,10 @@ function statusCronograma(r, hoje) {
   return { key: "sem-data", label: "Sem data", cor: F.gray4, bg: F.gray6 };
 }
 
-// somenteDe: id do auditor — mostra só as atividades em que ele é 1º ou 2º responsável
+// Até três responsáveis por atividade
+const CAMPOS_RESPONSAVEL = ["responsavelId", "responsavel2Id", "responsavel3Id"];
+
+// somenteDe: id do auditor — mostra só as atividades em que ele é um dos responsáveis
 function CronogramaAuditoria({ dados, usuarios, auditorias, podeEditar, onChange, onAuditar, somenteDe }) {
   const [mes, setMes] = useState(() => {
     try { return sessionStorage.getItem("portal-fast-mes-cronograma") || new Date().toISOString().slice(0, 7); } catch { return new Date().toISOString().slice(0, 7); }
@@ -874,7 +877,7 @@ function CronogramaAuditoria({ dados, usuarios, auditorias, podeEditar, onChange
     setMes(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`);
   }
 
-  const ehMinha = item => !somenteDe || doMes[item.id]?.responsavelId === somenteDe || doMes[item.id]?.responsavel2Id === somenteDe;
+  const ehMinha = item => !somenteDe || CAMPOS_RESPONSAVEL.some(c => doMes[item.id]?.[c] === somenteDe);
   const todos = CRONOGRAMA_ITENS.flatMap(g => g.itens.filter(ehMinha).map(i => statusCronograma(doMes[i.id], hoje).key));
   const cont = k => todos.filter(x => x === k).length;
   const pct = todos.length ? Math.round(cont("realizado") / todos.length * 100) : 0;
@@ -883,7 +886,7 @@ function CronogramaAuditoria({ dados, usuarios, auditorias, podeEditar, onChange
     const r = doMes[item.id];
     if (!ehMinha(item)) return false;
     if (filtroStatus && statusCronograma(r, hoje).key !== filtroStatus) return false;
-    if (filtroResp && r?.responsavelId !== filtroResp && r?.responsavel2Id !== filtroResp) return false;
+    if (filtroResp && !CAMPOS_RESPONSAVEL.some(c => r?.[c] === filtroResp)) return false;
     return true;
   };
 
@@ -966,16 +969,14 @@ function CronogramaAuditoria({ dados, usuarios, auditorias, podeEditar, onChange
                         <td style={{ padding: "8px 6px", verticalAlign: "top" }}>
                           {podeEditar ? (
                             <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                              <select style={inp} value={r.responsavelId || ""} onChange={e => set("responsavelId", e.target.value)}>
-                                <option value="">—</option>
-                                {responsaveis.filter(u => u.id !== r.responsavel2Id).map(u => <option key={u.id} value={u.id}>{u.nome}</option>)}
-                              </select>
-                              <select style={{ ...inp, color: r.responsavel2Id ? F.charcoal : F.gray4 }} value={r.responsavel2Id || ""} onChange={e => set("responsavel2Id", e.target.value)}>
-                                <option value="">+ 2º resp.</option>
-                                {responsaveis.filter(u => u.id !== r.responsavelId).map(u => <option key={u.id} value={u.id}>{u.nome}</option>)}
-                              </select>
+                              {CAMPOS_RESPONSAVEL.map((campo, n) => (
+                                <select key={campo} style={{ ...inp, color: n === 0 || r[campo] ? F.charcoal : F.gray4 }} value={r[campo] || ""} onChange={e => set(campo, e.target.value)}>
+                                  <option value="">{n === 0 ? "—" : `+ ${n + 1}º resp.`}</option>
+                                  {responsaveis.filter(u => !CAMPOS_RESPONSAVEL.some(c => c !== campo && r[c] === u.id)).map(u => <option key={u.id} value={u.id}>{u.nome}</option>)}
+                                </select>
+                              ))}
                             </div>
-                          ) : <span style={{ fontSize: 12.5, color: F.gray3 }}>{[r.responsavelId, r.responsavel2Id].map(id => usuarios.find(u => u.id === id)?.nome).filter(Boolean).join(" e ") || "—"}</span>}
+                          ) : <span style={{ fontSize: 12.5, color: F.gray3 }}>{CAMPOS_RESPONSAVEL.map(c => usuarios.find(u => u.id === r[c])?.nome).filter(Boolean).join(", ") || "—"}</span>}
                         </td>
                         <td style={{ padding: "8px 6px", verticalAlign: "top" }}>
                           {[["prevista", "Prevista"], ["previstaConclusao", "Conclusão prevista"], ["realizada", "Realizada"]].map(([campo, rotulo]) => (
