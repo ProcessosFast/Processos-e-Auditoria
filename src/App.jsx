@@ -110,12 +110,12 @@ function scoreAreaCiclo(areaId, auditorias) {
 // ── PERMISSÕES ───────────────────────────────────────────────────
 const PERMISSOES = {
   administrador: {
-    views: ["dashboard","cronograma","auditorias","relatorio-conclusao","planos","elaborar","ncs","ciclos","usuarios"],
-    acoes: new Set(["criar","excluir","aprovar","exportar","auditar","atualizar-status","gerir-ciclos","comentar-auditoria","relatorio-final","elaborar-plano"])
+    views: ["dashboard","cronograma","auditorias","relatorio-conclusao","planos","ncs","ciclos","usuarios"],
+    acoes: new Set(["criar","excluir","aprovar","exportar","auditar","atualizar-status","gerir-ciclos","comentar-auditoria","relatorio-final"])
   },
   "area-processos": {
-    views: ["dashboard","cronograma","auditorias","relatorio-conclusao","planos","elaborar","ncs","ciclos","usuarios"],
-    acoes: new Set(["criar","excluir","aprovar","exportar","atualizar-status","gerir-ciclos","elaborar-plano"])
+    views: ["dashboard","cronograma","auditorias","relatorio-conclusao","planos","ncs","ciclos","usuarios"],
+    acoes: new Set(["criar","excluir","aprovar","exportar","atualizar-status","gerir-ciclos"])
   },
   auditor: {
     views: ["dashboard","cronograma","auditorias","relatorio-conclusao","consolidar","planos","ncs","ciclos"],
@@ -754,8 +754,8 @@ const USUARIOS_PADRAO = [
   { id: "u-rodrigo-monsores", nome: "Rodrigo Monsores", ini: "RM", email: "", perfil: "auditor", areaId: "", areaNome: "—" },
   { id: "u-thauan-simas", nome: "Thauan Simas", ini: "TS", email: "", perfil: "auditor", areaId: "", areaNome: "—" },
   { id: "u-arthur-villarge", nome: "Arthur Villarge", ini: "AV", email: "", perfil: "auditor", areaId: "", areaNome: "—" },
-  { id: "u-gilberto", nome: "Gilberto", ini: "GI", email: "", perfil: "auditor", areaId: "", areaNome: "—" },
-  { id: "u-guilherme", nome: "Guilherme", ini: "GU", email: "", perfil: "auditor", areaId: "", areaNome: "—" },
+  { id: "u-gilberto", nome: "Gilberto", ini: "GI", email: "", perfil: "administrador", areaId: "", areaNome: "—" },
+  { id: "u-guilherme", nome: "Guilherme", ini: "GU", email: "", perfil: "administrador", areaId: "", areaNome: "—" },
   { id: "u-area-processos", nome: "Área de Processos", ini: "AP", email: "processos@fastdrywall.com.br", perfil: "area-processos", areaId: "", areaNome: "—" },
   { id: "u-gestor", nome: "Gestor da Área", ini: "GA", email: "gestor@fastdrywall.com.br", perfil: "gestor", areaId: "", areaNome: "—" },
 ];
@@ -766,7 +766,10 @@ function normalizarDb(dados) {
   // Perfil "auditor-lider" foi unificado em "auditor"; login é só por e-mail
   base.usuarios = base.usuarios
     .filter(u => !["u-auditor-lider", "u-comite", "u-auditor"].includes(u.id))
-    .map(({ senhaHash, trocarSenha, ...u }) => u.perfil === "auditor-lider" ? { ...u, perfil: "auditor" } : u);
+    .map(({ senhaHash, trocarSenha, ...u }) => u.perfil === "auditor-lider" ? { ...u, perfil: "auditor" } : u)
+    // Gilberto e Guilherme entraram como auditores e passaram a administradores
+    .map(u => ["u-gilberto", "u-guilherme"].includes(u.id) && u.perfil === "auditor" ? { ...u, perfil: "administrador" } : u);
+  base.planos = base.planos.map(({ aguardaComite, elaborado, ...p }) => aguardaComite ? { ...p, aprovacao: "pendente" } : p);
   USUARIOS_PADRAO.forEach(u => {
     if (!base.usuarios.find(x => x.id === u.id)) base.usuarios = [...base.usuarios, u];
   });
@@ -1210,8 +1213,8 @@ ${db.planos.length ? `<table>
 
   // ── DADOS FILTRADOS POR PERFIL ──
   const planosVisiveis = perfil === "gestor"
-    ? db.planos.filter(p => p.areaId === usuarioLogado.areaId && !p.aguardaComite)
-    : db.planos.filter(p => !p.aguardaComite);
+    ? db.planos.filter(p => p.areaId === usuarioLogado.areaId)
+    : db.planos;
   const auditoriasVisiveis = perfil === "gestor"
     ? db.auditorias.filter(a => a.areaId === usuarioLogado.areaId)
     : db.auditorias;
@@ -1379,21 +1382,6 @@ ${db.planos.length ? `<table>
     showToast("Relatório final enviado ao administrador!");
   }
 
-  function salvarElaboracao(planoId, campos) {
-    upd("planos", arr => arr.map(p => p.id === planoId ? { ...p, ...campos, elaborado: !!(campos.desc?.trim() && campos.prazo && campos.respId && campos.causaRaiz) } : p));
-  }
-
-  function enviarParaAprovacao(planoId) {
-    const plano = db.planos.find(p => p.id === planoId);
-    if (!plano) return;
-    const evt = { data: new Date().toISOString(), acao: "Enviado para aprovação", autor: usuarioLogado?.nome || "Sistema" };
-    upd("planos", arr => arr.map(p => p.id === planoId ? { ...p, aguardaComite: false, aprovacao: "pendente", historico: [...(p.historico || []), evt] } : p));
-    db.usuarios.filter(u => u.perfil === "administrador").forEach(u => {
-      enviarNotificacao(u.id, "Plano de Ação aguardando aprovação", `Plano: "${plano.desc?.slice(0, 60)}"`, "aprovacao", { planoId, areaNome: plano.areaNome });
-    });
-    showToast("Plano enviado para aprovação!");
-  }
-
   function aprovarExtensao(id) {
     const evt = { data: new Date().toISOString(), acao: "Extensão de prazo aprovada", autor: usuarioLogado?.nome || "Sistema" };
     upd("planos", arr => arr.map(p => p.id === id && p.extensao ? { ...p, prazo: p.extensao.novoPrazo, extensao: { ...p.extensao, status: "aprovada", aprovadoPor: usuarioLogado?.nome || "—", aprovadoEm: new Date().toISOString() }, historico: [...(p.historico || []), evt] } : p));
@@ -1440,7 +1428,7 @@ ${db.planos.length ? `<table>
         prio: i.clas === "nc" ? "high" : i.clas === "mel" ? "mid" : "low",
         prazo: prazo.toISOString().split("T")[0], clas: i.clas || "obs",
         causaRaiz: i.causaRaiz || "",
-        auditoriaId: audId, aguardaComite: true,
+        auditoriaId: audId,
       }, true);
     });
 
@@ -1487,7 +1475,6 @@ ${db.planos.length ? `<table>
     { id: "auditorias", icon: "◎", label: "Auditorias", badge: auditoriasVisiveis.filter(a => a.status === "aberta").length },
     { id: "consolidar", icon: "⊕", label: "Consolidar Auditorias", badge: (() => { const pares = {}; db.auditorias.forEach(a => { if (a.cicloNome && a.cicloNome !== "—") { const k = `${a.areaId}-${a.cicloNome}`; pares[k] = (pares[k] || 0) + 1; } }); return Object.values(pares).filter(v => v >= 2).length; })() || 0 },
     { id: "relatorio-conclusao", icon: "📋", label: "Relatório de Conclusão", section: "Melhoria" },
-    { id: "elaborar", icon: "✍", label: "Elaborar Plano de Ação", badge: db.planos.filter(p => p.aguardaComite && !p.elaborado).length || 0 },
     { id: "planos", icon: "◷", label: "Planos de Ação", badge: planosPendAprov.length || planosAtrasados.length },
     { id: "ncs", icon: "⚑", label: "Não Conformidades" },
     { id: "ciclos", icon: "◈", label: "Ciclos", section: "Gestão" },
@@ -1809,11 +1796,8 @@ ${db.planos.length ? `<table>
                 { id: "auditoria",    label: "Auditoria",         icon: "◎", cor: F.red,    perfisResponsaveis: ["auditor","administrador"],
                   itens: db.auditorias.filter(a => !a.relatorioFinal?.status).map(a => ({ titulo: a.areaNome, sub: `Score: ${a.score}% · ${fmtDate(a.data)}`, id: a.id })),
                   acaoPerfis: ["auditor","administrador"], acao: "Elaborar relatório final" },
-                { id: "elaborar",     label: "Elaborar Planos",   icon: "✍", cor: "#FF6B35", perfisResponsaveis: ["administrador"],
-                  itens: db.planos.filter(p => p.aguardaComite).map(p => ({ titulo: p.desc?.slice(0,40) + (p.desc?.length > 40 ? "…" : ""), sub: p.areaNome, id: p.id })),
-                  acaoPerfis: ["administrador"], acao: "Elaborar e enviar para aprovação" },
                 { id: "aprovacao",    label: "Aprovação",         icon: "✓", cor: F.green,  perfisResponsaveis: ["administrador"],
-                  itens: db.planos.filter(p => p.aprovacao === "pendente" && !p.aguardaComite).map(p => ({ titulo: p.desc?.slice(0,40) + (p.desc?.length > 40 ? "…" : ""), sub: p.areaNome, id: p.id })),
+                  itens: db.planos.filter(p => p.aprovacao === "pendente").map(p => ({ titulo: p.desc?.slice(0,40) + (p.desc?.length > 40 ? "…" : ""), sub: p.areaNome, id: p.id })),
                   acaoPerfis: ["administrador"], acao: "Aprovar ou rejeitar plano" },
                 { id: "execucao",     label: "Execução",          icon: "◷", cor: F.blue,   perfisResponsaveis: ["gestor"],
                   itens: planosAprovados.filter(p => p.status !== "concluido").map(p => ({ titulo: p.desc?.slice(0,40) + (p.desc?.length > 40 ? "…" : ""), sub: `${p.areaNome} · ${fmtDate(p.prazo)}`, id: p.id })),
@@ -2699,110 +2683,6 @@ ${db.planos.length ? `<table>
             )}
 
             {/* ── ELABORAR PLANO DE AÇÃO ── */}
-            {view === "elaborar" && (() => {
-              const planosParaElaborar = db.planos.filter(p => p.aguardaComite);
-              return (
-                <div>
-                  {planosParaElaborar.length === 0 ? (
-                    <Card>
-                      <div style={{ textAlign: "center", padding: "48px 20px" }}>
-                        <div style={{ fontSize: 36, opacity: 0.15, marginBottom: 10 }}>✍</div>
-                        <div style={{ fontSize: 15, fontWeight: 700, color: F.gray3, marginBottom: 6 }}>Nenhum plano aguardando elaboração</div>
-                        <div style={{ fontSize: 13, color: F.gray4 }}>Os planos gerados por auditorias aparecerão aqui para elaboração.</div>
-                      </div>
-                    </Card>
-                  ) : (
-                    <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-                      <div style={{ fontSize: 12.5, color: F.gray3, background: F.blueDim, border: `1px solid ${F.blue}33`, borderRadius: 8, padding: "10px 14px", lineHeight: 1.7 }}>
-                        Elabore cada plano de ação com prazo e responsável definidos. Quando todos os campos estiverem preenchidos, o botão de envio para aprovação será liberado.
-                      </div>
-                      {planosParaElaborar.map(p => {
-                        const aud = db.auditorias.find(a => a.id === p.auditoriaId);
-                        const cmap = { nc: [F.red, F.redDim, "NC"], mel: [F.blue, F.blueDim, "Melhoria"], obs: [F.gray3, F.gray6, "Obs"] };
-                        const [cc, cbg, clbl] = cmap[p.clas] || [F.gray3, F.gray6, "—"];
-                        const completo = p.desc?.trim() && p.prazo && p.respId && p.causaRaiz;
-                        return (
-                          <Card key={p.id} style={{ border: `1.5px solid ${completo ? F.green : F.amber}` }}>
-                            {/* Cabeçalho */}
-                            <div style={{ display: "flex", alignItems: "flex-start", gap: 12, marginBottom: 16 }}>
-                              <Tag color={cc} bg={cbg}>{clbl}</Tag>
-                              <div style={{ flex: 1 }}>
-                                <div style={{ fontSize: 13.5, fontWeight: 700, color: F.charcoal, lineHeight: 1.4 }}>{p.desc}</div>
-                                {aud && <div style={{ fontSize: 11, color: F.gray4, marginTop: 3 }}>Auditoria: {aud.areaNome} · {fmtDate(aud.data)} · {aud.auditorNome}</div>}
-                                {p.causaRaiz && <div style={{ fontSize: 11, color: F.gray3, marginTop: 2 }}>Causa raiz: <strong>{p.causaRaiz}</strong></div>}
-                                {p.evidencia && <div style={{ fontSize: 11, color: F.gray3, marginTop: 2 }}>Evidência: {p.evidencia}</div>}
-                              </div>
-                              <div style={{ flexShrink: 0 }}>
-                                {completo
-                                  ? <Pill color={F.green} bg={F.greenDim}>Pronto para envio</Pill>
-                                  : <Pill color={F.amber} bg={F.amberDim}>Pendente</Pill>}
-                              </div>
-                            </div>
-
-                            {/* Formulário de elaboração */}
-                            <div style={{ background: F.offWhite, borderRadius: 8, padding: "14px 16px", display: "flex", flexDirection: "column", gap: 12 }}>
-                              <FG label="Descrição detalhada do plano de ação *">
-                                <textarea
-                                  style={{ ...fi, resize: "vertical", minHeight: 70, textTransform: "uppercase" }}
-                                  value={p.desc || ""}
-                                  onChange={e => salvarElaboracao(p.id, { desc: e.target.value })}
-                                  placeholder="Descreva detalhadamente o plano de ação..."
-                                />
-                              </FG>
-                              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-                                <FG label="Responsável *">
-                                  <select style={{ ...fi, borderColor: !p.respId ? F.amber : F.gray6 }} value={p.respId || ""} onChange={e => { const u = db.usuarios.find(x => x.id === e.target.value); salvarElaboracao(p.id, { respId: u?.id || "", respNome: u?.nome || "" }); }}>
-                                    <option value="">Selecione o responsável...</option>
-                                    {db.usuarios.map(u => <option key={u.id} value={u.id}>{u.nome}</option>)}
-                                  </select>
-                                </FG>
-                                <FG label="Prazo *">
-                                  <input type="date" style={{ ...fi, borderColor: !p.prazo ? F.amber : F.gray6 }} value={p.prazo || ""} onChange={e => salvarElaboracao(p.id, { prazo: e.target.value })} />
-                                </FG>
-                              </div>
-                              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-                                <FG label="Causa Raiz *">
-                                  <select style={{ ...fi, borderColor: !p.causaRaiz ? F.amber : F.gray6 }} value={p.causaRaiz || ""} onChange={e => salvarElaboracao(p.id, { causaRaiz: e.target.value })}>
-                                    <option value="">Selecione a causa raiz...</option>
-                                    {CAUSAS_RAIZ.map(cr => <option key={cr} value={cr}>{cr}</option>)}
-                                  </select>
-                                </FG>
-                                <FG label="Prioridade">
-                                  <select style={fi} value={p.prio || "high"} onChange={e => salvarElaboracao(p.id, { prio: e.target.value })}>
-                                    <option value="high">Alta</option>
-                                    <option value="mid">Média</option>
-                                    <option value="low">Baixa</option>
-                                  </select>
-                                </FG>
-                              </div>
-                            </div>
-
-                            {/* Botão de envio */}
-                            <div style={{ marginTop: 14, display: "flex", justifyContent: "flex-end" }}>
-                              <button
-                                onClick={() => completo && enviarParaAprovacao(p.id)}
-                                disabled={!completo}
-                                style={{
-                                  background: completo ? F.green : F.gray6,
-                                  color: completo ? "#fff" : F.gray4,
-                                  border: "none", borderRadius: 8, padding: "10px 20px",
-                                  fontSize: 13, fontWeight: 700, cursor: completo ? "pointer" : "not-allowed",
-                                  fontFamily: "'Barlow',sans-serif", transition: "all 0.2s",
-                                  display: "flex", alignItems: "center", gap: 8
-                                }}
-                              >
-                                {completo ? "✓ Enviar para Aprovação" : "⏳ Preencha todos os campos para enviar"}
-                              </button>
-                            </div>
-                          </Card>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-              );
-            })()}
-
             {/* ── PLANOS ── */}
             {view === "planos" && (
               <div>
