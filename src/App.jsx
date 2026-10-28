@@ -569,11 +569,11 @@ const CRONOGRAMA_ITENS = [
     ["c16-3", "Validar memória de cálculo dos impostos do mês", "Garantir a correta apuração e pagamento dos impostos", "Memória de cálculo X Guias", "Amostragem"],
   ]},
   { id: "cat-17", cat: "Auditoria de Fretes", itens: [
-    ["c17-1", "Fretes Log solicitados x chamados - Realizados", "", "", ""],
-    ["c17-2", "Unidade e Centro de Custo preenchidos", "", "", ""],
-    ["c17-3", "Valores Cobrados x Margem Calculada", "", "", ""],
-    ["c17-4", "Documentos de Margem Aprovados", "", "", ""],
-    ["c17-5", "Chamados de Fretes Abertos no Sults", "", "", ""],
+    ["c17-1", "Fretes Log solicitados x chamados - Realizados", "", "", "Totalidade", "Diário"],
+    ["c17-2", "Unidade e Centro de Custo preenchidos", "", "", "Totalidade", "Diário"],
+    ["c17-3", "Valores Cobrados x Margem Calculada", "", "", "Totalidade", "Diário"],
+    ["c17-4", "Documentos de Margem Aprovados", "", "", "Totalidade", "Diário"],
+    ["c17-5", "Chamados de Fretes Abertos no Sults", "", "", "Totalidade", "Diário"],
   ]},
 ].map(g => ({ ...g, itens: g.itens.map(([id, texto, objetivo, controle, metodologia, periodicidade = "Mensal"]) => ({ id, texto, objetivo, controle, periodicidade, metodologia })) }));
 
@@ -835,7 +835,7 @@ function AuditoriasDoMes({ auditorias, semanais = [], podeElaborar, onSalvarSema
 }
 
 function DetalheAtividade({ item }) {
-  if (!item.objetivo) return null;
+  if (!item.objetivo && !item.controle && !item.metodologia) return null;
   const campos = [["Objetivo", item.objetivo], ["Controle interno", item.controle], ["Periodicidade", item.periodicidade], ["Metodologia", item.metodologia]].filter(c => c[1]);
   return (
     <div style={{ fontSize: 11, color: F.gray4, lineHeight: 1.5, marginTop: 4 }}>
