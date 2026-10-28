@@ -907,6 +907,98 @@ function CronogramaAuditoria({ dados, usuarios, auditorias, podeEditar, onChange
   const inp = { ...fi, padding: "5px 8px", fontSize: 12.5 };
   const navBtn = { background: "#fff", border: `1.5px solid ${F.gray6}`, borderRadius: 6, width: 32, height: 32, cursor: "pointer", fontSize: 15, color: F.gray3 };
 
+  // Ordem por data: as atividades seguem a data prevista (sem data vão para o fim).
+  // A ordem só é refeita ao sair do campo de data, para a linha não pular enquanto se digita.
+  const [modo, setModo] = useState("data");
+  const [versaoOrdem, setVersaoOrdem] = useState(0);
+  const dataDe = i => doMes[i.id]?.prevista || doMes[i.id]?.previstaConclusao || "";
+  const assinatura = podeEditar ? "" : GRUPOS.flatMap(g => g.itens.map(dataDe)).join(",");
+  const chaveOrdem = `${folha}|${versaoOrdem}|${assinatura}`;
+  const ordemRef = useRef({ chave: null, lista: [] });
+  if (ordemRef.current.chave !== chaveOrdem) {
+    const lista = GRUPOS.flatMap((g, gi) => g.itens.map((item, ii) => ({ item, g, data: dataDe(item), gi, ii })));
+    lista.sort((a, b) => (a.data || "9999").localeCompare(b.data || "9999") || a.gi - b.gi || a.ii - b.ii);
+    ordemRef.current = { chave: chaveOrdem, lista };
+  }
+  const reordenar = () => setVersaoOrdem(v => v + 1);
+  const rotuloDia = d => d ? `${new Date(d + "T00:00").toLocaleDateString("pt-BR", { weekday: "long" })}, ${fmtDate(d)}` : "Sem data programada";
+  const cabecalho = (chave, titulo, extra) => (
+    <tr key={chave}>
+      <td colSpan={5} style={{ background: F.charcoal, color: "#fff", padding: "7px 10px", fontFamily: "'Barlow Condensed',sans-serif", fontSize: 13, fontWeight: 800, textTransform: "uppercase", letterSpacing: 0.5 }}>
+        {titulo} <span style={{ color: F.gray5, fontWeight: 600, marginLeft: 6 }}>{extra}</span>
+      </td>
+    </tr>
+  );
+
+  const linha = (item, g, mostrarArea) => {
+    const r = doMes[item.id] || {};
+    const st = statusCronograma(r, hoje);
+    const set = (campo, valor) => onChange(folha, item.id, campo, valor);
+    return (
+      <tr key={item.id} style={{ borderBottom: `1px solid ${F.gray6}` }}>
+        <td style={{ padding: "8px 10px", fontSize: 12.5, color: F.charcoal, lineHeight: 1.45, overflowWrap: "anywhere", verticalAlign: "top" }}>
+          {mostrarArea && <div style={{ marginBottom: 4 }}><Tag>{g.cat}</Tag></div>}
+          {item.texto}
+          <DetalheAtividade item={item} />
+        </td>
+        <td style={{ padding: "8px 6px", verticalAlign: "top" }}>
+          {podeEditar ? (
+            <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+              {CAMPOS_RESPONSAVEL.map((campo, n) => (
+                <select key={campo} style={{ ...inp, color: n === 0 || r[campo] ? F.charcoal : F.gray4 }} value={r[campo] || ""} onChange={e => set(campo, e.target.value)}>
+                  <option value="">{n === 0 ? "—" : `+ ${n + 1}º resp.`}</option>
+                  {responsaveis.filter(u => !CAMPOS_RESPONSAVEL.some(c => c !== campo && r[c] === u.id)).map(u => <option key={u.id} value={u.id}>{u.nome}</option>)}
+                </select>
+              ))}
+            </div>
+          ) : <span style={{ fontSize: 12.5, color: F.gray3 }}>{CAMPOS_RESPONSAVEL.map(c => usuarios.find(u => u.id === r[c])?.nome).filter(Boolean).join(", ") || "—"}</span>}
+        </td>
+        <td style={{ padding: "8px 6px", verticalAlign: "top" }}>
+          {[["prevista", "Prevista"], ["previstaConclusao", "Conclusão prevista"], ["realizada", "Realizada"]].map(([campo, rotulo]) => (
+            <div key={campo} style={{ marginBottom: 4 }}>
+              <div style={{ fontSize: 9.5, fontWeight: 700, color: F.gray4, textTransform: "uppercase", letterSpacing: 0.5, fontFamily: "'Barlow Condensed',sans-serif" }}>{rotulo}</div>
+              {podeEditar
+                ? <input type="date" style={{ ...inp, padding: "3px 6px" }} value={r[campo] || ""} min={campo === "previstaConclusao" ? r.prevista || undefined : undefined} onChange={e => set(campo, e.target.value)} onBlur={campo === "realizada" ? undefined : reordenar} />
+                : <span style={{ fontSize: 12.5 }}>{r[campo] ? fmtDate(r[campo]) : "—"}</span>}
+            </div>
+          ))}
+        </td>
+        <td style={{ padding: "8px 6px", verticalAlign: "top" }}>
+          <Tag color={st.cor} bg={st.bg}>{st.label}</Tag>
+          {onAuditar && (
+            <button onClick={() => onAuditar(g.id, item.id, folha)} style={{ display: "block", marginTop: 6, background: F.red, color: "#fff", border: "none", borderRadius: 5, padding: "4px 10px", fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: "'Barlow',sans-serif", whiteSpace: "nowrap" }}>◎ Auditar</button>
+          )}
+          {r.auditoriaId && (() => {
+            const aud = (auditorias || []).find(a => a.id === r.auditoriaId);
+            const res = { ok: ["Conforme", F.green], nok: ["Não conforme", F.red], na: ["N/A", F.gray4] }[r.resultado];
+            return <div style={{ fontSize: 10.5, color: res?.[1] || F.gray4, fontWeight: 700, marginTop: 4 }} title={aud ? `Auditoria de ${fmtDate(aud.data)} · ${aud.auditorNome}` : "Auditoria removida"}>◎ {res?.[0] || "Auditada"}</div>;
+          })()}
+        </td>
+        <td style={{ padding: "8px 10px 8px 6px", verticalAlign: "top" }}>
+          {podeEditar
+            ? <textarea style={{ ...inp, resize: "vertical", minHeight: 64, lineHeight: 1.4 }} value={r.obs || ""} onChange={e => set("obs", e.target.value)} placeholder="Observação..." />
+            : <span style={{ fontSize: 12.5, color: F.gray3, overflowWrap: "anywhere" }}>{r.obs || "—"}</span>}
+        </td>
+      </tr>
+    );
+  };
+
+  // Linhas por data: um cabeçalho para cada dia, na ordem congelada
+  const linhasPorData = () => {
+    const visiveis = ordemRef.current.lista.filter(x => passaFiltro(x.item));
+    const out = [];
+    visiveis.forEach((x, i) => {
+      if (i === 0 || visiveis[i - 1].data !== x.data) {
+        const n = visiveis.filter(y => y.data === x.data).length;
+        out.push(cabecalho(`dia-${x.data || "sem"}`, rotuloDia(x.data), `${n} atividade${n !== 1 ? "s" : ""}`));
+      }
+      out.push(linha(x.item, x.g, true));
+    });
+    return out;
+  };
+
+  const btnModo = ativo => ({ padding: "5px 12px", borderRadius: 6, border: "none", fontSize: 11.5, fontWeight: 600, cursor: "pointer", fontFamily: "'Barlow',sans-serif", background: ativo ? F.red : F.offWhite, color: ativo ? "#fff" : F.gray3 });
+
   return (
     <div>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12, marginBottom: 16 }}>
@@ -919,7 +1011,11 @@ function CronogramaAuditoria({ dados, usuarios, auditorias, podeEditar, onChange
           </div>
           <button style={navBtn} onClick={() => mudarMes(1)} title="Próximo mês">›</button>
         </div>}
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+          <div style={{ display: "flex", gap: 4 }}>
+            <button style={btnModo(modo === "data")} onClick={() => { setModo("data"); reordenar(); }}>📅 Por data</button>
+            <button style={btnModo(modo === "area")} onClick={() => setModo("area")}>☰ Por área</button>
+          </div>
           <select style={{ ...inp, width: "auto" }} value={filtroStatus} onChange={e => setFiltroStatus(e.target.value)}>
             <option value="">Todos os status</option>
             <option value="sem-data">Sem data</option>
@@ -961,70 +1057,11 @@ function CronogramaAuditoria({ dados, usuarios, auditorias, podeEditar, onChange
               </tr>
             </thead>
             <tbody>
-              {GRUPOS.map(g => {
+              {modo === "data" ? linhasPorData() : GRUPOS.map(g => {
                 const itens = g.itens.filter(passaFiltro);
                 if (!itens.length) return null;
                 const feitos = g.itens.filter(i => doMes[i.id]?.realizada).length;
-                return [
-                  <tr key={g.cat}>
-                    <td colSpan={5} style={{ background: F.charcoal, color: "#fff", padding: "7px 10px", fontFamily: "'Barlow Condensed',sans-serif", fontSize: 13, fontWeight: 800, textTransform: "uppercase", letterSpacing: 0.5 }}>
-                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
-                        <span>{g.cat} <span style={{ color: F.gray5, fontWeight: 600, marginLeft: 6 }}>{feitos}/{g.itens.length}</span></span>
-                      </div>
-                    </td>
-                  </tr>,
-                  ...itens.map(item => {
-                    const r = doMes[item.id] || {};
-                    const st = statusCronograma(r, hoje);
-                    const set = (campo, valor) => onChange(folha, item.id, campo, valor);
-                    return (
-                      <tr key={item.id} style={{ borderBottom: `1px solid ${F.gray6}` }}>
-                        <td style={{ padding: "8px 10px", fontSize: 12.5, color: F.charcoal, lineHeight: 1.45, overflowWrap: "anywhere", verticalAlign: "top" }}>
-                          {item.texto}
-                          <DetalheAtividade item={item} />
-                        </td>
-                        <td style={{ padding: "8px 6px", verticalAlign: "top" }}>
-                          {podeEditar ? (
-                            <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                              {CAMPOS_RESPONSAVEL.map((campo, n) => (
-                                <select key={campo} style={{ ...inp, color: n === 0 || r[campo] ? F.charcoal : F.gray4 }} value={r[campo] || ""} onChange={e => set(campo, e.target.value)}>
-                                  <option value="">{n === 0 ? "—" : `+ ${n + 1}º resp.`}</option>
-                                  {responsaveis.filter(u => !CAMPOS_RESPONSAVEL.some(c => c !== campo && r[c] === u.id)).map(u => <option key={u.id} value={u.id}>{u.nome}</option>)}
-                                </select>
-                              ))}
-                            </div>
-                          ) : <span style={{ fontSize: 12.5, color: F.gray3 }}>{CAMPOS_RESPONSAVEL.map(c => usuarios.find(u => u.id === r[c])?.nome).filter(Boolean).join(", ") || "—"}</span>}
-                        </td>
-                        <td style={{ padding: "8px 6px", verticalAlign: "top" }}>
-                          {[["prevista", "Prevista"], ["previstaConclusao", "Conclusão prevista"], ["realizada", "Realizada"]].map(([campo, rotulo]) => (
-                            <div key={campo} style={{ marginBottom: 4 }}>
-                              <div style={{ fontSize: 9.5, fontWeight: 700, color: F.gray4, textTransform: "uppercase", letterSpacing: 0.5, fontFamily: "'Barlow Condensed',sans-serif" }}>{rotulo}</div>
-                              {podeEditar
-                                ? <input type="date" style={{ ...inp, padding: "3px 6px" }} value={r[campo] || ""} min={campo === "previstaConclusao" ? r.prevista || undefined : undefined} onChange={e => set(campo, e.target.value)} />
-                                : <span style={{ fontSize: 12.5 }}>{r[campo] ? fmtDate(r[campo]) : "—"}</span>}
-                            </div>
-                          ))}
-                        </td>
-                        <td style={{ padding: "8px 6px", verticalAlign: "top" }}>
-                          <Tag color={st.cor} bg={st.bg}>{st.label}</Tag>
-                          {onAuditar && (
-                            <button onClick={() => onAuditar(g.id, item.id, folha)} style={{ display: "block", marginTop: 6, background: F.red, color: "#fff", border: "none", borderRadius: 5, padding: "4px 10px", fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: "'Barlow',sans-serif", whiteSpace: "nowrap" }}>◎ Auditar</button>
-                          )}
-                          {r.auditoriaId && (() => {
-                            const aud = (auditorias || []).find(a => a.id === r.auditoriaId);
-                            const res = { ok: ["Conforme", F.green], nok: ["Não conforme", F.red], na: ["N/A", F.gray4] }[r.resultado];
-                            return <div style={{ fontSize: 10.5, color: res?.[1] || F.gray4, fontWeight: 700, marginTop: 4 }} title={aud ? `Auditoria de ${fmtDate(aud.data)} · ${aud.auditorNome}` : "Auditoria removida"}>◎ {res?.[0] || "Auditada"}</div>;
-                          })()}
-                        </td>
-                        <td style={{ padding: "8px 10px 8px 6px", verticalAlign: "top" }}>
-                          {podeEditar
-                            ? <textarea style={{ ...inp, resize: "vertical", minHeight: 64, lineHeight: 1.4 }} value={r.obs || ""} onChange={e => set("obs", e.target.value)} placeholder="Observação..." />
-                            : <span style={{ fontSize: 12.5, color: F.gray3, overflowWrap: "anywhere" }}>{r.obs || "—"}</span>}
-                        </td>
-                      </tr>
-                    );
-                  })
-                ];
+                return [cabecalho(g.cat, g.cat, `${feitos}/${g.itens.length}`), ...itens.map(item => linha(item, g, false))];
               })}
             </tbody>
           </table>
