@@ -80,6 +80,7 @@
   <a href="#perfis" data-perfis="todos">Perfis de Usuário</a>
   <a href="#dashboard" data-perfis="todos">Dashboard</a>
   <a href="#cronograma" data-perfis="administrador auditor">Cronograma de Auditoria</a>
+  <a href="#bonus" data-perfis="administrador auditor">Auditorias Bônus</a>
 
   <div class="nav-section" data-perfis="administrador">Cadastros</div>
   <a href="#ciclos" data-perfis="administrador auditor">Ciclos</a>
@@ -124,7 +125,7 @@
 
 <section id="cronograma" data-perfis="administrador auditor">
   <h1>Cronograma de Auditoria</h1>
-  <p>Calendário mensal de auditoria interna com todas as verificações por área (Contas a pagar, Contas a receber, Conciliação Bancária, Caixa, Faturamento, Departamento Pessoal, Qualificação de fornecedores, Compras, Vendas, Segurança da informação, Infraestrutura, Fiscal e Auditoria de Fretes). Cada atividade mostra objetivo, controle interno, periodicidade e metodologia.</p>
+  <p>Calendário mensal de auditoria interna com todas as verificações por área (Contas a pagar, Contas a receber, Conciliação Bancária, Caixa, Faturamento, Departamento Pessoal, Compras, Vendas, Segurança da informação, Infraestrutura, Fiscal e Auditoria de Fretes). Cada atividade mostra objetivo, controle interno, periodicidade e metodologia.</p>
   <div class="card card-blue">Use ‹ › para trocar de mês. Cada mês tem o seu próprio preenchimento.</div>
   <table>
     <thead><tr><th>Campo</th><th>Descrição</th></tr></thead>
@@ -139,6 +140,12 @@
   </table>
   <div class="card card-red"><strong>◎ Auditar:</strong> cada atividade do cronograma tem o próprio botão <strong>Auditar</strong>, que abre a auditoria só com aquela atividade no checklist. Ao finalizar, a atividade recebe a data realizada e o resultado no mês do cronograma em que o botão foi clicado.</div>
   <div class="tip">💡 Só o <strong>Administrador</strong> altera o cronograma (responsáveis, datas e observações). Cada auditor vê apenas as atividades em que o administrador colocou o nome dele (como 1º, 2º ou 3º responsável), e pode auditá-las pelo botão ◎ Auditar.</div>
+</section>
+
+<section id="bonus" data-perfis="administrador auditor">
+  <h1>Auditorias Bônus</h1>
+  <p><strong>Caminho:</strong> ★ Auditorias Bônus</p>
+  <p>Auditorias pontuais, que não se repetem todo mês e não têm data padrão (ex.: Qualificação de fornecedores). Funcionam como o cronograma: o administrador define até três responsáveis e as datas quando a auditoria for programada; o auditor vê apenas as que têm o nome dele e audita pelo botão ◎ Auditar. A auditoria entra no Relatório de Conclusão do mês em que foi feita.</p>
 </section>
 
 <section id="dashboard" data-perfis="todos">

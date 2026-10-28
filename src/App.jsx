@@ -110,15 +110,15 @@ function scoreAreaCiclo(areaId, auditorias) {
 // ── PERMISSÕES ───────────────────────────────────────────────────
 const PERMISSOES = {
   administrador: {
-    views: ["dashboard","cronograma","auditorias","relatorio-conclusao","planos","ncs","ciclos","usuarios"],
+    views: ["dashboard","cronograma","bonus","auditorias","relatorio-conclusao","planos","ncs","ciclos","usuarios"],
     acoes: new Set(["criar","excluir","aprovar","exportar","auditar","atualizar-status","gerir-ciclos","comentar-auditoria","relatorio-final"])
   },
   "area-processos": {
-    views: ["dashboard","cronograma","auditorias","relatorio-conclusao","planos","ncs","ciclos","usuarios"],
+    views: ["dashboard","cronograma","bonus","auditorias","relatorio-conclusao","planos","ncs","ciclos","usuarios"],
     acoes: new Set(["criar","excluir","aprovar","exportar","atualizar-status","gerir-ciclos"])
   },
   auditor: {
-    views: ["dashboard","cronograma","auditorias","relatorio-conclusao","consolidar","planos","ncs","ciclos"],
+    views: ["dashboard","cronograma","bonus","auditorias","relatorio-conclusao","consolidar","planos","ncs","ciclos"],
     acoes: new Set(["auditar","exportar","gerir-ciclos","relatorio-final","comentar-auditoria","consolidar"])
   },
   gestor: {
@@ -499,6 +499,7 @@ function LoginScreen({ usuarios, carregando, onLogin }) {
 // Ids fixos: as datas do cronograma e as auditorias ficam ligadas a eles,
 // então atividade nova ganha id novo e id de atividade removida não é reaproveitado.
 // Cada atividade: [id, ação, objetivo, controle interno, metodologia, periodicidade (padrão: Mensal)]
+// Áreas com bonus: true ficam na aba Auditorias Bônus: não se repetem todo mês e não têm data padrão
 const CRONOGRAMA_ITENS = [
   { id: "cat-1", cat: "Contas a pagar", itens: [
     ["c1-1", "Conferir relatório de contas a pagar e realizar comparativo com documentos fiscais", "Garantir que os lançamentos do sistema estejam em conformidade com os documentos fiscais", "Sistema e documentos fiscais", "Amostragem"],
@@ -532,8 +533,8 @@ const CRONOGRAMA_ITENS = [
     ["c7-2", "Validar relatório de horas extras do mês e verificar se foram autorizadas pelo líder imediato", "Garantir que as horas extras realizadas sejam autorizadas pelo líder imediato", "Sistema e controle de autorização de horas extras", "Amostragem"],
     ["c7-3", "Validar benefícios de funcionários (vale transporte, alimentação, convênio etc.) e verificar se a saída no extrato bancário confere com o valor devido", "Garantir que o controle interno dos benefícios esteja de acordo com o realizado no financeiro", "Sistema e controle de benefícios", "Amostragem"],
   ]},
-  { id: "cat-8", cat: "Qualificação de fornecedores", itens: [
-    ["c8-1", "Verificar se existe processo de qualificação de fornecedores (preço, prazo de entrega, qualidade, atendimento, etc.) e quais são os fornecedores críticos para exclusão", "Garantir o compliance de não favorecimento de fornecedores por brindes, premiações, presentes, etc.", "Sistema ou controle de qualificação de fornecedores", "Amostragem"],
+  { id: "cat-8", cat: "Qualificação de fornecedores", bonus: true, itens: [
+    ["c8-1", "Verificar se existe processo de qualificação de fornecedores (preço, prazo de entrega, qualidade, atendimento, etc.) e quais são os fornecedores críticos para exclusão", "Garantir o compliance de não favorecimento de fornecedores por brindes, premiações, presentes, etc.", "Sistema ou controle de qualificação de fornecedores", "Amostragem", "Bônus (sem data padrão)"],
   ]},
   { id: "cat-9", cat: "Compras", itens: [
     ["c9-1", "Verificar se toda compra realizada possui Pedido de Compra no sistema", "Garantir que todas as compras possuem pedido de compra registrado no sistema", "Sistema", "Avaliar número de compras X número de Pedidos de Compra"],
@@ -857,7 +858,8 @@ function statusCronograma(r, hoje) {
 const CAMPOS_RESPONSAVEL = ["responsavelId", "responsavel2Id", "responsavel3Id"];
 
 // somenteDe: id do auditor — mostra só as atividades em que ele é um dos responsáveis
-function CronogramaAuditoria({ dados, usuarios, auditorias, podeEditar, onChange, onAuditar, somenteDe }) {
+function CronogramaAuditoria({ dados, usuarios, auditorias, podeEditar, onChange, onAuditar, somenteDe, bonus }) {
+  const GRUPOS = CRONOGRAMA_ITENS.filter(g => !!g.bonus === !!bonus);
   const [mes, setMes] = useState(() => {
     try { return sessionStorage.getItem("portal-fast-mes-cronograma") || new Date().toISOString().slice(0, 7); } catch { return new Date().toISOString().slice(0, 7); }
   });
@@ -865,8 +867,9 @@ function CronogramaAuditoria({ dados, usuarios, auditorias, podeEditar, onChange
   const [filtroStatus, setFiltroStatus] = useState("");
   const [filtroResp, setFiltroResp] = useState("");
   const hoje = new Date().toISOString().split("T")[0];
+  const folha = bonus ? "bonus" : mes;
   const [ano, m] = mes.split("-").map(Number);
-  const doMes = dados[mes] || {};
+  const doMes = dados[folha] || {};
   const responsaveis = usuarios.filter(u => ["auditor", "administrador"].includes(u.perfil));
 
   function mudarMes(delta) {
@@ -875,7 +878,7 @@ function CronogramaAuditoria({ dados, usuarios, auditorias, podeEditar, onChange
   }
 
   const ehMinha = item => !somenteDe || CAMPOS_RESPONSAVEL.some(c => doMes[item.id]?.[c] === somenteDe);
-  const todos = CRONOGRAMA_ITENS.flatMap(g => g.itens.filter(ehMinha).map(i => statusCronograma(doMes[i.id], hoje).key));
+  const todos = GRUPOS.flatMap(g => g.itens.filter(ehMinha).map(i => statusCronograma(doMes[i.id], hoje).key));
   const cont = k => todos.filter(x => x === k).length;
   const pct = todos.length ? Math.round(cont("realizado") / todos.length * 100) : 0;
 
@@ -893,13 +896,15 @@ function CronogramaAuditoria({ dados, usuarios, auditorias, podeEditar, onChange
   return (
     <div>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12, marginBottom: 16 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+        {bonus ? (
+          <div style={{ fontSize: 12.5, color: F.gray3, lineHeight: 1.6, maxWidth: 560 }}>Auditorias pontuais, sem data padrão e fora do cronograma mensal. O administrador define responsáveis e datas quando a auditoria for programada.</div>
+        ) : <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <button style={navBtn} onClick={() => mudarMes(-1)} title="Mês anterior">‹</button>
           <div style={{ fontFamily: "'Barlow Condensed',sans-serif", fontSize: 22, fontWeight: 900, textTransform: "uppercase", color: F.charcoal, minWidth: 170, textAlign: "center" }}>
             {MESES[m - 1]} / {ano}
           </div>
           <button style={navBtn} onClick={() => mudarMes(1)} title="Próximo mês">›</button>
-        </div>
+        </div>}
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           <select style={{ ...inp, width: "auto" }} value={filtroStatus} onChange={e => setFiltroStatus(e.target.value)}>
             <option value="">Todos os status</option>
@@ -916,7 +921,7 @@ function CronogramaAuditoria({ dados, usuarios, auditorias, podeEditar, onChange
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 12, marginBottom: 16 }}>
-        <StatCard label="Itens no mês" value={todos.length} sub={`${pct}% concluído`} accent={F.charcoal} />
+        <StatCard label={bonus ? "Auditorias bônus" : "Itens no mês"} value={todos.length} sub={`${pct}% concluído`} accent={F.charcoal} />
         <StatCard label="Realizados" value={cont("realizado")} sub="com data realizada" accent={F.green} />
         <StatCard label="Previstos" value={cont("pendente")} sub="dentro do prazo" accent={F.blue} />
         <StatCard label="Atrasados" value={cont("atrasado")} sub="prazo de conclusão passou" accent={F.red} />
@@ -941,7 +946,7 @@ function CronogramaAuditoria({ dados, usuarios, auditorias, podeEditar, onChange
               </tr>
             </thead>
             <tbody>
-              {CRONOGRAMA_ITENS.map(g => {
+              {GRUPOS.map(g => {
                 const itens = g.itens.filter(passaFiltro);
                 if (!itens.length) return null;
                 const feitos = g.itens.filter(i => doMes[i.id]?.realizada).length;
@@ -956,7 +961,7 @@ function CronogramaAuditoria({ dados, usuarios, auditorias, podeEditar, onChange
                   ...itens.map(item => {
                     const r = doMes[item.id] || {};
                     const st = statusCronograma(r, hoje);
-                    const set = (campo, valor) => onChange(mes, item.id, campo, valor);
+                    const set = (campo, valor) => onChange(folha, item.id, campo, valor);
                     return (
                       <tr key={item.id} style={{ borderBottom: `1px solid ${F.gray6}` }}>
                         <td style={{ padding: "8px 10px", fontSize: 12.5, color: F.charcoal, lineHeight: 1.45, overflowWrap: "anywhere", verticalAlign: "top" }}>
@@ -988,7 +993,7 @@ function CronogramaAuditoria({ dados, usuarios, auditorias, podeEditar, onChange
                         <td style={{ padding: "8px 6px", verticalAlign: "top" }}>
                           <Tag color={st.cor} bg={st.bg}>{st.label}</Tag>
                           {onAuditar && (
-                            <button onClick={() => onAuditar(g.id, item.id, mes)} style={{ display: "block", marginTop: 6, background: F.red, color: "#fff", border: "none", borderRadius: 5, padding: "4px 10px", fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: "'Barlow',sans-serif", whiteSpace: "nowrap" }}>◎ Auditar</button>
+                            <button onClick={() => onAuditar(g.id, item.id, folha)} style={{ display: "block", marginTop: 6, background: F.red, color: "#fff", border: "none", borderRadius: 5, padding: "4px 10px", fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: "'Barlow',sans-serif", whiteSpace: "nowrap" }}>◎ Auditar</button>
                           )}
                           {r.auditoriaId && (() => {
                             const aud = (auditorias || []).find(a => a.id === r.auditoriaId);
@@ -1008,8 +1013,8 @@ function CronogramaAuditoria({ dados, usuarios, auditorias, podeEditar, onChange
               })}
             </tbody>
           </table>
-          {CRONOGRAMA_ITENS.every(g => !g.itens.some(passaFiltro)) && (
-            <div style={{ textAlign: "center", padding: "36px 0", fontSize: 13, color: F.gray4 }}>{somenteDe && !todos.length ? "Nenhuma atividade programada com o seu nome neste mês." : "Nenhum item com esses filtros."}</div>
+          {GRUPOS.every(g => !g.itens.some(passaFiltro)) && (
+            <div style={{ textAlign: "center", padding: "36px 0", fontSize: 13, color: F.gray4 }}>{somenteDe && !todos.length ? (bonus ? "Nenhuma auditoria bônus com o seu nome." : "Nenhuma atividade programada com o seu nome neste mês.") : "Nenhum item com esses filtros."}</div>
           )}
         </div>
       </Card>
@@ -1724,7 +1729,8 @@ ${db.planos.length ? `<table>
     const audId = uid();
     const auditoria = {
       id: audId, areaNome: area?.nome || "—", areaId: audForm.areaId,
-      mes: audForm.cronMes || (audForm.data || new Date().toISOString()).slice(0, 7),
+      mes: audForm.cronMes && audForm.cronMes !== "bonus" ? audForm.cronMes : (audForm.data || new Date().toISOString()).slice(0, 7),
+      bonus: audForm.cronMes === "bonus",
       atividadeId: audForm.atividadeId || "", atividadeTexto: CRONOGRAMA_ITENS.flatMap(g => g.itens).find(i => i.id === audForm.atividadeId)?.texto || "",
       auditorNome: auditor?.nome || "—", data: audForm.data,
       local: audForm.local, cicloNome: ciclo?.nome || "—",
@@ -1787,6 +1793,7 @@ ${db.planos.length ? `<table>
   const navItems = [
     { id: "dashboard", icon: "▦", label: "Dashboard", section: "Visão Geral" },
     { id: "cronograma", icon: "▤", label: "Cronograma de Auditoria", section: "Operação" },
+    { id: "bonus", icon: "★", label: "Auditorias Bônus", section: "Operação" },
     { id: "areas", icon: "◉", label: "Áreas", section: "Operação" },
     { id: "processos", icon: "⬡", label: "Processos", section: "Operação" },
     { id: "auditorias", icon: "◎", label: "Auditorias", section: "Operação", badge: auditoriasVisiveis.filter(a => a.status === "aberta").length },
@@ -3330,6 +3337,30 @@ ${db.planos.length ? `<table>
             {/* ── CRONOGRAMA DE AUDITORIA ── */}
             {view === "cronograma" && (
               <CronogramaAuditoria
+                somenteDe={perfil === "auditor" ? usuarioLogado.id : null}
+                dados={db.cronograma || {}}
+                usuarios={db.usuarios}
+                auditorias={db.auditorias}
+                onAuditar={podeExecutar(perfil, "auditar") ? (areaId, atividadeId, mes) => {
+                  setAudStep(1); setChecklist([]);
+                  const hoje = new Date().toISOString().split("T")[0];
+                  const ciclo = db.ciclos.find(c => c.ini?.slice(0, 7) === mes) || db.ciclos.find(c => c.ini && c.fim && c.ini <= hoje && hoje <= c.fim);
+                  setAudForm({ areaId, atividadeId, cronMes: mes, auditorId: usuarioLogado.id, data: hoje, cicloId: ciclo?.id || "" });
+                  openModal("auditoria");
+                } : null}
+                podeEditar={perfil === "administrador"}
+                onChange={(mes, itemId, campo, valor) => setDb(d => {
+                  const cron = d.cronograma || {};
+                  const doMes = cron[mes] || {};
+                  return { ...d, cronograma: { ...cron, [mes]: { ...doMes, [itemId]: { ...(doMes[itemId] || {}), [campo]: valor } } } };
+                })}
+              />
+            )}
+
+            {/* ── AUDITORIAS BÔNUS ── */}
+            {view === "bonus" && (
+              <CronogramaAuditoria
+                bonus
                 somenteDe={perfil === "auditor" ? usuarioLogado.id : null}
                 dados={db.cronograma || {}}
                 usuarios={db.usuarios}
