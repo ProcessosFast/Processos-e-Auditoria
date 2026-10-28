@@ -617,7 +617,7 @@ function CronogramaAuditoria({ dados, usuarios, auditorias, podeEditar, onChange
   const passaFiltro = item => {
     const r = doMes[item.id];
     if (filtroStatus && statusCronograma(r, hoje).key !== filtroStatus) return false;
-    if (filtroResp && (r?.responsavelId || "") !== filtroResp) return false;
+    if (filtroResp && r?.responsavelId !== filtroResp && r?.responsavel2Id !== filtroResp) return false;
     return true;
   };
 
@@ -695,11 +695,17 @@ function CronogramaAuditoria({ dados, usuarios, auditorias, podeEditar, onChange
                         </td>
                         <td style={{ padding: "8px 6px", width: 160 }}>
                           {podeEditar ? (
-                            <select style={inp} value={r.responsavelId || ""} onChange={e => set("responsavelId", e.target.value)}>
-                              <option value="">—</option>
-                              {responsaveis.map(u => <option key={u.id} value={u.id}>{u.nome}</option>)}
-                            </select>
-                          ) : <span style={{ fontSize: 12.5, color: F.gray3 }}>{usuarios.find(u => u.id === r.responsavelId)?.nome || "—"}</span>}
+                            <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                              <select style={inp} value={r.responsavelId || ""} onChange={e => set("responsavelId", e.target.value)}>
+                                <option value="">—</option>
+                                {responsaveis.filter(u => u.id !== r.responsavel2Id).map(u => <option key={u.id} value={u.id}>{u.nome}</option>)}
+                              </select>
+                              <select style={{ ...inp, color: r.responsavel2Id ? F.charcoal : F.gray4 }} value={r.responsavel2Id || ""} onChange={e => set("responsavel2Id", e.target.value)}>
+                                <option value="">+ 2º responsável</option>
+                                {responsaveis.filter(u => u.id !== r.responsavelId).map(u => <option key={u.id} value={u.id}>{u.nome}</option>)}
+                              </select>
+                            </div>
+                          ) : <span style={{ fontSize: 12.5, color: F.gray3 }}>{[r.responsavelId, r.responsavel2Id].map(id => usuarios.find(u => u.id === id)?.nome).filter(Boolean).join(" e ") || "—"}</span>}
                         </td>
                         <td style={{ padding: "8px 6px", width: 140 }}>
                           {podeEditar
