@@ -3340,7 +3340,7 @@ ${db.planos.length ? `<table>
                   setAudForm({ areaId, atividadeId, cronMes: mes, auditorId: usuarioLogado.id, data: hoje, cicloId: ciclo?.id || "" });
                   openModal("auditoria");
                 } : null}
-                podeEditar={podeExecutar(perfil, "auditar") || podeExecutar(perfil, "criar")}
+                podeEditar={perfil === "administrador"}
                 onChange={(mes, itemId, campo, valor) => setDb(d => {
                   const cron = d.cronograma || {};
                   const doMes = cron[mes] || {};
