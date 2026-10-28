@@ -463,58 +463,12 @@ function ComentarioInline({ audId, onSave }) {
 }
 
 // ── LOGIN SCREEN ─────────────────────────────────────────────────
-// Senha do primeiro acesso: o usuário é obrigado a trocá-la ao entrar
-const SENHA_PADRAO = "Fast@2026";
 const SESSAO_KEY = "portal-fast-sessao";
 
-async function hashSenha(userId, senha) {
-  const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(`${userId}:${senha}`));
-  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, "0")).join("");
-}
-
-async function senhaConfere(u, senha) {
-  if (!u.senhaHash) return senha === SENHA_PADRAO;
-  return (await hashSenha(u.id, senha)) === u.senhaHash;
-}
-
-function TrocarSenhaForm({ usuario, exigirAtual, onSave, onCancel }) {
-  const [f, setF] = useState({ atual: "", nova: "", confirma: "" });
-  const [erro, setErro] = useState("");
-  const [salvando, setSalvando] = useState(false);
-
-  async function salvar(e) {
-    e.preventDefault();
-    setErro("");
-    if (exigirAtual && !(await senhaConfere(usuario, f.atual))) { setErro("Senha atual incorreta."); return; }
-    if (f.nova.length < 6) { setErro("A nova senha precisa ter pelo menos 6 caracteres."); return; }
-    if (f.nova === SENHA_PADRAO) { setErro("Escolha uma senha diferente da senha padrão."); return; }
-    if (f.nova !== f.confirma) { setErro("As senhas não conferem."); return; }
-    setSalvando(true);
-    onSave(await hashSenha(usuario.id, f.nova));
-  }
-
-  return (
-    <form onSubmit={salvar}>
-      {exigirAtual && (
-        <FG label="Senha atual"><input type="password" style={fi} value={f.atual} onChange={e => setF({ ...f, atual: e.target.value })} autoComplete="current-password" autoFocus /></FG>
-      )}
-      <FG label="Nova senha"><input type="password" style={fi} value={f.nova} onChange={e => setF({ ...f, nova: e.target.value })} autoComplete="new-password" autoFocus={!exigirAtual} /></FG>
-      <FG label="Confirmar nova senha"><input type="password" style={fi} value={f.confirma} onChange={e => setF({ ...f, confirma: e.target.value })} autoComplete="new-password" /></FG>
-      {erro && <div style={{ fontSize: 12.5, color: F.red, fontWeight: 600, marginBottom: 12 }}>{erro}</div>}
-      <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
-        {onCancel && <Btn variant="ghost" onClick={onCancel}>Cancelar</Btn>}
-        <Btn type="submit" disabled={salvando}>Salvar senha</Btn>
-      </div>
-    </form>
-  );
-}
-
-function LoginScreen({ usuarios, carregando, onLogin, onSalvarSenha }) {
+function LoginScreen({ usuarios, carregando, onLogin }) {
   const [logoSrc, setLogoSrc] = useState("");
   const [email, setEmail] = useState("");
-  const [senha, setSenha] = useState("");
   const [erro, setErro] = useState("");
-  const [pendente, setPendente] = useState(null); // usuário que precisa criar senha
 
   useEffect(() => {
     fetch("/logo-fast-sistemas-construtivos.svg")
@@ -523,13 +477,12 @@ function LoginScreen({ usuarios, carregando, onLogin, onSalvarSenha }) {
       .catch(() => {});
   }, []);
 
-  async function entrar(e) {
+  function entrar(e) {
     e.preventDefault();
     setErro("");
     if (carregando) return;
     const u = email.trim() && usuarios.find(x => x.email?.trim().toLowerCase() === email.trim().toLowerCase());
-    if (!u || !(await senhaConfere(u, senha))) { setErro("E-mail ou senha incorretos."); return; }
-    if (!u.senhaHash || u.trocarSenha) { setPendente(u); return; }
+    if (!u) { setErro("E-mail não cadastrado."); return; }
     onLogin(u);
   }
 
@@ -538,33 +491,18 @@ function LoginScreen({ usuarios, carregando, onLogin, onSalvarSenha }) {
       <style>{css}</style>
       {logoSrc && <img src={logoSrc} alt="Fast Sistemas Construtivos" style={{ height: 58, marginBottom: 36 }} />}
       <div style={{ fontFamily: "'Barlow Condensed',sans-serif", fontSize: 26, fontWeight: 900, textTransform: "uppercase", letterSpacing: 1, color: F.charcoal, marginBottom: 6 }}>
-        {pendente ? "Crie sua senha" : "Acesse o portal"}
+        Acesse o portal
       </div>
       <div style={{ fontSize: 13, color: F.gray4, marginBottom: 32, textAlign: "center" }}>
-        {pendente ? `Olá, ${pendente.nome}. Defina uma senha pessoal para continuar.` : "Portal de Gestão — Fast Sistemas Construtivos"}
+        Portal de Gestão — Fast Sistemas Construtivos
       </div>
 
       <div className="anim" style={{ width: "100%", maxWidth: 380, background: "#fff", borderRadius: 12, border: `1.5px solid ${F.gray6}`, padding: 24 }}>
-        {pendente ? (
-          <TrocarSenhaForm
-            usuario={pendente}
-            onCancel={() => { setPendente(null); setSenha(""); }}
-            onSave={hash => {
-              onSalvarSenha(pendente.id, hash);
-              onLogin({ ...pendente, senhaHash: hash, trocarSenha: false });
-            }}
-          />
-        ) : (
-          <form onSubmit={entrar}>
-            <FG label="E-mail"><input type="email" style={fi} value={email} onChange={e => setEmail(e.target.value)} placeholder="nome@fastdrywall.com.br" autoComplete="username" autoFocus /></FG>
-            <FG label="Senha"><input type="password" style={fi} value={senha} onChange={e => setSenha(e.target.value)} autoComplete="current-password" /></FG>
-            {erro && <div style={{ fontSize: 12.5, color: F.red, fontWeight: 600, marginBottom: 12 }}>{erro}</div>}
-            <Btn type="submit" disabled={carregando} style={{ width: "100%", justifyContent: "center" }}>{carregando ? "Carregando dados..." : "Entrar"}</Btn>
-            <div style={{ fontSize: 11.5, color: F.gray4, marginTop: 14, lineHeight: 1.6, textAlign: "center" }}>
-              Esqueceu a senha? Peça ao administrador para redefini-la.
-            </div>
-          </form>
-        )}
+        <form onSubmit={entrar}>
+          <FG label="E-mail"><input type="email" style={fi} value={email} onChange={e => setEmail(e.target.value)} placeholder="nome@fastdrywall.com.br" autoComplete="username" autoFocus /></FG>
+          {erro && <div style={{ fontSize: 12.5, color: F.red, fontWeight: 600, marginBottom: 12 }}>{erro}</div>}
+          <Btn type="submit" disabled={carregando} style={{ width: "100%", justifyContent: "center" }}>{carregando ? "Carregando dados..." : "Entrar"}</Btn>
+        </form>
       </div>
     </div>
   );
@@ -848,10 +786,10 @@ const USUARIOS_PADRAO = [
 // Completa campos que faltam e restaura usuários e ciclos padrão
 function normalizarDb(dados) {
   const base = { areas: [], processos: [], auditorias: [], planos: [], ciclos: [], comite: [], usuarios: [], modulos: [], notificacoes: [], consolidacoes: [], cronograma: {}, ...dados };
-  // Perfil "auditor-lider" foi unificado em "auditor"
+  // Perfil "auditor-lider" foi unificado em "auditor"; login é só por e-mail
   base.usuarios = base.usuarios
     .filter(u => u.id !== "u-auditor-lider")
-    .map(u => u.perfil === "auditor-lider" ? { ...u, perfil: "auditor" } : u);
+    .map(({ senhaHash, trocarSenha, ...u }) => u.perfil === "auditor-lider" ? { ...u, perfil: "auditor" } : u);
   USUARIOS_PADRAO.forEach(u => {
     if (!base.usuarios.find(x => x.id === u.id)) base.usuarios = [...base.usuarios, u];
   });
@@ -1033,7 +971,7 @@ export default function App() {
     try {
       const id = sessionStorage.getItem(SESSAO_KEY);
       const u = id && db.usuarios.find(x => x.id === id);
-      return u && u.senhaHash && !u.trocarSenha ? u : null;
+      return u || null;
     } catch { return null; }
   });
   useEffect(() => {
@@ -1042,7 +980,6 @@ export default function App() {
       else sessionStorage.removeItem(SESSAO_KEY);
     } catch {}
   }, [usuarioLogado]);
-  const [trocandoSenha, setTrocandoSenha] = useState(false);
   const [toast, setToast] = useState(null);
   const [modals, setModals] = useState({});
   const [audStep, setAudStep] = useState(1);
@@ -1119,7 +1056,6 @@ export default function App() {
       <LoginScreen
         carregando={nuvem === "carregando"}
         usuarios={db.usuarios}
-        onSalvarSenha={(id, hash) => setDb(d => ({ ...d, usuarios: d.usuarios.map(u => u.id === id ? { ...u, senhaHash: hash, trocarSenha: false } : u) }))}
         onLogin={u => { setUsuarioLogado(u); setView("dashboard"); }}
       />
     );
@@ -1417,7 +1353,7 @@ ${db.planos.length ? `<table>
       id: uid(), ini: U(form.ini || form.nome.slice(0, 2)),
       areaNome: area?.nome || "—", ...form, nome: U(form.nome)
     }]);
-    closeModal("usuario"); showToast(`Usuário cadastrado! Senha do primeiro acesso: ${SENHA_PADRAO}`);
+    closeModal("usuario"); showToast("Usuário cadastrado!");
   }
 
   // ── SAVE MEMBRO ──
@@ -1731,13 +1667,6 @@ ${db.planos.length ? `<table>
                 <div style={{ fontSize: 12, fontWeight: 600, color: "#fff", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{usuarioLogado.nome}</div>
                 <div style={{ fontSize: 9, color: F.gray3, textTransform: "uppercase", letterSpacing: 0.5 }}>{PERFIL_LABEL[perfil] || perfil}</div>
               </div>
-              <button
-                onClick={() => setTrocandoSenha(true)}
-                title="Alterar senha"
-                style={{ background: "none", border: "none", color: F.gray4, cursor: "pointer", fontSize: 13, padding: "2px 4px", flexShrink: 0, transition: "color 0.15s" }}
-                onMouseEnter={e => e.currentTarget.style.color = F.red}
-                onMouseLeave={e => e.currentTarget.style.color = F.gray4}
-              >🔑</button>
               <button
                 onClick={() => setUsuarioLogado(null)}
                 title="Sair"
@@ -3602,7 +3531,7 @@ ${db.planos.length ? `<table>
             {view === "usuarios" && (
               <Card>
                 <DataTable
-                  cols={["Usuário", "E-mail", "Perfil", "Área", "Senha", ...(podeExecutar(perfil, "excluir") ? [""] : [])]}
+                  cols={["Usuário", "E-mail", "Perfil", "Área", ...(podeExecutar(perfil, "excluir") ? [""] : [])]}
                   rows={db.usuarios.map(u => {
                     const pc = PERFIL_COR;
                     const pl = PERFIL_LABEL;
@@ -3616,21 +3545,6 @@ ${db.planos.length ? `<table>
                       <TD style={{ color: F.gray3 }}>{u.email}</TD>
                       <TD><span style={{ fontSize: 12, fontWeight: 700, color: pc[u.perfil] || F.gray3, fontFamily: "'Barlow Condensed',sans-serif", textTransform: "uppercase", letterSpacing: 0.5 }}>{pl[u.perfil] || u.perfil}</span></TD>
                       <TD style={{ color: F.gray3 }}>{u.areaNome !== "—" ? u.areaNome : "—"}</TD>
-                      <TD>
-                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                          <span style={{ fontSize: 11, color: u.senhaHash && !u.trocarSenha ? F.green : F.amber, fontWeight: 700 }}>{u.senhaHash && !u.trocarSenha ? "Definida" : "Padrão"}</span>
-                          {podeExecutar(perfil, "criar") && u.id !== usuarioLogado.id && (
-                            <button
-                              onClick={() => {
-                                if (!window.confirm(`Redefinir a senha de ${u.nome} para a senha padrão?`)) return;
-                                upd("usuarios", arr => arr.map(x => x.id === u.id ? { ...x, senhaHash: null, trocarSenha: true } : x));
-                                showToast("Senha redefinida — o usuário cria uma nova no próximo acesso.");
-                              }}
-                              style={{ fontSize: 10.5, color: F.gray3, background: F.offWhite, border: `1px solid ${F.gray6}`, borderRadius: 5, padding: "2px 8px", cursor: "pointer", fontWeight: 700, fontFamily: "'Barlow',sans-serif" }}
-                            >Redefinir</button>
-                          )}
-                        </div>
-                      </TD>
                       {podeExecutar(perfil, "excluir") && <TD><button onClick={() => upd("usuarios", arr => arr.filter(x => x.id !== u.id))} style={{ background: "none", border: "none", color: F.gray4, cursor: "pointer", fontSize: 16, padding: "2px 6px" }}>✕</button></TD>}
                     </>;
                   })}
@@ -3662,18 +3576,6 @@ ${db.planos.length ? `<table>
 
       {/* USUÁRIO */}
       <UsuarioModal open={!!modals.usuario} onClose={() => closeModal("usuario")} areas={AREAS_CRONOGRAMA} onSave={saveUsuario} />
-      <Modal open={trocandoSenha} onClose={() => setTrocandoSenha(false)} title="Alterar Senha" width={420}>
-        <TrocarSenhaForm
-          usuario={usuarioLogado}
-          exigirAtual
-          onCancel={() => setTrocandoSenha(false)}
-          onSave={hash => {
-            upd("usuarios", arr => arr.map(u => u.id === usuarioLogado.id ? { ...u, senhaHash: hash, trocarSenha: false } : u));
-            setUsuarioLogado(u => ({ ...u, senhaHash: hash, trocarSenha: false }));
-            setTrocandoSenha(false); showToast("Senha alterada!");
-          }}
-        />
-      </Modal>
 
       {/* MEMBRO */}
       <MembroModal open={!!modals.membro} onClose={() => closeModal("membro")} areas={AREAS_CRONOGRAMA} usuarios={db.usuarios} onSave={saveMembro} />
