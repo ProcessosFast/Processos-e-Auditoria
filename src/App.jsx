@@ -499,7 +499,7 @@ function LoginScreen({ usuarios, carregando, onLogin }) {
 // Ids fixos: as datas do cronograma e as auditorias ficam ligadas a eles,
 // então atividade nova ganha id novo e id de atividade removida não é reaproveitado.
 // Cada atividade: [id, ação, objetivo, controle interno, metodologia, periodicidade (padrão: Mensal)]
-// Áreas com bonus: true ficam na aba Auditorias Bônus: não se repetem todo mês e não têm data padrão
+// Áreas com bonus: true, ou atividades com periodicidade "Bônus", ficam na aba Auditorias Bônus: não se repetem todo mês e não têm data padrão
 const CRONOGRAMA_ITENS = [
   { id: "cat-1", cat: "Contas a pagar", itens: [
     ["c1-1", "Conferir relatório de contas a pagar e realizar comparativo com documentos fiscais", "Garantir que os lançamentos do sistema estejam em conformidade com os documentos fiscais", "Sistema e documentos fiscais", "Amostragem"],
@@ -539,8 +539,8 @@ const CRONOGRAMA_ITENS = [
   { id: "cat-9", cat: "Compras", itens: [
     ["c9-1", "Verificar se toda compra realizada possui Pedido de Compra no sistema", "Garantir que todas as compras possuem pedido de compra registrado no sistema", "Sistema", "Avaliar número de compras X número de Pedidos de Compra"],
     ["c9-2", "Validar novos cadastros de produtos e fornecedores realizados no mês", "Verificar se os cadastros de novos produtos e fornecedores no mês passaram pelas validações fiscais corretas", "Sistema", "Todos os novos cadastros de produtos e fornecedores"],
-    ["c9-3", "Validar se todas as compras possuem pelo menos 3 cotações no sistema", "Garantir que o processo de cotações está sendo seguido", "Sistema", "Amostragem"],
-    ["c9-4", "Validar lista de fornecedores exclusivos (que estão dispensados de realizar cotação, por exemplo por contratos)", "Validar se as compras realizadas sem cotação estão presentes na lista de fornecedores exclusivos", "Controle de fornecedores exclusivos", "Amostragem"],
+    ["c9-3", "Validar se todas as compras possuem pelo menos 3 cotações no sistema", "Garantir que o processo de cotações está sendo seguido", "Sistema", "Amostragem", "Bônus (sem data padrão)"],
+    ["c9-4", "Validar lista de fornecedores exclusivos (que estão dispensados de realizar cotação, por exemplo por contratos)", "Validar se as compras realizadas sem cotação estão presentes na lista de fornecedores exclusivos", "Controle de fornecedores exclusivos", "Amostragem", "Bônus (sem data padrão)"],
     ["c9-5", "Verificar se as compras realizadas no mês obedeceram os critérios de estoque mínimo e máximo, ou correto atendimento das requisições", "Avaliar o critério de compras utilizado", "Sistema", "Amostragem"],
     ["c9-6", "Validar as requisições de compras de usuários, avaliando a necessidade de compra", "Garantir que as requisições de compras estão em conformidade com a necessidade de compra", "Sistema", "Amostragem"],
     ["c9-7", "Validar se as compras realizadas no mês passaram por aprovação no sistema", "Validar as alçadas de aprovação no sistema", "Sistema", "Amostragem"],
@@ -574,7 +574,7 @@ const CRONOGRAMA_ITENS = [
     ["c17-4", "Documentos de Margem Aprovados", "Validar o lançamento de frete", "Portal de Fretes", "Totalidade", "Diário"],
     ["c17-5", "Chamados de Fretes Abertos no Sults", "Validar o lançamento de frete", "Portal de Fretes", "Totalidade", "Diário"],
   ]},
-].map(g => ({ ...g, itens: g.itens.map(([id, texto, objetivo, controle, metodologia, periodicidade = "Mensal"]) => ({ id, texto, objetivo, controle, periodicidade, metodologia })) }));
+].map(g => ({ ...g, itens: g.itens.map(([id, texto, objetivo, controle, metodologia, periodicidade = "Mensal"]) => ({ id, texto, objetivo, controle, periodicidade, metodologia, bonus: !!g.bonus || periodicidade.startsWith("Bônus") })) }));
 
 // As áreas auditáveis são as áreas do cronograma (substituem o cadastro de áreas)
 const AREAS_CRONOGRAMA = CRONOGRAMA_ITENS.map(g => ({ id: g.id, nome: g.cat }));
@@ -859,7 +859,7 @@ const CAMPOS_RESPONSAVEL = ["responsavelId", "responsavel2Id", "responsavel3Id"]
 
 // somenteDe: id do auditor — mostra só as atividades em que ele é um dos responsáveis
 function CronogramaAuditoria({ dados, usuarios, auditorias, podeEditar, onChange, onAuditar, somenteDe, bonus }) {
-  const GRUPOS = CRONOGRAMA_ITENS.filter(g => !!g.bonus === !!bonus);
+  const GRUPOS = CRONOGRAMA_ITENS.map(g => ({ ...g, itens: g.itens.filter(i => i.bonus === !!bonus) })).filter(g => g.itens.length);
   const [mes, setMes] = useState(() => {
     try { return sessionStorage.getItem("portal-fast-mes-cronograma") || new Date().toISOString().slice(0, 7); } catch { return new Date().toISOString().slice(0, 7); }
   });
@@ -1035,6 +1035,7 @@ const USUARIOS_PADRAO = [
   { id: "u-rodrigo-monsores", nome: "Rodrigo Monsores", ini: "RM", email: "rodrigo.monsores@cscempresarial.com.br", perfil: "auditor", areaId: "", areaNome: "—" },
   { id: "u-thauan-simas", nome: "Thauan Simas", ini: "TS", email: "thauan.simas@cscempresarial.com.br", perfil: "auditor", areaId: "", areaNome: "—" },
   { id: "u-arthur-villarge", nome: "Arthur Villarge", ini: "AV", email: "arthur.villarde@cscempresarial.onmicrosoft.com", perfil: "auditor", areaId: "", areaNome: "—" },
+  { id: "u-lorraine-silva", nome: "Lorraine Silva", ini: "LS", email: "lorraine.paulo@cscempresarial.com.br", perfil: "auditor", areaId: "", areaNome: "—" },
   { id: "u-gilberto", nome: "Gilberto", ini: "GI", email: "gilberto.souza@cscempresarial.com.br", perfil: "administrador", areaId: "", areaNome: "—" },
   { id: "u-guilherme", nome: "Guilherme", ini: "GU", email: "guilherme@fastdrywall.onmicrosoft.com", perfil: "administrador", areaId: "", areaNome: "—" },
   { id: "u-area-processos", nome: "Área de Processos", ini: "AP", email: "processos@fastdrywall.com.br", perfil: "area-processos", areaId: "", areaNome: "—" },
