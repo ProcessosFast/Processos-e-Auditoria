@@ -568,11 +568,11 @@ const CRONOGRAMA_ITENS = [
     ["c16-3", "Validar memória de cálculo dos impostos do mês", "Garantir a correta apuração e pagamento dos impostos", "Memória de cálculo X Guias", "Amostragem"],
   ]},
   { id: "cat-17", cat: "Auditoria de Fretes", itens: [
-    ["c17-1", "Fretes Log solicitados x chamados - Realizados", "", "", "Totalidade", "Diário"],
-    ["c17-2", "Unidade e Centro de Custo preenchidos", "", "", "Totalidade", "Diário"],
-    ["c17-3", "Valores Cobrados x Margem Calculada", "", "", "Totalidade", "Diário"],
-    ["c17-4", "Documentos de Margem Aprovados", "", "", "Totalidade", "Diário"],
-    ["c17-5", "Chamados de Fretes Abertos no Sults", "", "", "Totalidade", "Diário"],
+    ["c17-1", "Fretes Log solicitados x chamados - Realizados", "Validar o lançamento de frete", "Portal de Fretes", "Totalidade", "Diário"],
+    ["c17-2", "Unidade e Centro de Custo preenchidos", "Validar o lançamento de frete", "Portal de Fretes", "Totalidade", "Diário"],
+    ["c17-3", "Valores Cobrados x Margem Calculada", "Validar o lançamento de frete", "Portal de Fretes", "Totalidade", "Diário"],
+    ["c17-4", "Documentos de Margem Aprovados", "Validar o lançamento de frete", "Portal de Fretes", "Totalidade", "Diário"],
+    ["c17-5", "Chamados de Fretes Abertos no Sults", "Validar o lançamento de frete", "Portal de Fretes", "Totalidade", "Diário"],
   ]},
 ].map(g => ({ ...g, itens: g.itens.map(([id, texto, objetivo, controle, metodologia, periodicidade = "Mensal"]) => ({ id, texto, objetivo, controle, periodicidade, metodologia })) }));
 
