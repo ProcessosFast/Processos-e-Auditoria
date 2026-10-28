@@ -585,7 +585,136 @@ const CICLOS_PADRAO = Array.from({ length: 14 }, (_, i) => {
 });
 
 // ── AUDITORIAS DO MÊS (Relatório de Conclusão) ───────────────────
-function AuditoriasDoMes({ auditorias }) {
+// Relatório semanal: feito pelo administrador toda quinta-feira,
+// com as auditorias de sexta a quinta daquela semana
+function ymdLocal(d) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+function semanasDoMes(mes) {
+  const [ano, m] = mes.split("-").map(Number);
+  const semanas = [];
+  for (let dia = 1; dia <= new Date(ano, m, 0).getDate(); dia++) {
+    const d = new Date(ano, m - 1, dia);
+    if (d.getDay() !== 4) continue;
+    semanas.push({ id: `sem-${ymdLocal(d)}`, quinta: ymdLocal(d), ini: ymdLocal(new Date(ano, m - 1, dia - 6)) });
+  }
+  return semanas;
+}
+// A obrigação semanal começa junto com os ciclos mensais (nov/2026)
+const INICIO_SEMANAIS = "2026-11-01";
+const auditoriasDaSemana = (auditorias, sem) => auditorias.filter(a => a.data && a.data >= sem.ini && a.data <= sem.quinta);
+// Auditorias antigas não guardavam os itens: usa as não conformidades
+const itensDaAuditoria = a => a.itensVerificados?.length ? a.itensVerificados : (a.ncs || []).map(n => ({ q: n.q, resp: "nok", obs: n.obs, evidencia: n.evidencia, chamado: n.chamado }));
+function statusSemana(sem, rel, hoje) {
+  if (rel) return { label: "Elaborado", cor: F.green, bg: F.greenDim };
+  if (sem.quinta < INICIO_SEMANAIS) return { label: "Antes do início", cor: F.gray4, bg: F.gray6 };
+  if (sem.quinta === hoje) return { label: "Elaborar hoje", cor: F.amber, bg: F.amberDim };
+  if (sem.quinta < hoje) return { label: "Atrasado", cor: F.red, bg: F.redDim };
+  return { label: "Programado", cor: F.gray4, bg: F.gray6 };
+}
+
+function RelatorioSemanalModal({ semana, auditorias, relatorio, onClose, onSave, podeElaborar }) {
+  const [f, setF] = useState({ conclusoes: relatorio?.conclusoes || "", recomendacoes: relatorio?.recomendacoes || "", observacoes: relatorio?.observacoes || "" });
+  const auds = auditoriasDaSemana(auditorias, semana);
+  const itens = auds.flatMap(itensDaAuditoria);
+  const conta = r => itens.filter(i => i.resp === r).length;
+  const area = { ...fi, resize: "vertical", lineHeight: 1.45 };
+  return (
+    <Modal open onClose={onClose} title={`Relatório semanal — quinta-feira ${fmtDate(semana.quinta)}`} width={780}
+      footer={<><Btn variant="ghost" onClick={onClose}>Fechar</Btn>{podeElaborar && <Btn onClick={() => { if (!f.conclusoes.trim()) { alert("Informe as conclusões da semana."); return; } onSave({ ...semana, ...f, auditoriaIds: auds.map(a => a.id) }); }}>✓ Salvar relatório</Btn>}</>}>
+      <div style={{ fontSize: 13, color: F.gray3, marginBottom: 12 }}>
+        Auditorias de {fmtDate(semana.ini)} a {fmtDate(semana.quinta)} · {auds.length} auditoria{auds.length !== 1 ? "s" : ""} · {itens.length} ite{itens.length !== 1 ? "ns" : "m"} verificado{itens.length !== 1 ? "s" : ""} · {conta("ok")} conforme{conta("ok") !== 1 ? "s" : ""} · {conta("nok")} não conforme{conta("nok") !== 1 ? "s" : ""}
+      </div>
+      <div style={{ maxHeight: 260, overflowY: "auto", border: `1px solid ${F.gray6}`, borderRadius: 8, marginBottom: 14 }}>
+        {auds.length === 0 ? <div style={{ padding: 20, textAlign: "center", fontSize: 12.5, color: F.gray4 }}>Nenhuma auditoria realizada nesta semana.</div> : auds.map(a => (
+          <div key={a.id} style={{ padding: "9px 12px", borderBottom: `1px solid ${F.gray6}`, fontSize: 12, color: F.gray3, lineHeight: 1.5 }}>
+            <div style={{ display: "flex", gap: 8 }}><strong style={{ flex: 1, color: F.charcoal, fontSize: 12.5 }}>{a.areaNome}</strong><span style={{ fontWeight: 700, color: scoreColor(a.score) }}>{a.score}%</span></div>
+            <div>{a.auditorNome} · {fmtDate(a.data)}</div>
+            {itensDaAuditoria(a).filter(i => i.resp === "nok").map((i, k) => <div key={k} style={{ color: F.red, marginTop: 2 }}>✗ {i.q}{i.obs ? ` — ${i.obs}` : ""}</div>)}
+          </div>
+        ))}
+      </div>
+      {podeElaborar ? (
+        <>
+          <FG label="Conclusões da semana *"><textarea style={{ ...area, minHeight: 100 }} value={f.conclusoes} onChange={e => setF({ ...f, conclusoes: e.target.value })} placeholder="Principais resultados encontrados nas auditorias da semana..." /></FG>
+          <FG label="Recomendações"><textarea style={{ ...area, minHeight: 70 }} value={f.recomendacoes} onChange={e => setF({ ...f, recomendacoes: e.target.value })} /></FG>
+          <FG label="Observações"><textarea style={{ ...area, minHeight: 60 }} value={f.observacoes} onChange={e => setF({ ...f, observacoes: e.target.value })} /></FG>
+        </>
+      ) : relatorio ? (
+        <div style={{ fontSize: 13, color: F.charcoal, lineHeight: 1.6, whiteSpace: "pre-wrap" }}>
+          <strong>Conclusões:</strong> {relatorio.conclusoes}
+          {relatorio.recomendacoes && <><br /><strong>Recomendações:</strong> {relatorio.recomendacoes}</>}
+          {relatorio.observacoes && <><br /><strong>Observações:</strong> {relatorio.observacoes}</>}
+        </div>
+      ) : <div style={{ fontSize: 12.5, color: F.gray4 }}>O administrador ainda não elaborou este relatório.</div>}
+      {relatorio && <div style={{ fontSize: 11, color: F.gray4, marginTop: 10 }}>Elaborado por {relatorio.autorNome} em {fmtDate(relatorio.data?.slice(0, 10))}</div>}
+    </Modal>
+  );
+}
+
+// Relatório geral do mês: todas as auditorias e os relatórios semanais, pronto para imprimir/PDF
+async function gerarRelatorioGeralMes(mes, auditorias, semanais) {
+  const esc = t => String(t ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\n/g, "<br/>");
+  let logoSrc = "";
+  try {
+    const resp = await fetch("/logo-fast-sistemas-construtivos.svg");
+    logoSrc = `data:image/svg+xml;base64,${btoa(unescape(encodeURIComponent(await resp.text())))}`;
+  } catch {}
+  const [ano, m] = mes.split("-").map(Number);
+  const auds = auditorias.filter(a => (a.mes || a.data || "").slice(0, 7) === mes).sort((a, b) => a.areaNome.localeCompare(b.areaNome) || (a.data || "").localeCompare(b.data || ""));
+  const itens = auds.flatMap(itensDaAuditoria);
+  const conta = r => itens.filter(i => i.resp === r).length;
+  const media = auds.length ? Math.round(auds.reduce((n, a) => n + (a.score || 0), 0) / auds.length) : 0;
+  const RES = { ok: ["Conforme", "#00B050"], nok: ["Não conforme", "#E8001D"], na: ["N/A", "#888888"] };
+  const semanas = semanasDoMes(mes);
+  const hojeStr = ymdLocal(new Date());
+  const parcial = hojeStr < `${mes}-${String(new Date(ano, m, 0).getDate()).padStart(2, "0")}`;
+
+  const html = `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8"/><title>Relatório Geral — ${MESES[m - 1]} ${ano}</title>
+<style>
+  * { box-sizing:border-box; margin:0; padding:0; } body { font-family:Arial,sans-serif; color:#1A1A1A; padding:32px 40px; font-size:13px; }
+  .topo { display:flex; align-items:center; justify-content:space-between; border-bottom:3px solid #E8001D; padding-bottom:14px; margin-bottom:22px; }
+  h1 { font-size:22px; text-transform:uppercase; } .sub { color:#888; font-size:12px; margin-top:4px; }
+  .stats { display:grid; grid-template-columns:repeat(5,1fr); gap:10px; margin-bottom:24px; }
+  .stat { border:1px solid #E5E5E5; border-radius:8px; padding:10px 12px; } .stat b { display:block; font-size:22px; } .stat span { font-size:10px; color:#888; text-transform:uppercase; }
+  h2 { font-size:14px; text-transform:uppercase; letter-spacing:.5px; margin:22px 0 10px; padding-bottom:6px; border-bottom:1px solid #E5E5E5; }
+  .bloco { border:1px solid #E5E5E5; border-radius:8px; padding:12px 14px; margin-bottom:10px; page-break-inside:avoid; }
+  .item { border-left:4px solid #ccc; padding:6px 10px; margin-top:6px; background:#FAFAFA; } .det { font-size:11.5px; color:#555; margin-top:3px; }
+  .tag { font-size:10px; font-weight:700; text-transform:uppercase; } .muted { color:#888; font-size:11.5px; }
+  .print-btn { position:fixed; bottom:20px; right:20px; background:#E8001D; color:#fff; border:none; border-radius:8px; padding:12px 20px; font-size:14px; cursor:pointer; }
+  .footer { margin-top:30px; text-align:center; color:#aaa; font-size:11px; } @media print { .no-print { display:none; } body { padding:0; } }
+</style></head><body>
+<div class="topo"><div><h1>Relatório Geral de Auditoria</h1><div class="sub">${MESES[m - 1]} de ${ano}${parcial ? " — parcial (mês em andamento)" : ""} · gerado em ${new Date().toLocaleDateString("pt-BR")}</div></div>${logoSrc ? `<img src="${logoSrc}" style="height:46px"/>` : ""}</div>
+<div class="stats">
+  <div class="stat"><span>Auditorias</span><b>${auds.length}</b></div>
+  <div class="stat"><span>Itens verificados</span><b>${itens.length}</b></div>
+  <div class="stat"><span>Conformes</span><b style="color:#00B050">${conta("ok")}</b></div>
+  <div class="stat"><span>Não conformes</span><b style="color:#E8001D">${conta("nok")}</b></div>
+  <div class="stat"><span>Nota média</span><b>${media}%</b></div>
+</div>
+<h2>Relatórios semanais</h2>
+${semanas.map(sem => { const r = semanais.find(x => x.id === sem.id); return `<div class="bloco"><b>Semana de ${fmtDate(sem.ini)} a ${fmtDate(sem.quinta)}</b> <span class="muted">· ${auditoriasDaSemana(auditorias, sem).length} auditoria(s)</span>
+  ${r ? `<div class="det"><b>Conclusões:</b> ${esc(r.conclusoes)}</div>${r.recomendacoes ? `<div class="det"><b>Recomendações:</b> ${esc(r.recomendacoes)}</div>` : ""}${r.observacoes ? `<div class="det"><b>Observações:</b> ${esc(r.observacoes)}</div>` : ""}<div class="muted" style="margin-top:4px">Elaborado por ${esc(r.autorNome)} em ${fmtDate(r.data?.slice(0, 10))}</div>`
+     : `<div class="det" style="color:#E8001D">Relatório semanal não elaborado.</div>`}</div>`; }).join("")}
+<h2>Auditorias realizadas (${auds.length})</h2>
+${auds.length === 0 ? '<div class="muted">Nenhuma auditoria registrada no mês.</div>' : auds.map(a => `<div class="bloco">
+  <div style="display:flex;justify-content:space-between"><b>${esc(a.areaNome)}</b><b>${a.score}%</b></div>
+  <div class="muted">${esc(a.auditorNome)} · ${fmtDate(a.data)}${a.cicloNome && a.cicloNome !== "—" ? ` · Ciclo ${esc(a.cicloNome)}` : ""}</div>
+  ${itensDaAuditoria(a).map(it => { const [lbl, c] = RES[it.resp] || ["Sem resposta", "#888888"]; return `<div class="item" style="border-left-color:${c}"><span class="tag" style="color:${c}">${lbl}</span> — ${esc(it.q)}
+    ${it.obs ? `<div class="det"><b>Detalhamento:</b> ${esc(it.obs)}</div>` : ""}${it.evidencia ? `<div class="det"><b>Evidência:</b> ${esc(it.evidencia)}</div>` : ""}${it.chamado ? `<div class="det"><b>Chamado / SharePoint:</b> ${esc(it.chamado)}</div>` : ""}</div>`; }).join("")}
+  ${a.obs ? `<div class="det" style="margin-top:6px"><b>Observações gerais:</b> ${esc(a.obs)}</div>` : ""}
+</div>`).join("")}
+<div class="footer">Fast Sistemas Construtivos — Relatório Geral de Auditoria — Uso Interno</div>
+<button class="print-btn no-print" onclick="window.print()">🖨 Imprimir / Salvar PDF</button>
+</body></html>`;
+  const url = URL.createObjectURL(new Blob([html], { type: "text/html;charset=utf-8" }));
+  const win = window.open(url, "_blank");
+  setTimeout(() => URL.revokeObjectURL(url), 60000);
+  if (!win) alert("Permita pop-ups para gerar o relatório.");
+}
+
+function AuditoriasDoMes({ auditorias, semanais = [], podeElaborar, onSalvarSemanal }) {
+  const [semanaAberta, setSemanaAberta] = useState(null);
   const [mes, setMes] = useState(() => {
     try { return sessionStorage.getItem("portal-fast-mes-relatorio") || new Date().toISOString().slice(0, 7); } catch { return new Date().toISOString().slice(0, 7); }
   });
@@ -597,8 +726,9 @@ function AuditoriasDoMes({ auditorias }) {
   }
   const doMes = auditorias.filter(a => (a.mes || a.data || "").slice(0, 7) === mes)
     .sort((a, b) => a.areaNome.localeCompare(b.areaNome) || (a.data || "").localeCompare(b.data || ""));
-  // Auditorias antigas não guardavam os itens: usa as não conformidades
-  const itensDe = a => a.itensVerificados?.length ? a.itensVerificados : (a.ncs || []).map(n => ({ q: n.q, resp: "nok", obs: n.obs, evidencia: n.evidencia, chamado: n.chamado }));
+  const itensDe = itensDaAuditoria;
+  const hojeStr = ymdLocal(new Date());
+  const semanas = semanasDoMes(mes);
   const todos = doMes.flatMap(itensDe);
   const conta = r => todos.filter(i => i.resp === r).length;
   const RES = { ok: ["Conforme", F.green, F.greenDim], nok: ["Não conforme", F.red, F.redDim], na: ["N/A", F.gray4, F.gray6] };
@@ -620,6 +750,45 @@ function AuditoriasDoMes({ auditorias }) {
         <StatCard label="Não conformes" value={conta("nok")} sub="resultados encontrados" accent={F.red} />
         <StatCard label="N/A" value={conta("na")} sub="não se aplica" accent={F.gray5} />
       </div>
+
+      <Card style={{ marginBottom: 16 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", marginBottom: 6 }}>
+          <div style={{ flex: 1, fontFamily: "'Barlow Condensed',sans-serif", fontSize: 14, fontWeight: 800, textTransform: "uppercase", letterSpacing: 0.5, color: F.charcoal }}>Relatórios semanais</div>
+          <Btn variant="ghost" onClick={() => gerarRelatorioGeralMes(mes, auditorias, semanais)}>📄 Gerar relatório geral do mês</Btn>
+        </div>
+        <div style={{ fontSize: 12, color: F.gray4, marginBottom: 12, lineHeight: 1.6 }}>
+          O administrador elabora o relatório <strong>toda quinta-feira</strong>, com as auditorias feitas na semana (de sexta a quinta). No fim do mês, gere o relatório geral com todas as auditorias.
+        </div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          {semanas.map(sem => {
+            const rel = semanais.find(x => x.id === sem.id);
+            const st = statusSemana(sem, rel, hojeStr);
+            const n = auditoriasDaSemana(auditorias, sem).length;
+            return (
+              <div key={sem.id} style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", border: `1px solid ${F.gray6}`, borderLeft: `4px solid ${st.cor}`, borderRadius: 7, padding: "8px 12px" }}>
+                <div style={{ flex: 1, minWidth: 200 }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: F.charcoal }}>Quinta-feira, {fmtDate(sem.quinta)}</div>
+                  <div style={{ fontSize: 11.5, color: F.gray4 }}>Auditorias de {fmtDate(sem.ini)} a {fmtDate(sem.quinta)} · {n} auditoria{n !== 1 ? "s" : ""}{rel ? ` · por ${rel.autorNome}` : ""}</div>
+                </div>
+                <Tag color={st.cor} bg={st.bg}>{st.label}</Tag>
+                {(rel || (podeElaborar && sem.quinta <= hojeStr)) && (
+                  <Btn variant={rel ? "ghost" : "primary"} onClick={() => setSemanaAberta(sem)}>{rel ? "Ver" : "Elaborar"}</Btn>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </Card>
+      {semanaAberta && (
+        <RelatorioSemanalModal
+          semana={semanaAberta}
+          auditorias={auditorias}
+          relatorio={semanais.find(x => x.id === semanaAberta.id)}
+          podeElaborar={podeElaborar}
+          onClose={() => setSemanaAberta(null)}
+          onSave={r => { onSalvarSemanal(r); setSemanaAberta(null); }}
+        />
+      )}
 
       {doMes.length === 0 ? (
         <Card><div style={{ textAlign: "center", padding: "32px 0", fontSize: 13, color: F.gray4 }}>Nenhuma auditoria registrada em {MESES[m - 1].toLowerCase()} de {ano}.</div></Card>
@@ -861,7 +1030,7 @@ const USUARIOS_PADRAO = [
 
 // Completa campos que faltam e restaura usuários e ciclos padrão
 function normalizarDb(dados) {
-  const base = { areas: [], processos: [], auditorias: [], planos: [], ciclos: [], usuarios: [], modulos: [], notificacoes: [], consolidacoes: [], cronograma: {}, ...dados };
+  const base = { areas: [], processos: [], auditorias: [], planos: [], ciclos: [], usuarios: [], modulos: [], notificacoes: [], consolidacoes: [], relatoriosSemanais: [], cronograma: {}, ...dados };
   // Perfil "auditor-lider" foi unificado em "auditor"; login é só por e-mail
   base.usuarios = base.usuarios
     .filter(u => !["u-auditor-lider", "u-comite", "u-auditor"].includes(u.id))
@@ -887,7 +1056,7 @@ function normalizarDb(dados) {
 //   o:<coleção>                    → ordem dos ids
 //   l:<coleção>:<id>               → um registro
 //   m:cronograma:<mês>|<atividade> → uma linha do cronograma
-const COLECOES = ["areas", "processos", "auditorias", "planos", "ciclos", "usuarios", "modulos", "notificacoes", "consolidacoes"];
+const COLECOES = ["areas", "processos", "auditorias", "planos", "ciclos", "usuarios", "modulos", "notificacoes", "consolidacoes", "relatoriosSemanais"];
 const SINC_KEY = "portal-fast-sincronizado";
 const BACKUP_KEY = "portal-fast-backup-antes-do-banco";
 
@@ -1480,6 +1649,12 @@ ${db.planos.length ? `<table>
     }
   }
 
+  function salvarRelatorioSemanal(r) {
+    const rel = { ...r, conclusoes: U(r.conclusoes), recomendacoes: U(r.recomendacoes), observacoes: U(r.observacoes), autorId: usuarioLogado.id, autorNome: usuarioLogado.nome, data: new Date().toISOString() };
+    upd("relatoriosSemanais", arr => [...arr.filter(x => x.id !== r.id), rel]);
+    showToast("Relatório semanal salvo!");
+  }
+
   function salvarRelatorioFinal(audId, form) {
     upd("auditorias", arr => arr.map(a => a.id === audId ? { ...a, relatorioFinal: { ...form, conclusoes: U(form.conclusoes), recomendacoes: U(form.recomendacoes), observacoes: U(form.observacoes), auditorId: usuarioLogado.id, auditorNome: usuarioLogado.nome, data: new Date().toISOString(), status: "enviado" } } : a));
     setRelatorioFinalAudId(null);
@@ -1581,7 +1756,7 @@ ${db.planos.length ? `<table>
     { id: "processos", icon: "⬡", label: "Processos" },
     { id: "auditorias", icon: "◎", label: "Auditorias", badge: auditoriasVisiveis.filter(a => a.status === "aberta").length },
     { id: "consolidar", icon: "⊕", label: "Consolidar Auditorias", badge: (() => { const pares = {}; db.auditorias.forEach(a => { if (a.cicloNome && a.cicloNome !== "—") { const k = `${a.areaId}-${a.cicloNome}`; pares[k] = (pares[k] || 0) + 1; } }); return Object.values(pares).filter(v => v >= 2).length; })() || 0 },
-    { id: "relatorio-conclusao", icon: "📋", label: "Relatório de Conclusão", section: "Melhoria" },
+    { id: "relatorio-conclusao", icon: "📋", label: "Relatório de Conclusão", section: "Melhoria", badge: perfil === "administrador" ? semanasDoMes(ymdLocal(new Date()).slice(0, 7)).filter(sem => sem.quinta >= INICIO_SEMANAIS && sem.quinta <= ymdLocal(new Date()) && !(db.relatoriosSemanais || []).some(r => r.id === sem.id)).length || 0 : 0 },
     { id: "planos", icon: "◷", label: "Planos de Ação", badge: planosPendAprov.length || planosAtrasados.length },
     { id: "ncs", icon: "⚑", label: "Não Conformidades" },
     { id: "ciclos", icon: "◈", label: "Ciclos", section: "Gestão" },
@@ -2458,7 +2633,7 @@ ${db.planos.length ? `<table>
               const cmap = { nc: [F.red, F.redDim, "NC"], mel: [F.blue, F.blueDim, "Melhoria"], obs: [F.gray3, F.gray6, "Obs"] };
               return (
                 <div>
-                  <AuditoriasDoMes auditorias={db.auditorias} />
+                  <AuditoriasDoMes auditorias={db.auditorias} semanais={db.relatoriosSemanais || []} podeElaborar={perfil === "administrador"} onSalvarSemanal={salvarRelatorioSemanal} />
                   <div style={{ fontFamily: "'Barlow Condensed',sans-serif", fontSize: 15, fontWeight: 800, textTransform: "uppercase", letterSpacing: 0.5, color: F.charcoal, marginBottom: 10 }}>Relatórios finais</div>
                   <div style={{ fontSize: 12.5, color: F.gray3, background: F.blueDim, border: `1px solid ${F.blue}33`, borderRadius: 8, padding: "10px 14px", marginBottom: 20, lineHeight: 1.7 }}>
                     Relatórios de conclusão elaborados pelo <strong>Auditor</strong> após a consolidação das auditorias realizadas.
