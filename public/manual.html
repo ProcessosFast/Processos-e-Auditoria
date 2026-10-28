@@ -79,7 +79,7 @@
   <a href="#acesso" data-perfis="todos">Acesso e Login</a>
   <a href="#perfis" data-perfis="todos">Perfis de Usuário</a>
   <a href="#dashboard" data-perfis="todos">Dashboard</a>
-  <a href="#cronograma" data-perfis="administrador auditor comite">Cronograma de Auditoria</a>
+  <a href="#cronograma" data-perfis="administrador auditor">Cronograma de Auditoria</a>
 
   <div class="nav-section" data-perfis="administrador">Cadastros</div>
   <a href="#ciclos" data-perfis="administrador auditor">Ciclos</a>
@@ -89,8 +89,6 @@
   <a href="#consolidar" data-perfis="auditor">Consolidação</a>
   <a href="#relatorio-final" data-perfis="administrador auditor">Relatório Final</a>
 
-  <div class="nav-section" data-perfis="administrador auditor comite">Comitê</div>
-  <a href="#comite" data-perfis="administrador auditor comite">Reuniões e Enquetes</a>
   <a href="#elaborar" data-perfis="administrador">Elaborar Plano de Ação</a>
 
   <div class="nav-section" data-perfis="todos">Conclusão</div>
@@ -118,15 +116,14 @@
   <table>
     <thead><tr><th>Perfil</th><th>Responsabilidades</th></tr></thead>
     <tbody>
-      <tr><td><span class="badge badge-red">Administrador</span></td><td>Gerencia todo o portal — cadastros, auditorias, aprovações, comitê e usuários</td></tr>
-      <tr><td><span class="badge badge-green">Auditor</span></td><td>Realiza e consolida auditorias, elabora relatório final, gerencia ciclos e comitê</td></tr>
-      <tr><td><span class="badge" style="background:rgba(155,109,255,.1);color:#9b6dff;">Comitê</span></td><td>Revisa resultados, comenta auditorias e vota em enquetes de aprovação</td></tr>
+      <tr><td><span class="badge badge-red">Administrador</span></td><td>Gerencia todo o portal — cadastros, auditorias, aprovações e usuários</td></tr>
+      <tr><td><span class="badge badge-green">Auditor</span></td><td>Realiza e consolida auditorias, elabora relatório final, gerencia ciclos</td></tr>
       <tr><td><span class="badge badge-blue">Gestor da Área</span></td><td>Acompanha auditorias e planos da sua área, registra ciência e atualiza status dos planos</td></tr>
     </tbody>
   </table>
 </section>
 
-<section id="cronograma" data-perfis="administrador auditor comite">
+<section id="cronograma" data-perfis="administrador auditor">
   <h1>Cronograma de Auditoria</h1>
   <p>Calendário mensal de auditoria interna com todas as verificações por área (Contas a pagar, Conciliação Bancária, Caixa, Faturamento, Departamento Pessoal, Qualificação de fornecedores, Compras, Vendas, Segurança da informação, Infraestrutura e Fiscal). Cada atividade mostra objetivo, controle interno, periodicidade e metodologia.</p>
   <div class="card card-blue">Use ‹ › para trocar de mês. Cada mês tem o seu próprio preenchimento.</div>
@@ -141,7 +138,7 @@
     </tbody>
   </table>
   <div class="card card-red"><strong>◎ Auditar:</strong> cada área do cronograma tem o botão <strong>Auditar</strong>, que abre a auditoria já com as atividades daquela área no checklist. Ao finalizar, cada atividade respondida recebe a <strong>Data Realizada</strong> (data da auditoria), o resultado (Conforme / Não conforme / N/A) e fica vinculada à auditoria.</div>
-  <div class="tip">💡 Comitê visualiza o cronograma; Administrador, Área de Processos e Auditores preenchem.</div>
+  <div class="tip">💡 Administrador, Área de Processos e Auditores preenchem o cronograma.</div>
 </section>
 
 <section id="dashboard" data-perfis="todos">
@@ -230,41 +227,13 @@
       <tr><td><strong>Observações Adicionais</strong></td><td>Não</td></tr>
     </tbody>
   </table>
-  <p>Após salvar, o relatório fica disponível para o Admin e o Comitê visualizarem com o botão <strong>"📄 Ver Relatório"</strong>.</p>
-</section>
-
-<section id="comite" data-perfis="administrador auditor comite">
-  <h1>Comitê — Reuniões, Comentários e Enquetes</h1>
-  <p><strong>Caminho:</strong> Comitê (3 abas: Reuniões / Enquetes / Membros)</p>
-
-  <div class="card card-amber" data-perfis-card="administrador auditor">
-    <h3>Aba Reuniões de Auditoria <span class="badge badge-amber">Admin / Auditor</span></h3>
-    <ol>
-      <li>Selecione a <strong>data da reunião</strong> → notificações automáticas para auditores, comitê e gestor da área</li>
-      <li>Após a reunião: clique em <strong>"✓ Reunião Realizada"</strong></li>
-      <li>Clique em <strong>"▶ Liberar Relatórios para o Gestor"</strong> → enquetes são enviadas ao comitê</li>
-    </ol>
-  </div>
-
-  <div class="card card-blue">
-    <h3>Aba Enquetes <span class="badge badge-blue">Comitê</span></h3>
-    <p>Cada membro recebe enquetes para votar em cada plano de ação liberado.</p>
-    <ol>
-      <li>Leia a descrição do plano e a área</li>
-      <li>Clique em <strong>"✓ Aprovar"</strong> ou <strong>"✕ Reprovar"</strong></li>
-    </ol>
-  </div>
-
-  <div class="card">
-    <h3>Comentários em Auditorias</h3>
-    <p>Na aba Reuniões, digite seu comentário no campo ao final do card da auditoria e pressione <strong>Enter</strong> ou clique em <strong>Enviar</strong>.</p>
-  </div>
+  <p>Após salvar, o relatório fica disponível para o Admin visualizar com o botão <strong>"📄 Ver Relatório"</strong>.</p>
 </section>
 
 <section id="elaborar" data-perfis="administrador">
   <h1>Elaborar Plano de Ação</h1>
   <p><strong>Caminho:</strong> ✍ Elaborar Plano de Ação</p>
-  <p>Exibe os planos gerados pelas auditorias que aguardam elaboração antes de serem enviados ao comitê.</p>
+  <p>Exibe os planos gerados pelas auditorias que aguardam elaboração antes de serem enviados para aprovação.</p>
   <h3>Para cada plano:</h3>
   <ol>
     <li>Preencha a <strong>Descrição detalhada</strong></li>
@@ -273,14 +242,14 @@
     <li>Selecione a <strong>Causa Raiz</strong></li>
     <li>Defina a <strong>Prioridade</strong></li>
   </ol>
-  <div class="tip">💡 O botão <strong>"✓ Enviar para Enquete do Comitê"</strong> ativa automaticamente quando todos os campos estão preenchidos.</div>
+  <div class="tip">💡 O botão <strong>"✓ Enviar para Aprovação"</strong> ativa automaticamente quando todos os campos estão preenchidos.</div>
 </section>
 
 <section id="relatorio-conclusao" data-perfis="todos">
   <h1>Relatório de Conclusão</h1>
   <p><strong>Caminho:</strong> 📋 Relatório de Conclusão</p>
   <p>Esta aba exibe os <strong>relatórios finais elaborados pelo Auditor</strong> após a consolidação das auditorias. É uma view de <em>recebimento</em> — não de elaboração.</p>
-  <div class="card card-green">Cada relatório exibe: score, NCs com evidências, conclusões, recomendações, ciência do auditado e comentários do comitê.</div>
+  <div class="card card-green">Cada relatório exibe: score, NCs com evidências, conclusões, recomendações, ciência do auditado e comentários.</div>
   <div class="card card-blue" style="display:none" id="card-gestor-relatorio">
     <strong>Gestor da Área:</strong> você visualiza apenas o relatório <strong>consolidado</strong> do Auditor referente à sua área — não os relatórios individuais de cada auditor.
   </div>
@@ -292,7 +261,7 @@
 
   <div class="card card-amber" style="display:none" id="card-admin-planos">
     <h3>Seção: Aguardando Aprovação <span class="badge badge-amber">Admin</span></h3>
-    <p>Planos que passaram pelo comitê e aguardam aprovação formal. Clique em <strong>✓ Aprovar</strong> ou <strong>✕ Rejeitar</strong>.</p>
+    <p>Planos elaborados que aguardam aprovação formal. Clique em <strong>✓ Aprovar</strong> ou <strong>✕ Rejeitar</strong>.</p>
   </div>
 
   <div class="card">
@@ -329,7 +298,7 @@
       <tr><td><strong>Nome</strong></td><td>Nome exibido no portal</td></tr>
       <tr><td><strong>Iniciais</strong></td><td>2–3 letras para o avatar (ex: JS)</td></tr>
       <tr><td><strong>E-mail</strong></td><td>E-mail Microsoft 365</td></tr>
-      <tr><td><strong>Perfil</strong></td><td>Administrador / Auditor / Comitê / Gestor / Diretoria / Operacional</td></tr>
+      <tr><td><strong>Perfil</strong></td><td>Administrador / Auditor / Gestor / Diretoria / Operacional</td></tr>
       <tr><td><strong>Área</strong></td><td>Obrigatório para Gestores</td></tr>
     </tbody>
   </table>
@@ -344,7 +313,7 @@
   </div>
   <div class="card card-blue">
     <h3>Relatório Final de Auditoria</h3>
-    <p>No modal "📄 Ver Relatório" → botão <strong>"🖨 Salvar PDF"</strong>. Inclui logo Fast, score, NCs com evidências, conclusões, recomendações e comentários do comitê.</p>
+    <p>No modal "📄 Ver Relatório" → botão <strong>"🖨 Salvar PDF"</strong>. Inclui logo Fast, score, NCs com evidências, conclusões, recomendações e comentários.</p>
   </div>
 </section>
 
@@ -357,7 +326,6 @@
   <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;">
     <span class="badge badge-red">AD — Administrador</span>
     <span class="badge badge-green">AU — Auditor</span>
-    <span class="badge" style="background:rgba(155,109,255,.1);color:#9b6dff;">CO — Comitê</span>
     <span class="badge badge-blue">GA — Gestor da Área</span>
   </div>
 </section>
@@ -377,7 +345,6 @@
   const PERFIL_CONFIG = {
     administrador: { label: "Administrador", cor: "#E8001D", bg: "rgba(232,0,29,.12)" },
     auditor: { label: "Auditor", cor: "#00B050", bg: "rgba(0,176,80,.12)" },
-    comite: { label: "Comitê", cor: "#9b6dff", bg: "rgba(155,109,255,.12)" },
     gestor: { label: "Gestor da Área", cor: "#0066CC", bg: "rgba(0,102,204,.12)" },
   };
 
