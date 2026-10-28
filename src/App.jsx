@@ -603,7 +603,6 @@ function CronogramaAuditoria({ dados, usuarios, auditorias, podeEditar, onChange
   const hoje = new Date().toISOString().split("T")[0];
   const [ano, m] = mes.split("-").map(Number);
   const doMes = dados[mes] || {};
-  const ultimoDia = new Date(ano, m, 0).getDate();
   const responsaveis = usuarios.filter(u => ["auditor", "administrador"].includes(u.perfil));
 
   function mudarMes(delta) {
@@ -704,7 +703,7 @@ function CronogramaAuditoria({ dados, usuarios, auditorias, podeEditar, onChange
                         </td>
                         <td style={{ padding: "8px 6px", width: 140 }}>
                           {podeEditar
-                            ? <input type="date" style={inp} value={r.prevista || ""} min={`${mes}-01`} max={`${mes}-${String(ultimoDia).padStart(2, "0")}`} onChange={e => set("prevista", e.target.value)} />
+                            ? <input type="date" style={inp} value={r.prevista || ""} onChange={e => set("prevista", e.target.value)} />
                             : <span style={{ fontSize: 12.5 }}>{r.prevista ? fmtDate(r.prevista) : "—"}</span>}
                         </td>
                         <td style={{ padding: "8px 6px", width: 140 }}>
@@ -773,6 +772,8 @@ function normalizarDb(dados) {
   USUARIOS_PADRAO.forEach(u => {
     if (!base.usuarios.find(x => x.id === u.id)) base.usuarios = [...base.usuarios, u];
   });
+  // Ciclos de teste anteriores aos ciclos mensais (até out/2026) e sem auditoria saem
+  base.ciclos = base.ciclos.filter(c => CICLOS_PADRAO.some(p => p.id === c.id) || !(c.fim && c.fim < "2026-11-01") || base.auditorias.some(a => a.cicloNome === c.nome));
   CICLOS_PADRAO.forEach(c => {
     if (!base.ciclos.find(x => x.id === c.id || x.nome === c.nome)) base.ciclos = [...base.ciclos, c];
   });
