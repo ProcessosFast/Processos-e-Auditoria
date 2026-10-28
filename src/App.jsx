@@ -517,7 +517,7 @@ const CRONOGRAMA_ITENS = [
     ["c4-5", "Validar as despesas de fundo fixo das lojas", "Analisar o motivo das pendências de acertos referentes a adiantamentos disponibilizados", "Sistema e comprovantes de adiantamentos assinados", "Amostragem"],
   ]},
   { id: "cat-6", cat: "Faturamento", itens: [
-    ["c6-1", "Verificar se existe faturamento em aberto", "Garantir que não há faturamento em aberto", "Sistema", "Todos os faturamentos em atraso"],
+    ["c6-1", "Verificar se existe faturamento em aberto", "Garantir que não há faturamento em aberto", "Sistema", "Todos os faturamentos em atraso", "Diário"],
     ["c6-2", "Validar NFs canceladas no mês e motivos", "Evitar fraudes a partir de cancelamentos de NFs", "Sistema e site da prefeitura", "Todas as NFs canceladas"],
     ["c6-3", "Validar se existe alguma NF que precisaria ser cancelada e não foi", "Evitar fraudes a partir de cancelamentos de NFs", "Sistema", "Amostragem"],
   ]},
