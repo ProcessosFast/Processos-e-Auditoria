@@ -509,100 +509,77 @@ function LoginScreen({ usuarios, carregando, onLogin }) {
 }
 
 // ── CRONOGRAMA DE AUDITORIA ──────────────────────────────────────
-// Calendário de Auditoria Interna: os mesmos itens são verificados todo mês
+// Calendário de Auditoria Interna: os mesmos itens são verificados todo mês.
+// Ids fixos: as datas do cronograma e as auditorias ficam ligadas a eles,
+// então atividade nova ganha id novo e id de atividade removida não é reaproveitado.
+// Cada atividade: [id, ação, objetivo, controle interno, metodologia] — periodicidade mensal
 const CRONOGRAMA_ITENS = [
-  { cat: "Contas a pagar", itens: [
-    "Conferir relatório de contas a pagar e realizar comparativo com documentos fiscais",
-    "Validar se as contas pagas obedeceram segregação na autorização de pagamento (Um usuário lança e o outro valida/autoriza)",
-    "Verificar se existe algum fornecedor com pagamento em aberto (em atraso) no relatório de Contas a Pagar",
-    "Realizar consulta de saldo de adiantamento de fornecedores e conferir com movimentação financeira",
-    "Realizar consulta de relatório de títulos a receber com vencimento prorrogado e validar processo de autorização da prorrogação",
-    "Verificar se existe devolução a fornecedores (Nota de Débito) em aberto e acompanhar acertos",
+  { id: "cat-1", cat: "Contas a pagar", itens: [
+    ["c1-1", "Conferir relatório de contas a pagar e realizar comparativo com documentos fiscais", "Garantir que os lançamentos do sistema estejam em conformidade com os documentos fiscais", "Sistema e documentos fiscais", "Amostragem"],
+    ["c1-2", "Validar se as contas pagas obedeceram segregação na autorização de pagamento (Um usuário lança e o outro valida/autoriza)", "Evitar fraudes, garantindo que o processo de autorização de pagamento está sendo cumprido", "Sistema", "Amostragem"],
+    ["c1-3", "Verificar se existe algum fornecedor com pagamento em aberto (em atraso) no relatório de Contas a Pagar", "Garantir a inexistência de títulos em aberto a pagar", "Sistema", "Amostragem"],
   ]},
-  { cat: "Contas a receber", itens: [
-    "Analisar relatório de Contas a Receber acima de 120 dias",
-    "Realizar consulta de relatório de títulos a receber com vencimento prorrogado e validar processo de autorização da prorrogação",
-    "Realizar consulta de saldo de adiantamento de clientes e conferir com extrato bancário",
-    "Validar créditos não identificados no sistema",
-    "Validar descontos concedidos, e verificar se estão de acordo com a política de descontos",
+  { id: "cat-3", cat: "Conciliação Bancária", itens: [
+    ["c3-1", "Validar saldos dos extratos bancários X saldos de conciliação bancária no sistema", "Garantir que os saldos por dia dos extratos bancários sejam os mesmos dos registrados no sistema", "Sistema e extrato bancário", "Amostragem"],
+    ["c3-2", "Validar se os lançamentos do extrato bancário estão em conformidade com o sistema", "Garantir que a movimentação do sistema seja o espelho do extrato bancário", "Sistema e extrato bancário", "Amostragem"],
+    ["c3-3", "Identificar transferências no extrato bancário realizadas para pessoa física (CPF) e conferir com o documento fiscal", "Evitar fraudes por transferência para pessoa física", "Sistema e extrato bancário", "Amostragem"],
   ]},
-  { cat: "Conciliação Bancária", itens: [
-    "Validar saldos dos extratos bancários X saldos de conciliação bancária no sistema",
-    "Validar se os lançamentos do extrato bancário estão em conformidade com o sistema",
-    "Identificar transferências no extrato bancário realizadas para pessoa física (CPF) e conferir com o documento fiscal",
+  { id: "cat-4", cat: "Caixa", itens: [
+    ["c4-1", "Validar relatório de extrato de dinheiro físico no sistema com os documentos", "Garantir que os pagamentos realizados de dinheiro estão acobertados por documentos fiscais", "Sistema e documentos fiscais", "Amostragem"],
+    ["c4-2", "Validar se as contas pagas no caixa obedeceram segregação na autorização de pagamento (Um usuário lança e o outro valida/autoriza)", "Evitar fraudes, garantindo a segregação na autorização de pagamento", "Sistema", "Amostragem"],
+    ["c4-3", "Validar saldo de dinheiro no sistema com dinheiro em espécie disponível", "Validar se o saldo em dinheiro físico corresponde ao saldo indicado em sistema", "Sistema", "Amostragem"],
+    ["c4-5", "Validar as despesas de fundo fixo das lojas", "Analisar o motivo das pendências de acertos referentes a adiantamentos disponibilizados", "Sistema e comprovantes de adiantamentos assinados", "Amostragem"],
   ]},
-  { cat: "Caixa", itens: [
-    "Validar relatório de extrato de dinheiro físico no sistema com os documentos",
-    "Validar se as contas pagas no caixa obedeceram segregação na autorização de pagamento (Um usuário lança e o outro valida/autoriza)",
-    "Validar saldo de dinheiro no sistema com dinheiro em espécie disponível",
-    "Validar adiantamentos pendentes de acerto",
+  { id: "cat-6", cat: "Faturamento", itens: [
+    ["c6-1", "Verificar se existe faturamento em aberto", "Garantir que não há faturamento em aberto", "Sistema", "Todos os faturamentos em atraso"],
+    ["c6-2", "Validar NFs canceladas no mês e motivos", "Evitar fraudes a partir de cancelamentos de NFs", "Sistema e site da prefeitura", "Todas as NFs canceladas"],
+    ["c6-3", "Validar se existe alguma NF que precisaria ser cancelada e não foi", "Evitar fraudes a partir de cancelamentos de NFs", "Sistema", "Amostragem"],
   ]},
-  { cat: "Cobrança", itens: [
-    "Validar relatório de clientes a receber atrasados e analisar a negociação realizada no sistema",
-    "Validar relatório de títulos encaminhados para cobrança especializada (jurídico) e analisar status da negociação no sistema",
+  { id: "cat-7", cat: "Departamento Pessoal", itens: [
+    ["c7-1", "Validar relatório do planejamento anual de férias", "Verificar se a programação de férias está sendo cumprida", "Controle de planejamento de férias", "Amostragem"],
+    ["c7-2", "Validar relatório de horas extras do mês e verificar se foram autorizadas pelo líder imediato", "Garantir que as horas extras realizadas sejam autorizadas pelo líder imediato", "Sistema e controle de autorização de horas extras", "Amostragem"],
+    ["c7-3", "Validar benefícios de funcionários (vale transporte, alimentação, convênio etc.) e verificar se a saída no extrato bancário confere com o valor devido", "Garantir que o controle interno dos benefícios esteja de acordo com o realizado no financeiro", "Sistema e controle de benefícios", "Amostragem"],
   ]},
-  { cat: "Faturamento", itens: [
-    "Verificar se existe faturamento em aberto",
-    "Validar NFs canceladas no mês e motivos",
-    "Validar se existe alguma NF que precisaria ser cancelada e não foi",
+  { id: "cat-8", cat: "Qualificação de fornecedores", itens: [
+    ["c8-1", "Verificar se existe processo de qualificação de fornecedores (preço, prazo de entrega, qualidade, atendimento, etc.) e quais são os fornecedores críticos para exclusão", "Garantir o compliance de não favorecimento de fornecedores por brindes, premiações, presentes, etc.", "Sistema ou controle de qualificação de fornecedores", "Amostragem"],
   ]},
-  { cat: "Departamento Pessoal", itens: [
-    "Validar relatório do planejamento anual de férias",
-    "Validar relatório de horas extras do mês e verificar se foram autorizadas pelo líder imediato",
-    "Validar benefícios de funcionários (vale transporte, alimentação, convênio etc.) e verificar se a saída no extrato bancário confere com o valor devido",
+  { id: "cat-9", cat: "Compras", itens: [
+    ["c9-1", "Verificar se toda compra realizada possui Pedido de Compra no sistema", "Garantir que todas as compras possuem pedido de compra registrado no sistema", "Sistema", "Avaliar número de compras X número de Pedidos de Compra"],
+    ["c9-2", "Validar novos cadastros de produtos e fornecedores realizados no mês", "Verificar se os cadastros de novos produtos e fornecedores no mês passaram pelas validações fiscais corretas", "Sistema", "Todos os novos cadastros de produtos e fornecedores"],
+    ["c9-3", "Validar se todas as compras possuem pelo menos 3 cotações no sistema", "Garantir que o processo de cotações está sendo seguido", "Sistema", "Amostragem"],
+    ["c9-4", "Validar lista de fornecedores exclusivos (que estão dispensados de realizar cotação, por exemplo por contratos)", "Validar se as compras realizadas sem cotação estão presentes na lista de fornecedores exclusivos", "Controle de fornecedores exclusivos", "Amostragem"],
+    ["c9-5", "Verificar se as compras realizadas no mês obedeceram os critérios de estoque mínimo e máximo, ou correto atendimento das requisições", "Avaliar o critério de compras utilizado", "Sistema", "Amostragem"],
+    ["c9-6", "Validar as requisições de compras de usuários, avaliando a necessidade de compra", "Garantir que as requisições de compras estão em conformidade com a necessidade de compra", "Sistema", "Amostragem"],
+    ["c9-7", "Validar se as compras realizadas no mês passaram por aprovação no sistema", "Validar as alçadas de aprovação no sistema", "Sistema", "Amostragem"],
   ]},
-  { cat: "Qualificação de fornecedores", itens: [
-    "Verificar se existe processo de qualificação de fornecedores (preço, prazo de entrega, qualidade, atendimento, etc.) e quais são os fornecedores críticos para exclusão",
+  { id: "cat-13", cat: "Vendas", itens: [
+    ["c13-1", "Validar descontos concedidos no mês", "Garantir a aplicação da política de descontos vigente", "Sistema", "Amostragem"],
+    ["c13-2", "Validar vendas realizadas com margem negativa", "Entender se há casos de vendas com margem negativa e quais as justificativas", "Sistema", "Todas as vendas com margem negativa"],
+    ["c13-3", "Verificar vendas futuras em aberto no sistema", "Analisar conformidade das vendas futuras realizadas", "Sistema", "Todas as vendas futuras realizadas"],
+    ["c13-4", "Avaliar processo de devolução de vendas futuras realizadas no mês", "Analisar conformidade das devoluções de vendas futuras realizadas", "Sistema", "Todas as vendas futuras realizadas"],
+    ["c13-5", "Avaliação de campanhas comerciais para produtos danificados", "Comercializar produtos danificados em condições especiais", "Sistema", "Produtos danificados no sistema"],
   ]},
-  { cat: "Compras", itens: [
-    "Verificar se toda compra realizada possui Pedido de Compra no sistema",
-    "Validar novos cadastros de produtos e fornecedores realizados no mês",
-    "Validar se todas as compras possuem pelo menos 3 cotações no sistema",
-    "Validar lista de fornecedores exclusivos (que estão dispensados de realizar cotação, por exemplo por contratos)",
-    "Verificar se as compras realizadas no mês obedeceram os critérios de estoque mínimo e máximo, ou correto atendimento das requisições",
-    "Validar as requisições de compras de usuários, avaliando a necessidade de compra",
-    "Validar se as compras realizadas no mês passaram por aprovação no sistema",
+  { id: "cat-14", cat: "Segurança da informação", itens: [
+    ["c14-1", "Validar se os perfis de usuários do sistema estão em conformidade com os acessos liberados", "Garantir os acessos de usuários conforme liberação do líder imediato", "Sistema", "Amostragem"],
+    ["c14-2", "Validar se os perfis de usuários de rede estão em conformidade com os acessos liberados", "Garantir os acessos de usuários conforme liberação do líder imediato", "Sistema", "Amostragem"],
+    ["c14-3", "Validar usuários liberados no sistema para realizar ajuste de estoque", "Garantir que somente usuários com permissão possam realizar ajustes de estoque", "Sistema", "Todos os usuários liberados para ajuste de estoques"],
+    ["c14-4", "Validar se a política de desconto está em conformidade com os acessos do sistema", "Garantir que os descontos estejam parametrizados em conformidade com a política vigente", "Sistema e política de descontos", "Amostragem"],
+    ["c14-5", "Validar evidências de backups realizados do sistema", "Garantir backups", "Sistema", "Amostragem"],
+    ["c14-6", "Validar evidências de backups realizados de rede", "Garantir backups", "Sistema", "Amostragem"],
+    ["c14-7", "Verificar se os colaboradores desligados no mês continuam com acessos ativos", "Remover acessos de colaboradores desligados", "Sistema", "Amostragem"],
   ]},
-  { cat: "Estoque", itens: [
-    "Analisar inventários realizados e apurar divergências relevantes junto ao responsável",
-    "Verificar se o calendário de contagem de mercadorias está sendo cumprido",
-    "Verificar se houve ajustes manuais de estoques no mês",
+  { id: "cat-15", cat: "Infraestrutura", itens: [
+    ["c15-1", "Validar controle de ativos de TI e analisar as alocações dos bens", "Garantir que os ativos de TI estejam controlados", "Controle de ativos de TI", "Amostragem"],
   ]},
-  { cat: "Recebimento de Materiais", itens: [
-    "Validar se todo recebimento de materiais é conferido com o Pedido de Compra no sistema",
-    "Conferir NF X Pedido de compra no sistema",
+  { id: "cat-16", cat: "Fiscal", itens: [
+    ["c16-1", "Validar se existem NFs que foram emitidas contra o CNPJ da Fast e não deram entrada no sistema", "Garantir que os documentos fiscais estejam registrados no sistema", "Sistema", "Todas as NFs emitidas sem entrada no sistema"],
+    ["c16-2", "Validar operações de triangulação", "Garantir a conformidade das operações", "Sistema", "Amostragem"],
+    ["c16-3", "Validar memória de cálculo dos impostos do mês", "Garantir a correta apuração e pagamento dos impostos", "Memória de cálculo X Guias", "Amostragem"],
   ]},
-  { cat: "Expedição", itens: [
-    "Validar controle interno de expedição, que garante a conferência do produto junto aos documentos fiscais",
-  ]},
-  { cat: "Vendas", itens: [
-    "Validar descontos concedidos no mês",
-    "Validar vendas realizadas com margem negativa",
-    "Verificar vendas futuras em aberto no sistema",
-    "Avaliar processo de devolução de vendas futuras realizadas no mês",
-    "Avaliação de campanhas comerciais para produtos danificados",
-  ]},
-  { cat: "Segurança da informação", itens: [
-    "Validar se os perfis de usuários do sistema estão em conformidade com os acessos liberados",
-    "Validar se os perfis de usuários de rede estão em conformidade com os acessos liberados",
-    "Validar usuários liberados no sistema para realizar ajuste de estoque",
-    "Validar se a política de desconto está em conformidade com os acessos do sistema",
-    "Validar evidências de backups realizados do sistema",
-    "Validar evidências de backups realizados de rede",
-    "Verificar se os colaboradores desligados no mês continuam com acessos ativos",
-  ]},
-  { cat: "Infraestrutura", itens: [
-    "Validar controle de ativos de TI e analisar a alocação dos bens",
-  ]},
-  { cat: "Fiscal", itens: [
-    "Validar se existem NFs que foram emitidas contra o CNPJ da Fast e não deram entrada no sistema",
-    "Validar operações de triangulação",
-    "Validar memória de cálculo dos impostos do mês",
-  ]},
-].map((g, gi) => ({ ...g, itens: g.itens.map((texto, ii) => ({ id: `c${gi + 1}-${ii + 1}`, texto })) }));
+].map(g => ({ ...g, itens: g.itens.map(([id, texto, objetivo, controle, metodologia]) => ({ id, texto, objetivo, controle, periodicidade: "Mensal", metodologia })) }));
 
 // As áreas auditáveis são as áreas do cronograma (substituem o cadastro de áreas)
-const AREAS_CRONOGRAMA = CRONOGRAMA_ITENS.map((g, gi) => ({ id: `cat-${gi + 1}`, nome: g.cat }));
+const AREAS_CRONOGRAMA = CRONOGRAMA_ITENS.map(g => ({ id: g.id, nome: g.cat }));
 
 const MESES = ["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
 
@@ -613,6 +590,16 @@ const CICLOS_PADRAO = Array.from({ length: 14 }, (_, i) => {
   const ultimo = new Date(ano, d.getMonth() + 1, 0).getDate();
   return { id: `ciclo-${ano}-${mm}`, nome: `${MESES[d.getMonth()].slice(0, 3).toUpperCase()}/${ano}`, ini: `${ano}-${mm}-01`, fim: `${ano}-${mm}-${ultimo}`, obs: "", status: "ativo" };
 });
+
+function DetalheAtividade({ item }) {
+  if (!item.objetivo) return null;
+  const campos = [["Objetivo", item.objetivo], ["Controle interno", item.controle], ["Periodicidade", item.periodicidade], ["Metodologia", item.metodologia]].filter(c => c[1]);
+  return (
+    <div style={{ fontSize: 11, color: F.gray4, lineHeight: 1.5, marginTop: 4 }}>
+      {campos.map(([l, v]) => <div key={l}><strong style={{ color: F.gray3, fontWeight: 600 }}>{l}:</strong> {v}</div>)}
+    </div>
+  );
+}
 
 function statusCronograma(r, hoje) {
   if (r?.realizada) return r.prevista && r.realizada > r.prevista
@@ -717,7 +704,10 @@ function CronogramaAuditoria({ dados, usuarios, auditorias, podeEditar, onChange
                     const set = (campo, valor) => onChange(mes, item.id, campo, valor);
                     return (
                       <tr key={item.id} style={{ borderBottom: `1px solid ${F.gray6}` }}>
-                        <td style={{ padding: "8px 10px", fontSize: 12.5, color: F.charcoal, lineHeight: 1.45, minWidth: 320 }}>{item.texto}</td>
+                        <td style={{ padding: "8px 10px", fontSize: 12.5, color: F.charcoal, lineHeight: 1.45, minWidth: 320 }}>
+                          {item.texto}
+                          <DetalheAtividade item={item} />
+                        </td>
                         <td style={{ padding: "8px 6px", width: 160 }}>
                           {podeEditar ? (
                             <select style={inp} value={r.responsavelId || ""} onChange={e => set("responsavelId", e.target.value)}>
@@ -1282,10 +1272,10 @@ ${db.planos.length ? `<table>
     const area = AREAS_CRONOGRAMA.find(a => a.id === areaId);
     const grupo = CRONOGRAMA_ITENS.find(g => g.cat === area?.nome);
     const secs = [
-      { title: `Cronograma — ${area?.nome || ""}`, items: (grupo?.itens || []).map(i => ({ texto: i.texto, peso: 1, cronItemId: i.id })) }
+      { title: `Cronograma — ${area?.nome || ""}`, items: (grupo?.itens || []).map(i => ({ texto: i.texto, peso: 1, cronItemId: i.id, objetivo: i.objetivo, controle: i.controle, periodicidade: i.periodicidade, metodologia: i.metodologia })) }
     ];
     return secs.flatMap(sec =>
-      sec.items.map(item => ({ id: uid(), sec: sec.title, q: item.texto, peso: item.peso || 1, cronItemId: item.cronItemId, resp: null, clas: null, obs: "", evidencia: "" }))
+      sec.items.map(item => ({ id: uid(), sec: sec.title, q: item.texto, peso: item.peso || 1, cronItemId: item.cronItemId, objetivo: item.objetivo, controle: item.controle, periodicidade: item.periodicidade, metodologia: item.metodologia, resp: null, clas: null, obs: "", evidencia: "" }))
     );
   }
 
@@ -4474,6 +4464,7 @@ function AuditoriaModal({ open, onClose, step, setStep, form, setForm, checklist
                   <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
                     <div style={{ flex: 1, fontSize: 13, lineHeight: 1.5, paddingTop: 2 }}>
                       {item.q}
+                      <DetalheAtividade item={item} />
                       {item.peso === 3 && <span style={{ marginLeft: 7, fontSize: 9.5, fontWeight: 700, background: F.redDim, color: F.red, padding: "1px 6px", borderRadius: 3, fontFamily: "'Barlow Condensed',sans-serif", textTransform: "uppercase", letterSpacing: 0.5 }}>Crítico</span>}
                       {item.peso === 2 && <span style={{ marginLeft: 7, fontSize: 9.5, fontWeight: 700, background: F.amberDim, color: F.amber, padding: "1px 6px", borderRadius: 3, fontFamily: "'Barlow Condensed',sans-serif", textTransform: "uppercase", letterSpacing: 0.5 }}>Importante</span>}
                     </div>
