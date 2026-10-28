@@ -590,24 +590,24 @@ const CICLOS_PADRAO = Array.from({ length: 14 }, (_, i) => {
 function ymdLocal(d) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
+// Os relatórios semanais começam em 01/11/2026: a primeira semana vai de 01/11 a 05/11
+const INICIO_SEMANAIS = "2026-11-01";
 function semanasDoMes(mes) {
   const [ano, m] = mes.split("-").map(Number);
   const semanas = [];
   for (let dia = 1; dia <= new Date(ano, m, 0).getDate(); dia++) {
     const d = new Date(ano, m - 1, dia);
-    if (d.getDay() !== 4) continue;
-    semanas.push({ id: `sem-${ymdLocal(d)}`, quinta: ymdLocal(d), ini: ymdLocal(new Date(ano, m - 1, dia - 6)) });
+    if (d.getDay() !== 4 || ymdLocal(d) < INICIO_SEMANAIS) continue;
+    const ini = ymdLocal(new Date(ano, m - 1, dia - 6));
+    semanas.push({ id: `sem-${ymdLocal(d)}`, quinta: ymdLocal(d), ini: ini < INICIO_SEMANAIS ? INICIO_SEMANAIS : ini });
   }
   return semanas;
 }
-// A obrigação semanal começa junto com os ciclos mensais (nov/2026)
-const INICIO_SEMANAIS = "2026-11-01";
 const auditoriasDaSemana = (auditorias, sem) => auditorias.filter(a => a.data && a.data >= sem.ini && a.data <= sem.quinta);
 // Auditorias antigas não guardavam os itens: usa as não conformidades
 const itensDaAuditoria = a => a.itensVerificados?.length ? a.itensVerificados : (a.ncs || []).map(n => ({ q: n.q, resp: "nok", obs: n.obs, evidencia: n.evidencia, chamado: n.chamado }));
 function statusSemana(sem, rel, hoje) {
   if (rel) return { label: "Elaborado", cor: F.green, bg: F.greenDim };
-  if (sem.quinta < INICIO_SEMANAIS) return { label: "Antes do início", cor: F.gray4, bg: F.gray6 };
   if (sem.quinta === hoje) return { label: "Elaborar hoje", cor: F.amber, bg: F.amberDim };
   if (sem.quinta < hoje) return { label: "Atrasado", cor: F.red, bg: F.redDim };
   return { label: "Programado", cor: F.gray4, bg: F.gray6 };
@@ -760,6 +760,7 @@ function AuditoriasDoMes({ auditorias, semanais = [], podeElaborar, onSalvarSema
           O administrador elabora o relatório <strong>toda quinta-feira</strong>, com as auditorias feitas na semana (de sexta a quinta). No fim do mês, gere o relatório geral com todas as auditorias.
         </div>
         <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          {semanas.length === 0 && <div style={{ fontSize: 12.5, color: F.gray4, padding: "6px 0" }}>Os relatórios semanais começam em 01/11/2026.</div>}
           {semanas.map(sem => {
             const rel = semanais.find(x => x.id === sem.id);
             const st = statusSemana(sem, rel, hojeStr);
@@ -1772,7 +1773,7 @@ ${db.planos.length ? `<table>
     { id: "processos", icon: "⬡", label: "Processos" },
     { id: "auditorias", icon: "◎", label: "Auditorias", badge: auditoriasVisiveis.filter(a => a.status === "aberta").length },
     { id: "consolidar", icon: "⊕", label: "Consolidar Auditorias", badge: (() => { const pares = {}; db.auditorias.forEach(a => { if (a.cicloNome && a.cicloNome !== "—") { const k = `${a.areaId}-${a.cicloNome}`; pares[k] = (pares[k] || 0) + 1; } }); return Object.values(pares).filter(v => v >= 2).length; })() || 0 },
-    { id: "relatorio-conclusao", icon: "📋", label: "Relatório de Conclusão", section: "Melhoria", badge: perfil === "administrador" ? semanasDoMes(ymdLocal(new Date()).slice(0, 7)).filter(sem => sem.quinta >= INICIO_SEMANAIS && sem.quinta <= ymdLocal(new Date()) && !(db.relatoriosSemanais || []).some(r => r.id === sem.id)).length || 0 : 0 },
+    { id: "relatorio-conclusao", icon: "📋", label: "Relatório de Conclusão", section: "Melhoria", badge: perfil === "administrador" ? semanasDoMes(ymdLocal(new Date()).slice(0, 7)).filter(sem => sem.quinta <= ymdLocal(new Date()) && !(db.relatoriosSemanais || []).some(r => r.id === sem.id)).length || 0 : 0 },
     { id: "planos", icon: "◷", label: "Planos de Ação", badge: planosPendAprov.length || planosAtrasados.length },
     { id: "ncs", icon: "⚑", label: "Não Conformidades" },
     { id: "ciclos", icon: "◈", label: "Ciclos", section: "Gestão" },
