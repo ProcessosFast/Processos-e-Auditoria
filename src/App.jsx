@@ -553,7 +553,6 @@ const CRONOGRAMA_ITENS = [
   ]},
   { id: "cat-14", cat: "Segurança da informação", itens: [
     ["c14-1", "Validar se os perfis de usuários do sistema estão em conformidade com os acessos liberados", "Garantir os acessos de usuários conforme liberação do líder imediato", "Sistema", "Amostragem"],
-    ["c14-2", "Validar se os perfis de usuários de rede estão em conformidade com os acessos liberados", "Garantir os acessos de usuários conforme liberação do líder imediato", "Sistema", "Amostragem"],
     ["c14-3", "Validar usuários liberados no sistema para realizar ajuste de estoque", "Garantir que somente usuários com permissão possam realizar ajustes de estoque", "Sistema", "Todos os usuários liberados para ajuste de estoques"],
     ["c14-4", "Validar se a política de desconto está em conformidade com os acessos do sistema", "Garantir que os descontos estejam parametrizados em conformidade com a política vigente", "Sistema e política de descontos", "Amostragem"],
     ["c14-5", "Validar evidências de backups realizados do sistema", "Garantir backups", "Sistema", "Amostragem"],
