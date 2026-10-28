@@ -587,12 +587,14 @@ function DetalheAtividade({ item }) {
   );
 }
 
+// O prazo é a data prevista de conclusão; sem ela, vale a data prevista
 function statusCronograma(r, hoje) {
-  if (r?.realizada) return r.prevista && r.realizada > r.prevista
+  const prazo = r?.previstaConclusao || r?.prevista;
+  if (r?.realizada) return prazo && r.realizada > prazo
     ? { key: "realizado", label: "Realizado c/ atraso", cor: F.amber, bg: F.amberDim }
     : { key: "realizado", label: "Realizado", cor: F.green, bg: F.greenDim };
-  if (r?.prevista && r.prevista < hoje) return { key: "atrasado", label: "Atrasado", cor: F.red, bg: F.redDim };
-  if (r?.prevista) return { key: "pendente", label: "Previsto", cor: F.blue, bg: F.blueDim };
+  if (prazo && prazo < hoje) return { key: "atrasado", label: "Atrasado", cor: F.red, bg: F.redDim };
+  if (prazo) return { key: "pendente", label: "Previsto", cor: F.blue, bg: F.blueDim };
   return { key: "sem-data", label: "Sem data", cor: F.gray4, bg: F.gray6 };
 }
 
@@ -653,16 +655,16 @@ function CronogramaAuditoria({ dados, usuarios, auditorias, podeEditar, onChange
         <StatCard label="Itens no mês" value={todos.length} sub={`${pct}% concluído`} accent={F.charcoal} />
         <StatCard label="Realizados" value={cont("realizado")} sub="com data realizada" accent={F.green} />
         <StatCard label="Previstos" value={cont("pendente")} sub="dentro do prazo" accent={F.blue} />
-        <StatCard label="Atrasados" value={cont("atrasado")} sub="prevista já passou" accent={F.red} />
+        <StatCard label="Atrasados" value={cont("atrasado")} sub="prazo de conclusão passou" accent={F.red} />
         <StatCard label="Sem data" value={cont("sem-data")} sub="falta planejar" accent={F.gray5} />
       </div>
 
       <Card style={{ padding: 0 }}>
         <div className="table-scroll">
-          <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 960 }}>
+          <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 1100 }}>
             <thead>
               <tr>
-                {["Atividade", "Responsável", "Data Prevista", "Data Realizada", "Status", "Observações"].map(c => (
+                {["Atividade", "Responsável", "Data Prevista", "Prevista de Conclusão", "Data Realizada", "Status", "Observações"].map(c => (
                   <th key={c} style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: 1, color: F.gray4, padding: "10px 10px", textAlign: "left", borderBottom: `1.5px solid ${F.gray6}`, fontFamily: "'Barlow Condensed',sans-serif", whiteSpace: "nowrap" }}>{c}</th>
                 ))}
               </tr>
@@ -674,7 +676,7 @@ function CronogramaAuditoria({ dados, usuarios, auditorias, podeEditar, onChange
                 const feitos = g.itens.filter(i => doMes[i.id]?.realizada).length;
                 return [
                   <tr key={g.cat}>
-                    <td colSpan={6} style={{ background: F.charcoal, color: "#fff", padding: "7px 10px", fontFamily: "'Barlow Condensed',sans-serif", fontSize: 13, fontWeight: 800, textTransform: "uppercase", letterSpacing: 0.5 }}>
+                    <td colSpan={7} style={{ background: F.charcoal, color: "#fff", padding: "7px 10px", fontFamily: "'Barlow Condensed',sans-serif", fontSize: 13, fontWeight: 800, textTransform: "uppercase", letterSpacing: 0.5 }}>
                       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
                         <span>{g.cat} <span style={{ color: F.gray5, fontWeight: 600, marginLeft: 6 }}>{feitos}/{g.itens.length}</span></span>
                         {onAuditar && (
@@ -711,6 +713,11 @@ function CronogramaAuditoria({ dados, usuarios, auditorias, podeEditar, onChange
                           {podeEditar
                             ? <input type="date" style={inp} value={r.prevista || ""} onChange={e => set("prevista", e.target.value)} />
                             : <span style={{ fontSize: 12.5 }}>{r.prevista ? fmtDate(r.prevista) : "—"}</span>}
+                        </td>
+                        <td style={{ padding: "8px 6px", width: 140 }}>
+                          {podeEditar
+                            ? <input type="date" style={inp} value={r.previstaConclusao || ""} min={r.prevista || undefined} onChange={e => set("previstaConclusao", e.target.value)} />
+                            : <span style={{ fontSize: 12.5 }}>{r.previstaConclusao ? fmtDate(r.previstaConclusao) : "—"}</span>}
                         </td>
                         <td style={{ padding: "8px 6px", width: 140 }}>
                           {podeEditar
