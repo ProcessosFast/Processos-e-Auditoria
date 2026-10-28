@@ -506,11 +506,11 @@ const CRONOGRAMA_ITENS = [
     ["c1-3", "Verificar se existe algum fornecedor com pagamento em aberto (em atraso) no relatório de Contas a Pagar", "Garantir a inexistência de títulos em aberto a pagar", "Sistema", "Amostragem"],
   ]},
   { id: "cat-2", cat: "Contas a receber", itens: [
-    ["c2-1", "Analisar relatório de Contas a Receber acima de 120 dias", "", "", ""],
-    ["c2-2", "Realizar consulta de relatório de títulos a receber com vencimento prorrogado e validar processo de autorização da prorrogação", "", "", ""],
-    ["c2-3", "Realizar consulta de saldo de adiantamento de clientes e conferir com extrato bancário", "", "", ""],
-    ["c2-4", "Validar créditos não identificados no sistema", "", "", ""],
-    ["c2-5", "Validar descontos concedidos, e verificar se estão de acordo com a política de descontos", "", "", ""],
+    ["c2-1", "Analisar relatório de Contas a Receber acima de 120 dias", "Identificar títulos vencidos há mais de 120 dias e verificar as ações de cobrança", "Sistema", "Todos os títulos acima de 120 dias"],
+    ["c2-2", "Realizar consulta de relatório de títulos a receber com vencimento prorrogado e validar processo de autorização da prorrogação", "Garantir que as prorrogações de vencimento foram autorizadas conforme a alçada", "Sistema", "Amostragem"],
+    ["c2-3", "Realizar consulta de saldo de adiantamento de clientes e conferir com extrato bancário", "Garantir que o saldo de adiantamentos de clientes no sistema corresponde ao extrato bancário", "Sistema e extrato bancário", "Amostragem"],
+    ["c2-4", "Validar créditos não identificados no sistema", "Garantir que os créditos recebidos sejam identificados e baixados corretamente", "Sistema e extrato bancário", "Todos os créditos não identificados"],
+    ["c2-5", "Validar descontos concedidos, e verificar se estão de acordo com a política de descontos", "Garantir a aplicação da política de descontos vigente", "Sistema e política de descontos", "Amostragem"],
   ]},
   { id: "cat-3", cat: "Conciliação Bancária", itens: [
     ["c3-1", "Validar saldos dos extratos bancários X saldos de conciliação bancária no sistema", "Garantir que os saldos por dia dos extratos bancários sejam os mesmos dos registrados no sistema", "Sistema e extrato bancário", "Amostragem"],
