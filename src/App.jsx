@@ -753,8 +753,10 @@ const USUARIOS_PADRAO = [
   { id: "u-julianna-vianna", nome: "Julianna Vianna", ini: "JV", email: "", perfil: "auditor", areaId: "", areaNome: "—" },
   { id: "u-rodrigo-monsores", nome: "Rodrigo Monsores", ini: "RM", email: "", perfil: "auditor", areaId: "", areaNome: "—" },
   { id: "u-thauan-simas", nome: "Thauan Simas", ini: "TS", email: "", perfil: "auditor", areaId: "", areaNome: "—" },
+  { id: "u-arthur-villarge", nome: "Arthur Villarge", ini: "AV", email: "", perfil: "auditor", areaId: "", areaNome: "—" },
+  { id: "u-gilberto", nome: "Gilberto", ini: "GI", email: "", perfil: "auditor", areaId: "", areaNome: "—" },
+  { id: "u-guilherme", nome: "Guilherme", ini: "GU", email: "", perfil: "auditor", areaId: "", areaNome: "—" },
   { id: "u-area-processos", nome: "Área de Processos", ini: "AP", email: "processos@fastdrywall.com.br", perfil: "area-processos", areaId: "", areaNome: "—" },
-  { id: "u-auditor", nome: "Auditor", ini: "AU", email: "auditor@fastdrywall.com.br", perfil: "auditor", areaId: "", areaNome: "—" },
   { id: "u-gestor", nome: "Gestor da Área", ini: "GA", email: "gestor@fastdrywall.com.br", perfil: "gestor", areaId: "", areaNome: "—" },
 ];
 
@@ -763,7 +765,7 @@ function normalizarDb(dados) {
   const base = { areas: [], processos: [], auditorias: [], planos: [], ciclos: [], usuarios: [], modulos: [], notificacoes: [], consolidacoes: [], cronograma: {}, ...dados };
   // Perfil "auditor-lider" foi unificado em "auditor"; login é só por e-mail
   base.usuarios = base.usuarios
-    .filter(u => u.id !== "u-auditor-lider" && u.id !== "u-comite")
+    .filter(u => !["u-auditor-lider", "u-comite", "u-auditor"].includes(u.id))
     .map(({ senhaHash, trocarSenha, ...u }) => u.perfil === "auditor-lider" ? { ...u, perfil: "auditor" } : u);
   USUARIOS_PADRAO.forEach(u => {
     if (!base.usuarios.find(x => x.id === u.id)) base.usuarios = [...base.usuarios, u];
