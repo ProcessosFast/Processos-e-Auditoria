@@ -689,9 +689,6 @@ function CronogramaAuditoria({ dados, usuarios, auditorias, podeEditar, onChange
                     <td colSpan={5} style={{ background: F.charcoal, color: "#fff", padding: "7px 10px", fontFamily: "'Barlow Condensed',sans-serif", fontSize: 13, fontWeight: 800, textTransform: "uppercase", letterSpacing: 0.5 }}>
                       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
                         <span>{g.cat} <span style={{ color: F.gray5, fontWeight: 600, marginLeft: 6 }}>{feitos}/{g.itens.length}</span></span>
-                        {onAuditar && (
-                          <button onClick={() => onAuditar(AREAS_CRONOGRAMA.find(a => a.nome === g.cat)?.id)} style={{ background: F.red, color: "#fff", border: "none", borderRadius: 5, padding: "3px 10px", fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: "'Barlow',sans-serif", textTransform: "none", letterSpacing: 0 }}>◎ Auditar</button>
-                        )}
                       </div>
                     </td>
                   </tr>,
@@ -731,6 +728,9 @@ function CronogramaAuditoria({ dados, usuarios, auditorias, podeEditar, onChange
                         </td>
                         <td style={{ padding: "8px 6px", verticalAlign: "top" }}>
                           <Tag color={st.cor} bg={st.bg}>{st.label}</Tag>
+                          {onAuditar && (
+                            <button onClick={() => onAuditar(g.id, item.id, mes)} style={{ display: "block", marginTop: 6, background: F.red, color: "#fff", border: "none", borderRadius: 5, padding: "4px 10px", fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: "'Barlow',sans-serif", whiteSpace: "nowrap" }}>◎ Auditar</button>
+                          )}
                           {r.auditoriaId && (() => {
                             const aud = (auditorias || []).find(a => a.id === r.auditoriaId);
                             const res = { ok: ["Conforme", F.green], nok: ["Não conforme", F.red], na: ["N/A", F.gray4] }[r.resultado];
@@ -1279,11 +1279,11 @@ ${db.planos.length ? `<table>
   }
 
   // ── CHECKLIST BUILDER ──
-  function buildChecklist(areaId) {
+  function buildChecklist(areaId, atividadeId) {
     const area = AREAS_CRONOGRAMA.find(a => a.id === areaId);
     const grupo = CRONOGRAMA_ITENS.find(g => g.cat === area?.nome);
     const secs = [
-      { title: `Cronograma — ${area?.nome || ""}`, items: (grupo?.itens || []).map(i => ({ texto: i.texto, peso: 1, cronItemId: i.id, objetivo: i.objetivo, controle: i.controle, periodicidade: i.periodicidade, metodologia: i.metodologia })) }
+      { title: `Cronograma — ${area?.nome || ""}`, items: (grupo?.itens || []).filter(i => !atividadeId || i.id === atividadeId).map(i => ({ texto: i.texto, peso: 1, cronItemId: i.id, objetivo: i.objetivo, controle: i.controle, periodicidade: i.periodicidade, metodologia: i.metodologia })) }
     ];
     return secs.flatMap(sec =>
       sec.items.map(item => ({ id: uid(), sec: sec.title, q: item.texto, peso: item.peso || 1, cronItemId: item.cronItemId, objetivo: item.objetivo, controle: item.controle, periodicidade: item.periodicidade, metodologia: item.metodologia, resp: null, clas: null, obs: "", evidencia: "" }))
@@ -1432,6 +1432,7 @@ ${db.planos.length ? `<table>
     const audId = uid();
     const auditoria = {
       id: audId, areaNome: area?.nome || "—", areaId: audForm.areaId,
+      atividadeId: audForm.atividadeId || "", atividadeTexto: CRONOGRAMA_ITENS.flatMap(g => g.itens).find(i => i.id === audForm.atividadeId)?.texto || "",
       auditorNome: auditor?.nome || "—", data: audForm.data,
       local: audForm.local, cicloNome: ciclo?.nome || "—",
       score, obs: U(audForm.obs), status: "concluida",
@@ -1457,7 +1458,7 @@ ${db.planos.length ? `<table>
     upd("auditorias", a => [...a, auditoria]);
 
     // Atividades respondidas ganham data realizada e vínculo com a auditoria
-    const mesAud = (audForm.data || new Date().toISOString()).slice(0, 7);
+    const mesAud = audForm.cronMes || (audForm.data || new Date().toISOString()).slice(0, 7);
     const respondidas = checklist.filter(i => i.cronItemId && i.resp);
     if (respondidas.length) setDb(d => {
       const cron = d.cronograma || {};
@@ -2644,6 +2645,7 @@ ${db.planos.length ? `<table>
                     return <>
                       <TD>
                         <strong>{a.areaNome}</strong>
+                        {a.atividadeTexto && <div style={{ fontSize: 11.5, color: F.gray3, lineHeight: 1.4, marginTop: 2 }}>{a.atividadeTexto}</div>}
                         {a.local && <div style={{ fontSize: 11, color: F.gray4 }}>{a.local}</div>}
                         {a.processosAuditados?.length > 0 && (
                           <div style={{ display: "flex", gap: 4, flexWrap: "wrap", marginTop: 4 }}>
@@ -3043,11 +3045,11 @@ ${db.planos.length ? `<table>
                 dados={db.cronograma || {}}
                 usuarios={db.usuarios}
                 auditorias={db.auditorias}
-                onAuditar={podeExecutar(perfil, "auditar") ? areaId => {
+                onAuditar={podeExecutar(perfil, "auditar") ? (areaId, atividadeId, mes) => {
                   setAudStep(1); setChecklist([]);
                   const hoje = new Date().toISOString().split("T")[0];
-                  const ciclo = db.ciclos.find(c => c.ini && c.fim && c.ini <= hoje && hoje <= c.fim);
-                  setAudForm({ areaId, auditorId: usuarioLogado.id, data: hoje, cicloId: ciclo?.id || "" });
+                  const ciclo = db.ciclos.find(c => c.ini?.slice(0, 7) === mes) || db.ciclos.find(c => c.ini && c.fim && c.ini <= hoje && hoje <= c.fim);
+                  setAudForm({ areaId, atividadeId, cronMes: mes, auditorId: usuarioLogado.id, data: hoje, cicloId: ciclo?.id || "" });
                   openModal("auditoria");
                 } : null}
                 podeEditar={podeExecutar(perfil, "auditar") || podeExecutar(perfil, "criar")}
@@ -3895,7 +3897,7 @@ function AuditoriaModal({ open, onClose, step, setStep, form, setForm, checklist
   function next() {
     if (step === 1) {
       if (!form.areaId) { alert("Selecione uma área."); return; }
-      setChecklist(buildChecklist(form.areaId));
+      setChecklist(buildChecklist(form.areaId, form.atividadeId));
     }
     if (step === 2) {
       const missing = checklist.filter(i => i.resp === "nok" && !i.evidencia?.trim());
@@ -3928,11 +3930,17 @@ function AuditoriaModal({ open, onClose, step, setStep, form, setForm, checklist
       {step === 1 && (
         <div>
           <FG label="Área do cronograma">
-            <select style={fi} value={form.areaId || ""} onChange={e => setForm({ ...form, areaId: e.target.value })}>
+            <select style={fi} value={form.areaId || ""} onChange={e => setForm({ ...form, areaId: e.target.value, atividadeId: "" })}>
               <option value="">Selecione uma área...</option>
               {areas.map(a => <option key={a.id} value={a.id}>{a.nome}</option>)}
             </select>
           </FG>
+          {form.atividadeId && (
+            <div style={{ background: F.offWhite, border: `1px solid ${F.gray6}`, borderRadius: 7, padding: "10px 12px", marginBottom: 14 }}>
+              <div style={{ fontSize: 10, fontWeight: 700, color: F.gray4, textTransform: "uppercase", letterSpacing: 1, fontFamily: "'Barlow Condensed',sans-serif", marginBottom: 4 }}>Atividade auditada</div>
+              <div style={{ fontSize: 13, color: F.charcoal, lineHeight: 1.45 }}>{CRONOGRAMA_ITENS.flatMap(g => g.itens).find(i => i.id === form.atividadeId)?.texto}</div>
+            </div>
+          )}
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
             <FG label="Auditor responsável">
               <select style={fi} value={form.auditorId || ""} onChange={e => setForm({ ...form, auditorId: e.target.value })}>
