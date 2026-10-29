@@ -118,7 +118,7 @@ const PERMISSOES = {
     acoes: new Set(["criar","excluir","aprovar","exportar","atualizar-status","gerir-ciclos"])
   },
   auditor: {
-    views: ["dashboard","cronograma","bonus","auditorias","rodadas","relatorio-conclusao","planos","ncs","ciclos"],
+    views: ["dashboard","cronograma","bonus","auditorias","rodadas","relatorio-conclusao","planos","ncs","ciclos","despesas"],
     acoes: new Set(["auditar","exportar","gerir-ciclos","relatorio-final","comentar-auditoria","consolidar"])
   },
   gestor: {
@@ -3999,7 +3999,7 @@ ${db.planos.length ? `<table>
             )}
 
             {/* ── DESPESAS FIXAS ── */}
-            {view === "despesas" && <DespesasFixas podeEditar={perfil === "administrador" || perfil === "area-processos"} />}
+            {view === "despesas" && <DespesasFixas podeEditar={perfil === "administrador"} />}
 
             {/* ── CICLOS ── */}
             {view === "ciclos" && (
