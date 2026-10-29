@@ -68,7 +68,7 @@
       <div id="perfil-badge-wrap"></div>
     </div>
   </div>
-  <div class="header-right">Portal de Gestão e Auditoria<br/>Fast Sistemas Construtivos<br/>Versão 1.0 — 2026</div>
+  <div class="header-right">Portal de Gestão e Auditoria<br/>Fast Sistemas Construtivos<br/>Versão 2.0 — 29/10/2026</div>
 </div>
 
 <div class="wrap">
@@ -78,115 +78,129 @@
   <div class="nav-section" data-perfis="todos">Início</div>
   <a href="#acesso" data-perfis="todos">Acesso e Login</a>
   <a href="#perfis" data-perfis="todos">Perfis de Usuário</a>
+  <a href="#menu" data-perfis="todos">Menu do Portal</a>
   <a href="#dashboard" data-perfis="todos">Dashboard</a>
-  <a href="#cronograma" data-perfis="administrador auditor">Cronograma de Auditoria</a>
-  <a href="#bonus" data-perfis="administrador auditor">Auditorias Bônus</a>
 
-  <div class="nav-section" data-perfis="administrador">Cadastros</div>
-  <div class="nav-section" data-perfis="administrador">Controles</div>
-  <a href="#despesas" data-perfis="administrador">Despesas Fixas</a>
-  <a href="#ciclos" data-perfis="administrador auditor">Ciclos</a>
-
-  <div class="nav-section" data-perfis="administrador auditor">Auditoria</div>
+  <div class="nav-section" data-perfis="administrador area-processos auditor">Operação</div>
+  <a href="#cronograma" data-perfis="administrador area-processos auditor">Cronograma de Auditoria</a>
+  <a href="#bonus" data-perfis="administrador area-processos auditor">Auditorias Bônus</a>
   <a href="#auditoria" data-perfis="administrador auditor">Realizar Auditoria</a>
   <a href="#consolidar" data-perfis="auditor">Consolidação</a>
   <a href="#relatorio-final" data-perfis="administrador auditor">Relatório Final</a>
-
-
-  <div class="nav-section" data-perfis="todos">Conclusão</div>
   <a href="#relatorio-conclusao" data-perfis="todos">Relatório de Conclusão</a>
-  <a href="#planos" data-perfis="administrador gestor">Planos de Ação</a>
+  <a href="#planos" data-perfis="administrador area-processos auditor gestor">Planos de Ação</a>
+  <a href="#ncs" data-perfis="administrador area-processos auditor">Não Conformidades</a>
   <a href="#ciencia" data-perfis="gestor">Ciência do Auditado</a>
 
-  <div class="nav-section" data-perfis="administrador">Administração</div>
-  <a href="#usuarios" data-perfis="administrador">Usuários</a>
-  <a href="#exportar" data-perfis="administrador auditor">Exportação PDF</a>
-  <a href="#dados" data-perfis="administrador">Dados e Reset</a>
+  <div class="nav-section" data-perfis="administrador area-processos">Controles</div>
+  <a href="#despesas" data-perfis="administrador area-processos">Despesas Fixas</a>
+
+  <div class="nav-section" data-perfis="administrador area-processos auditor">Gestão</div>
+  <a href="#ciclos" data-perfis="administrador area-processos auditor">Ciclos</a>
+  <a href="#usuarios" data-perfis="administrador area-processos">Usuários</a>
+  <a href="#exportar" data-perfis="administrador area-processos auditor">Exportação e PDF</a>
+  <a href="#dados" data-perfis="todos">Dados e Sincronização</a>
 </nav>
 
 <div class="content">
 
 <section id="acesso" data-perfis="todos">
   <h1>Acesso e Login</h1>
-  <p>Entre com seu <strong>e-mail</strong> cadastrado. Nesta fase o portal não pede senha.</p>
+  <p>Entre com seu <strong>e-mail</strong> cadastrado. Nesta fase o portal <strong>não pede senha</strong>. O e-mail pode ser digitado com letras maiúsculas ou minúsculas.</p>
+  <div class="card card-blue"><strong>Primeiro carregamento:</strong> o botão mostra "Carregando dados..." por alguns segundos enquanto o portal busca as informações no banco; depois libera o login.</div>
   <div class="card card-amber"><strong>Gestor da Área:</strong> após entrar, escolha qual área você gerencia nesta sessão.</div>
   <div class="card card-red"><strong>Sair:</strong> botão ⏏ no rodapé do menu lateral.</div>
+  <div class="warning">Sem e-mail cadastrado a pessoa não consegue entrar. Peça ao Administrador para cadastrar o seu.</div>
 </section>
 
 <section id="perfis" data-perfis="todos">
   <h1>Perfis de Usuário</h1>
   <table>
-    <thead><tr><th>Perfil</th><th>Responsabilidades</th></tr></thead>
+    <thead><tr><th>Perfil</th><th>O que faz</th></tr></thead>
     <tbody>
-      <tr><td><span class="badge badge-red">Administrador</span></td><td>Gerencia todo o portal — cadastros, auditorias, aprovações e usuários</td></tr>
-      <tr><td><span class="badge badge-green">Auditor</span></td><td>Realiza e consolida auditorias, elabora relatório final, gerencia ciclos</td></tr>
-      <tr><td><span class="badge badge-blue">Gestor da Área</span></td><td>Acompanha auditorias e planos da sua área, registra ciência e atualiza status dos planos</td></tr>
+      <tr><td><span class="badge badge-red">Administrador</span></td><td>Gerencia todo o portal: é o único que altera o cronograma (responsáveis, datas e observações), elabora o relatório semanal, aprova planos de ação, cadastra usuários e preenche a quantidade de lançamentos e as Despesas Fixas</td></tr>
+      <tr><td><span class="badge badge-amber">Área de Processos</span></td><td>Acompanha o portal, preenche a quantidade de lançamentos e as Despesas Fixas, aprova planos e cadastra usuários; vê o cronograma sem alterar</td></tr>
+      <tr><td><span class="badge badge-green">Auditor</span></td><td>Vê no cronograma apenas as atividades em que é responsável e as audita pelo botão ◎ Auditar; consolida auditorias e elabora o relatório final</td></tr>
+      <tr><td><span class="badge badge-blue">Gestor da Área</span></td><td>Acompanha as auditorias e os planos da sua área, registra ciência e atualiza o status dos planos</td></tr>
     </tbody>
   </table>
 </section>
 
-<section id="cronograma" data-perfis="administrador auditor">
-  <h1>Cronograma de Auditoria</h1>
-  <p>Calendário mensal de auditoria interna com todas as verificações por área (Contas a pagar, Contas a receber, Conciliação Bancária, Caixa, Faturamento, Departamento Pessoal, Compras, Vendas, Segurança da informação, Infraestrutura, Fiscal e Auditoria de Fretes). Cada atividade mostra objetivo, controle interno, periodicidade e metodologia.</p>
-  <div class="card card-blue">Use ‹ › para trocar de mês. Cada mês tem o seu próprio preenchimento.</div>
+<section id="menu" data-perfis="todos">
+  <h1>Menu do Portal</h1>
   <table>
-    <thead><tr><th>Campo</th><th>Descrição</th></tr></thead>
+    <thead><tr><th>Seção</th><th>Itens</th></tr></thead>
     <tbody>
-      <tr><td><strong>Responsável</strong></td><td>Até três responsáveis pela verificação (o 2º e o 3º são opcionais). Ao escolher um responsável, ele é repetido automaticamente nos meses seguintes; o botão ↻ Repetir responsáveis copia os responsáveis do mês aberto para todos os meses seguintes</td></tr>
-      <tr><td><strong>Data Prevista</strong></td><td>Dia planejado para iniciar a verificação</td></tr>
-      <tr><td><strong>Prevista de Conclusão</strong></td><td>Prazo para concluir a verificação</td></tr>
-      <tr><td><strong>Data Realizada</strong></td><td>Dia em que a verificação foi feita</td></tr>
-      <tr><td><strong>Status</strong></td><td>Automático: Sem data, Previsto, Atrasado (prazo de conclusão já passou; sem ele, vale a data prevista), Realizado ou Realizado c/ atraso</td></tr>
-      <tr><td><strong>Observações</strong></td><td>Achados ou comentários da verificação</td></tr>
+      <tr><td><strong>Visão Geral</strong></td><td>Dashboard</td></tr>
+      <tr><td><strong>Operação</strong></td><td>Cronograma de Auditoria · Auditorias Bônus · Auditorias · Relatório de Conclusão · Planos de Ação · Não Conformidades</td></tr>
+      <tr><td><strong>Controles</strong></td><td>Despesas Fixas (planilhas de controle)</td></tr>
+      <tr><td><strong>Gestão</strong></td><td>Ciclos · Usuários</td></tr>
     </tbody>
   </table>
-  <div class="card card-red"><strong>◎ Auditar:</strong> cada atividade do cronograma tem o próprio botão <strong>Auditar</strong>, que abre a auditoria só com aquela atividade no checklist. Ao finalizar, a atividade recebe a data realizada e o resultado no mês do cronograma em que o botão foi clicado.</div>
-  <div class="card card-blue"><strong>Ordem:</strong> no modo <strong>📅 Por data</strong> (padrão), as atividades ficam agrupadas pelo dia da data prevista, em ordem de realização; as sem data ficam no fim, em "Sem data programada". Ao definir ou mudar uma data, a atividade vai para o dia certo assim que você sai do campo. O modo <strong>☰ Por área</strong> mostra as atividades agrupadas por área.</div>
-  <div class="tip">💡 Só o <strong>Administrador</strong> altera o cronograma (responsáveis, datas e observações). Cada auditor vê apenas as atividades em que o administrador colocou o nome dele (como 1º, 2º ou 3º responsável), e pode auditá-las pelo botão ◎ Auditar.</div>
-</section>
-
-<section id="bonus" data-perfis="administrador auditor">
-  <h1>Auditorias Bônus</h1>
-  <p><strong>Caminho:</strong> ★ Auditorias Bônus</p>
-  <p>Auditorias pontuais, que não se repetem todo mês e não têm data padrão (ex.: Qualificação de fornecedores). Funcionam como o cronograma: o administrador define até três responsáveis e as datas quando a auditoria for programada; o auditor vê apenas as que têm o nome dele e audita pelo botão ◎ Auditar. A auditoria entra no Relatório de Conclusão do mês em que foi feita.</p>
+  <div class="tip">💡 Cada perfil vê apenas os itens que pode usar. Ao atualizar a página, o portal volta para a mesma aba (e, no cronograma, para o mesmo mês).</div>
 </section>
 
 <section id="dashboard" data-perfis="todos">
   <h1>Dashboard</h1>
-  <p>Tela inicial com indicadores, kanban de fluxo e cronograma de ciclos.</p>
+  <p>Tela inicial. De cima para baixo:</p>
   <div class="card card-red">
-    <h3>⚡ Kanban de Fluxo de Auditoria</h3>
-    <p>Painel no topo que mostra em <strong>vermelho</strong> as colunas onde <strong>você tem ações pendentes</strong>. Cada coluna representa uma etapa do processo e indica quem é o responsável pela próxima ação.</p>
+    <h3>1. Indicadores</h3>
+    <p>Áreas Auditáveis, Auditorias Realizadas, Planos em Andamento, Ações em Atraso e Conformidade Geral.</p>
+  </div>
+  <div class="card card-red">
+    <h3>2. Fluxo de Auditoria</h3>
+    <p>Etapas do processo (Auditoria → Aprovação → Execução → Ciência). As colunas marcadas com <strong>"Sua ação"</strong> mostram onde você tem pendências.</p>
   </div>
   <div class="card card-blue">
-    <h3>📅 Cronograma de Ciclos</h3>
-    <p>Exibe todos os ciclos com período, progresso e áreas auditadas/pendentes. Alterne entre <strong>Lista</strong> e <strong>Calendário</strong> com os botões no canto superior direito do card.</p>
+    <h3>3. Quantidade de lançamentos</h3>
+    <p>Contagem <strong>semanal (de sexta a quinta)</strong> de lançamentos, com gráficos por grupo e linha de tendência:</p>
+    <ul>
+      <li><strong>Despesas Gerais ou Fixas:</strong> ECO, LOG e MAX</li>
+      <li><strong>Aprovações no SAP:</strong> ECO e MAX</li>
+      <li><strong>Lançamento de Fretes:</strong> ECO e LOG</li>
+      <li><strong>Validações:</strong> total</li>
+    </ul>
+    <p>Use ‹ › para trocar de mês. A tabela <strong>Quantidades</strong> fica recolhida abaixo dos gráficos — clique para abrir. Administrador e Área de Processos preenchem; os demais perfis só visualizam.</p>
+  </div>
+  <div class="card card-green">
+    <h3>4. Conformidade por área, relatórios e últimas auditorias</h3>
+    <p>Resumo das notas por área, dos relatórios de conclusão e das auditorias mais recentes.</p>
+  </div>
+  <div class="card card-blue">
+    <h3>5. Calendário de auditorias</h3>
+    <p>Mostra, em cada dia, as atividades com <strong>data prevista</strong> naquele dia (cronograma mensal e bônus), com a cor do status: azul = previsto, verde = realizado, vermelho = atrasado. <strong>Clique no dia</strong> para ver a lista completa com responsáveis. O auditor vê apenas as atividades em que é responsável. O botão <strong>Lista</strong> mostra o resumo por ciclo.</p>
   </div>
 </section>
 
-<section id="despesas" data-perfis="administrador">
-  <h1>Despesas Fixas</h1>
-  <p><strong>Caminho:</strong> Controles → ◧ Despesas Fixas (Administrador e Área de Processos)</p>
-  <p>Planilha "Despesas Fixas da Ecosistema Fast" dentro do portal, com todas as abas (unidades, lojas, T.I. e pessoas), cores, mesclagens e comentários. As alterações ficam salvas no banco para todos.</p>
-  <ul>
-    <li>Clique numa célula e digite na barra do topo (ou comece a digitar direto). <strong>Enter</strong> confirma e desce; setas movem a seleção; <strong>Delete</strong> apaga.</li>
-    <li>Fórmulas começam com <strong>=</strong>: SOMA, MÉDIA, MÍNIMO, MÁXIMO, referências (B5) e contas (+ − * /). Ex.: <code>=SOMA(B2:B10)</code>, <code>=(B2+B3)/2</code>. Valores em R$ são reconhecidos.</li>
-    <li>Células com triângulo vermelho têm comentário; ele aparece abaixo da barra ao selecionar a célula e pode ser editado.</li>
-    <li>Use <strong>+ 10 linhas</strong> / <strong>+ 1 coluna</strong> para ampliar a aba e a busca para achar um texto em todas as abas.</li>
-  </ul>
+<section id="cronograma" data-perfis="administrador area-processos auditor">
+  <h1>Cronograma de Auditoria</h1>
+  <p>Calendário mensal de auditoria interna, de <strong>novembro/2026 a dezembro/2027</strong>. As mesmas atividades se repetem todo mês, cada mês com o seu preenchimento. Áreas: Contas a pagar, Contas a receber, Conciliação Bancária, Caixa, Faturamento, Departamento Pessoal, Compras, Vendas, Segurança da informação, Infraestrutura, Fiscal e Auditoria de Fretes. Cada atividade mostra objetivo, controle interno, periodicidade e metodologia.</p>
+  <div class="card card-blue">Use ‹ › para trocar de mês. <strong>📅 Por data</strong> (padrão) agrupa as atividades por dia da data prevista, em ordem de realização — as sem data ficam no fim, em "Sem data programada". <strong>☰ Por área</strong> agrupa por área.</div>
+  <table>
+    <thead><tr><th>Campo</th><th>Descrição</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Responsável</strong></td><td>Até três responsáveis (o 2º e o 3º são opcionais). O responsável escolhido é repetido automaticamente nos meses seguintes. O botão <strong>↻ Repetir responsáveis nos meses seguintes</strong> copia os responsáveis do mês aberto para todos os meses seguintes.</td></tr>
+      <tr><td><strong>Prevista</strong></td><td>Dia planejado para a verificação. Define a posição da atividade no modo Por data e no calendário do Dashboard.</td></tr>
+      <tr><td><strong>Conclusão prevista</strong></td><td>Prazo para concluir. Não aceita data anterior à prevista.</td></tr>
+      <tr><td><strong>Realizada</strong></td><td>Dia em que a verificação foi feita (preenchida automaticamente ao finalizar a auditoria)</td></tr>
+      <tr><td><strong>Status</strong></td><td>Automático: Sem data, Previsto, Atrasado (o prazo de conclusão passou; sem ele, vale a data prevista), Realizado ou Realizado c/ atraso</td></tr>
+      <tr><td><strong>Observações</strong></td><td>Comentários sobre a atividade no mês</td></tr>
+    </tbody>
+  </table>
+  <div class="card card-red"><strong>◎ Auditar:</strong> cada atividade tem o próprio botão, que abre a auditoria só com aquela atividade. Ao finalizar, a atividade recebe a data realizada e o resultado (Conforme, Não conforme ou N/A) no mês em que o botão foi clicado.</div>
+  <div class="tip">💡 Só o <strong>Administrador</strong> altera o cronograma. Cada auditor vê apenas as atividades em que o administrador colocou o nome dele, sem campos de edição. Ao mudar uma data, a atividade vai para o dia certo assim que você sai do campo.</div>
 </section>
 
-<section id="ciclos" data-perfis="administrador auditor">
-  <h1>Ciclos de Auditoria</h1>
-  <p><strong>Caminho:</strong> Ciclos → + Novo Ciclo</p>
-  <p>Ciclos organizam as auditorias por período e alimentam o cronograma do dashboard.</p>
-  <div class="card card-blue">Ao criar um ciclo, todos os <strong>Auditores</strong> recebem automaticamente uma notificação 📅 com as áreas a auditar.</div>
-  <div class="tip">💡 Clique em ✎ para editar um ciclo já cadastrado.</div>
+<section id="bonus" data-perfis="administrador area-processos auditor">
+  <h1>Auditorias Bônus</h1>
+  <p><strong>Caminho:</strong> Operação → ★ Auditorias Bônus</p>
+  <p>Auditorias pontuais, que <strong>não se repetem todo mês e não têm data padrão</strong>. Hoje: Qualificação de fornecedores e, em Compras, as validações de 3 cotações, de fornecedores exclusivos, de estoque mínimo e máximo e das requisições de compras.</p>
+  <p>Funcionam como o cronograma: o administrador define até três responsáveis e as datas quando a auditoria for programada; o auditor vê apenas as que têm o nome dele e audita pelo botão ◎ Auditar. A auditoria entra no Relatório de Conclusão do mês em que foi feita.</p>
 </section>
 
 <section id="auditoria" data-perfis="administrador auditor">
   <h1>Realizando uma Auditoria</h1>
-  <p><strong>Caminho:</strong> Auditorias → + Nova Auditoria</p>
+  <p><strong>Caminho:</strong> Cronograma (ou Auditorias Bônus) → botão <strong>◎ Auditar</strong> da atividade. Também é possível auditar uma área inteira em Auditorias → <strong>+ Nova Auditoria</strong>.</p>
   <div class="steps">
     <div class="step"><div class="step-num">1</div><div class="step-label">Identificação</div></div>
     <div class="step-line"></div>
@@ -194,23 +208,24 @@
     <div class="step-line"></div>
     <div class="step"><div class="step-num">3</div><div class="step-label">Resultado</div></div>
   </div>
-  <h3>Step 1 — Identificação</h3>
+  <h3>Etapa 1 — Identificação</h3>
   <ul>
-    <li>Selecione a <strong>área</strong>, o <strong>auditor</strong>, a <strong>data</strong> e o <strong>ciclo</strong></li>
-    <li>Marque os <strong>processos</strong> sendo auditados</li>
+    <li>Área, auditor, data, ciclo e local/unidade. Pelo botão Auditar, a atividade auditada já aparece preenchida.</li>
   </ul>
-  <h3>Step 2 — Checklist</h3>
+  <h3>Etapa 2 — Checklist</h3>
   <ul>
-    <li>Para cada pergunta: <strong>✓ Sim</strong>, <strong>✗ Não</strong> ou <strong>N/A</strong></li>
-    <li>Para itens NOK: preencha a <strong>evidência obrigatória</strong> e selecione a <strong>Classificação</strong></li>
-    <li>Itens com badge âmbar = Importante | badge vermelho = Crítico</li>
+    <li>Para cada item: <strong>✓ Sim</strong>, <strong>✗ Não</strong> ou <strong>N/A</strong></li>
+    <li><strong>Detalhamento da verificação:</strong> descreva o que foi verificado — quais contas, documentos, períodos e valores, o que foi encontrado e a conclusão</li>
+    <li><strong>Evidência:</strong> relatório, extrato, print, documento ou link — obrigatória para itens "Não"</li>
+    <li><strong>Nº do chamado / documento SharePoint</strong></li>
+    <li>Para itens "Não": escolha a <strong>Classificação</strong> (Observação, Oportunidade de Melhoria ou Não Conformidade)</li>
   </ul>
-  <div class="warning">O avanço para o Step 3 é bloqueado se houver itens NOK sem evidência.</div>
-  <h3>Step 3 — Resultado</h3>
+  <div class="warning">Não é possível avançar para a Etapa 3 com itens "Não" sem evidência.</div>
+  <h3>Etapa 3 — Resultado</h3>
   <ul>
-    <li>Visualize o <strong>score ponderado</strong></li>
-    <li>Selecione a <strong>Causa Raiz</strong> para cada NC</li>
-    <li>Marque as NCs que devem gerar <strong>Planos de Ação</strong></li>
+    <li>Veja o <strong>score</strong> da auditoria</li>
+    <li>Selecione a <strong>Causa Raiz</strong> de cada item não conforme</li>
+    <li>Marque os itens que devem gerar <strong>Planos de Ação</strong> (vão direto para aprovação do administrador)</li>
   </ul>
   <h3>Causas Raiz disponíveis</h3>
   <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;">
@@ -219,6 +234,7 @@
     <span class="badge badge-gray">Comunicação inadequada</span><span class="badge badge-gray">Indisciplina operacional</span>
     <span class="badge badge-gray">Falha de governança</span><span class="badge badge-gray">Falha de controle</span>
   </div>
+  <div class="card card-amber" style="margin-top:14px;"><strong>Excluir uma auditoria</strong> (Auditorias → ✕): o portal pede confirmação e desfaz tudo o que ela gerou — o resultado e a data realizada no cronograma e os planos de ação criados por ela.</div>
 </section>
 
 <section id="consolidar" data-perfis="auditor">
@@ -226,16 +242,14 @@
   <p><strong>Caminho:</strong> ⊕ Consolidar Auditorias</p>
   <p>Quando dois auditores auditam a mesma área no mesmo ciclo, você consolida em um único relatório.</p>
   <div class="card card-red">
-    <strong>⚠ Disparidade maior que 20%:</strong> se a diferença entre os scores for acima de 20%, um alerta vermelho aparece com o botão <strong>"↺ Refazer Auditoria"</strong> para iniciar uma nova rodada.
+    <strong>⚠ Disparidade maior que 20%:</strong> se a diferença entre os scores for acima de 20%, aparece o botão <strong>"↺ Refazer Auditoria"</strong> para uma nova rodada.
   </div>
-  <h3>Passo a passo:</h3>
   <ol>
-    <li>Acesse <strong>⊕ Consolidar Auditorias</strong> no menu lateral</li>
-    <li>Veja os scores individuais e as NCs unificadas de ambos os auditores</li>
+    <li>Veja os scores individuais e os itens não conformes dos dois auditores</li>
     <li>Preencha <strong>Conclusões</strong> (obrigatório), Recomendações e Observações</li>
     <li>Clique em <strong>"✓ Consolidar e Gerar Relatório Final"</strong></li>
   </ol>
-  <div class="tip">💡 A consolidação já salva automaticamente o Relatório Final — não é necessário elaborar em separado.</div>
+  <div class="tip">💡 A consolidação já salva o Relatório Final — não é necessário elaborar em separado.</div>
 </section>
 
 <section id="relatorio-final" data-perfis="administrador auditor">
@@ -249,96 +263,125 @@
       <tr><td><strong>Observações Adicionais</strong></td><td>Não</td></tr>
     </tbody>
   </table>
-  <p>Após salvar, o relatório fica disponível para o Admin visualizar com o botão <strong>"📄 Ver Relatório"</strong>.</p>
+  <p>O relatório mostra todos os itens verificados, com resultado, detalhamento, evidência e nº do chamado, e pode ser salvo em PDF.</p>
 </section>
 
 <section id="relatorio-conclusao" data-perfis="todos">
   <h1>Relatório de Conclusão</h1>
-  <p><strong>Caminho:</strong> 📋 Relatório de Conclusão</p>
-  <p>Esta aba exibe os <strong>relatórios finais elaborados pelo Auditor</strong> após a consolidação das auditorias. É uma view de <em>recebimento</em> — não de elaboração.</p>
-  <div class="card card-blue"><strong>Auditorias do mês:</strong> no topo da aba, navegue pelos meses para ver todas as auditorias realizadas, com o resultado de cada item verificado (Conforme, Não conforme ou N/A), o detalhamento, a evidência e o nº do chamado / documento SharePoint. Todos os perfis veem todas as auditorias.</div>
-  <div class="card card-green">Cada relatório exibe: score, NCs com evidências, conclusões, recomendações, ciência do auditado e comentários.</div>
-  <div class="card card-blue" style="display:none" id="card-gestor-relatorio">
-    <strong>Gestor da Área:</strong> você visualiza os relatórios de todas as áreas.</div>
+  <p><strong>Caminho:</strong> Operação → 📋 Relatório de Conclusão. <strong>Todos os perfis veem todas as auditorias.</strong></p>
+  <div class="card card-blue">
+    <h3>Auditorias do mês</h3>
+    <p>Navegue pelos meses para ver o resumo (auditorias, itens verificados, conformes, não conformes, N/A) e cada auditoria com o resultado de cada item, o detalhamento, a evidência e o nº do chamado / documento SharePoint.</p>
+  </div>
+  <div class="card card-red">
+    <h3>Relatórios semanais</h3>
+    <p>O <strong>Administrador</strong> elabora o relatório <strong>toda quinta-feira</strong>, com as auditorias da semana — de <strong>sexta a quinta</strong>. O primeiro é o de 05/11/2026 (auditorias de 30/10 a 05/11). Cada semana aparece como Elaborado, Elaborar hoje, Atrasado ou Programado; o menu mostra quantas quintas estão sem relatório.</p>
+    <p>Em <strong>Elaborar</strong>, o portal mostra o resumo da semana; preencha Conclusões (obrigatório), Recomendações e Observações.</p>
+  </div>
+  <div class="card card-green">
+    <h3>Relatório geral do mês</h3>
+    <p>Botão <strong>"📄 Gerar relatório geral do mês"</strong>: documento pronto para imprimir/PDF com o resumo do mês, os relatórios semanais e todas as auditorias com cada item verificado. Se o mês não terminou, sai marcado como parcial.</p>
+  </div>
+  <div class="card">
+    <h3>Relatórios finais</h3>
+    <p>Relatórios elaborados pelo Auditor após a consolidação: score, itens não conformes com evidências, conclusões, recomendações e ciência do auditado.</p>
+  </div>
 </section>
 
-<section id="planos" data-perfis="administrador gestor">
+<section id="planos" data-perfis="administrador area-processos auditor gestor">
   <h1>Planos de Ação</h1>
-  <p><strong>Caminho:</strong> Planos de Ação</p>
-
+  <p><strong>Caminho:</strong> Operação → Planos de Ação</p>
   <div class="card card-amber" style="display:none" id="card-admin-planos">
-    <h3>Seção: Aguardando Aprovação <span class="badge badge-amber">Admin</span></h3>
-    <p>Planos gerados pelas auditorias que aguardam aprovação formal. Defina o responsável e aprove ou rejeite. Clique em <strong>✓ Aprovar</strong> ou <strong>✕ Rejeitar</strong>.</p>
+    <h3>Aguardando aprovação <span class="badge badge-amber">Administrador</span></h3>
+    <p>Os planos gerados pelas auditorias chegam aqui direto. Defina o <strong>responsável</strong> e clique em <strong>✓ Aprovar</strong> ou <strong>✕ Rejeitar</strong>. Os administradores recebem notificação.</p>
   </div>
-
   <div class="card">
-    <h3>Planos Aprovados</h3>
+    <h3>Planos aprovados</h3>
     <ul>
-      <li><strong>Status:</strong> selecione Aberto / Em Andamento / Concluído</li>
-      <li><strong>📎 Evidências:</strong> adicione texto ou link de comprovação da execução</li>
+      <li><strong>Status:</strong> Aberto / Em Andamento / Concluído</li>
+      <li><strong>📎 Evidências:</strong> texto ou link que comprova a execução</li>
       <li><strong>⏱ Solicitar Extensão:</strong> para planos atrasados, informe o motivo e o novo prazo</li>
-      <li><strong>⊙ Histórico:</strong> veja a linha do tempo completa de alterações</li>
+      <li><strong>⊙ Histórico:</strong> linha do tempo de todas as alterações</li>
     </ul>
   </div>
 </section>
 
+<section id="ncs" data-perfis="administrador area-processos auditor">
+  <h1>Não Conformidades</h1>
+  <p><strong>Caminho:</strong> Operação → ⚑ Não Conformidades. Lista todos os itens não conformes das auditorias, com classificação e evidência.</p>
+</section>
+
 <section id="ciencia" data-perfis="gestor">
   <h1>Ciência do Auditado</h1>
-  <p>Após uma auditoria da sua área, você deve registrar formalmente que foi informado dos resultados.</p>
-  <div class="card card-green">Um banner verde aparece automaticamente na sua tela inicial quando há auditorias aguardando sua ciência.</div>
-  <h3>Passo a passo:</h3>
+  <p>Após uma auditoria da sua área, registre formalmente que foi informado dos resultados.</p>
+  <div class="card card-green">Um aviso verde aparece na sua tela inicial quando há auditorias aguardando sua ciência.</div>
   <ol>
     <li>Clique em <strong>"✔ Registrar Ciência"</strong></li>
-    <li>Confirme a data</li>
-    <li>Adicione observações ou discordâncias (opcional)</li>
-    <li>Marque o checkbox de confirmação</li>
-    <li>Clique em <strong>"✓ Registrar Ciência"</strong></li>
+    <li>Confirme a data e, se quiser, adicione observações ou discordâncias</li>
+    <li>Marque a confirmação e clique em <strong>"✓ Registrar Ciência"</strong></li>
   </ol>
 </section>
 
-<section id="usuarios" data-perfis="administrador">
+<section id="despesas" data-perfis="administrador area-processos">
+  <h1>Despesas Fixas</h1>
+  <p><strong>Caminho:</strong> Controles → ◧ Despesas Fixas (Administrador e Área de Processos)</p>
+  <p>Planilha "Despesas Fixas da Ecosistema Fast" dentro do portal, com as 24 abas (unidades DCS, lojas, T.I. e pessoas), cores, mesclagens e comentários. As alterações ficam salvas no banco para todos.</p>
+  <ul>
+    <li>Clique numa célula e digite na barra do topo (ou comece a digitar direto). <strong>Enter</strong> confirma e desce; setas movem a seleção; <strong>Delete</strong> apaga.</li>
+    <li>Fórmulas começam com <strong>=</strong>: SOMA, MÉDIA, MÍNIMO, MÁXIMO, referências (B5) e contas (+ − * /). Ex.: <code>=SOMA(B2:B10)</code>. Valores em R$ são reconhecidos.</li>
+    <li>Células com triângulo vermelho têm comentário; ele aparece abaixo da barra ao selecionar a célula e pode ser editado.</li>
+    <li><strong>+ 10 linhas</strong> / <strong>+ 1 coluna</strong> ampliam a aba; a busca encontra um texto em todas as abas.</li>
+  </ul>
+</section>
+
+<section id="ciclos" data-perfis="administrador area-processos auditor">
+  <h1>Ciclos de Auditoria</h1>
+  <p><strong>Caminho:</strong> Gestão → Ciclos</p>
+  <p>Os ciclos são mensais, de <strong>NOV/2026 a DEZ/2027</strong>, e acompanham os meses do cronograma. Clique em ✎ para editar um ciclo; ao criar um novo, os auditores recebem notificação.</p>
+</section>
+
+<section id="usuarios" data-perfis="administrador area-processos">
   <h1>Usuários</h1>
-  <p><strong>Caminho:</strong> Usuários → + Novo Usuário</p>
+  <p><strong>Caminho:</strong> Gestão → Usuários → + Novo Usuário</p>
   <table>
     <thead><tr><th>Campo</th><th>Descrição</th></tr></thead>
     <tbody>
       <tr><td><strong>Nome</strong></td><td>Nome exibido no portal</td></tr>
-      <tr><td><strong>Iniciais</strong></td><td>2–3 letras para o avatar (ex: JS)</td></tr>
-      <tr><td><strong>E-mail</strong></td><td>E-mail Microsoft 365</td></tr>
-      <tr><td><strong>Perfil</strong></td><td>Administrador / Auditor / Gestor / Diretoria / Operacional</td></tr>
+      <tr><td><strong>Iniciais</strong></td><td>2–3 letras para o avatar (ex.: JS)</td></tr>
+      <tr><td><strong>E-mail</strong></td><td>É o login do usuário</td></tr>
+      <tr><td><strong>Perfil</strong></td><td>Administrador / Área de Processos / Auditor / Gestor de Área</td></tr>
       <tr><td><strong>Área</strong></td><td>Obrigatório para Gestores</td></tr>
     </tbody>
   </table>
-  <div class="tip">💡 O e-mail é o login do usuário. Sem e-mail cadastrado, a pessoa não consegue entrar.</div>
+  <div class="tip">💡 Sem e-mail cadastrado, a pessoa não consegue entrar.</div>
 </section>
 
-<section id="exportar" data-perfis="administrador auditor">
+<section id="exportar" data-perfis="administrador area-processos auditor">
   <h1>Exportação e PDF</h1>
   <div class="card card-red">
-    <h3>Relatório Geral do Dashboard</h3>
-    <p><strong>Botão "↓ Exportar Relatório"</strong> na barra superior. Abre uma nova aba com resumo, conformidade por área, histórico de auditorias e planos. Clique em <strong>"🖨 Imprimir / Salvar PDF"</strong>.</p>
+    <h3>Relatório geral do Dashboard</h3>
+    <p>Botão <strong>"↓ Exportar Relatório"</strong> na barra superior: abre uma nova aba com resumo, conformidade por área, histórico de auditorias e planos. Clique em <strong>"🖨 Imprimir / Salvar PDF"</strong>.</p>
   </div>
   <div class="card card-blue">
-    <h3>Relatório Final de Auditoria</h3>
-    <p>No modal "📄 Ver Relatório" → botão <strong>"🖨 Salvar PDF"</strong>. Inclui logo Fast, score, NCs com evidências, conclusões, recomendações e comentários.</p>
+    <h3>Relatório geral do mês</h3>
+    <p>Em Relatório de Conclusão → <strong>"📄 Gerar relatório geral do mês"</strong>.</p>
+  </div>
+  <div class="card">
+    <h3>Relatório final de auditoria</h3>
+    <p>No "📄 Ver Relatório" → <strong>"🖨 Salvar PDF"</strong>.</p>
   </div>
 </section>
 
-<section id="dados" data-perfis="administrador">
-  <h1>Dados e Reset do Portal</h1>
-  <div class="warning">
-    <strong>🗑 Limpar todos os dados:</strong> ícone 🗑 no rodapé do menu lateral (somente Admin). Os dados são apagados permanentemente — use com cautela.
-  </div>
-  <p>Os usuários padrão são restaurados automaticamente após o reset:</p>
-  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;">
-    <span class="badge badge-red">AD — Administrador</span>
-    <span class="badge badge-blue">GA — Gestor da Área</span>
-  </div>
+<section id="dados" data-perfis="todos">
+  <h1>Dados e Sincronização</h1>
+  <p>Todas as informações ficam salvas em um <strong>banco compartilhado</strong>: o que uma pessoa altera aparece para as demais em até 15 segundos, ou assim que voltam para a aba do portal.</p>
+  <div class="card card-green">O rodapé do menu lateral mostra a situação: <strong>● Dados salvos no banco</strong> (verde) ou <strong>● Sem conexão — salvando neste navegador</strong> (laranja). Sem conexão, o portal guarda as alterações e envia quando a conexão voltar.</div>
+  <div class="tip">💡 Ao atualizar a página (F5), o portal volta para a mesma tela em que você estava.</div>
 </section>
 
 <div style="margin-top:48px;padding-top:20px;border-top:1px solid #E5E5E5;text-align:center;color:#aaa;font-size:12px;line-height:2;">
   Fast Sistemas Construtivos — Portal de Gestão e Auditoria Interna<br/>
-  Manual de Instruções v1.0 — 2026 — Uso Interno
+  Manual de Instruções v2.0 — atualizado em 29/10/2026 — Uso Interno
 </div>
 
 </div><!-- /content -->
@@ -350,6 +393,7 @@
 <script>
   const PERFIL_CONFIG = {
     administrador: { label: "Administrador", cor: "#E8001D", bg: "rgba(232,0,29,.12)" },
+    "area-processos": { label: "Área de Processos", cor: "#D4580A", bg: "rgba(212,88,10,.12)" },
     auditor: { label: "Auditor", cor: "#00B050", bg: "rgba(0,176,80,.12)" },
     gestor: { label: "Gestor da Área", cor: "#0066CC", bg: "rgba(0,102,204,.12)" },
   };
@@ -375,7 +419,7 @@
     const c = document.getElementById("card-gestor-relatorio");
     if (c) c.style.display = "block";
   }
-  if (perfil === "administrador") {
+  if (perfil === "administrador" || perfil === "area-processos") {
     const c = document.getElementById("card-admin-planos");
     if (c) c.style.display = "block";
   }
