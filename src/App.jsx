@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useMemo } from "react";
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
-  Cell, LineChart, Line, ComposedChart, CartesianGrid, LabelList,
+  Cell, Line, ComposedChart, CartesianGrid, LabelList,
   PieChart, Pie, Legend
 } from "recharts";
 
@@ -1160,6 +1160,9 @@ function tendenciaLinear(valores) {
 }
 
 function QuantidadeLancamentos({ registros, podeEditar, onSalvar }) {
+  // Quantidades começam recolhidas; a preferência fica salva neste navegador
+  const [tabelaAberta, setTabelaAberta] = useState(() => { try { return localStorage.getItem("portal-fast-lancamentos-aberto") === "1"; } catch { return false; } });
+  useEffect(() => { try { localStorage.setItem("portal-fast-lancamentos-aberto", tabelaAberta ? "1" : "0"); } catch {} }, [tabelaAberta]);
   const [mes, setMes] = useState(() => { try { return sessionStorage.getItem("portal-fast-mes-lancamentos") || new Date().toISOString().slice(0, 7); } catch { return new Date().toISOString().slice(0, 7); } });
   useEffect(() => { try { sessionStorage.setItem("portal-fast-mes-lancamentos", mes); } catch {} }, [mes]);
   const [ano, m] = mes.split("-").map(Number);
@@ -1187,45 +1190,6 @@ function QuantidadeLancamentos({ registros, podeEditar, onSalvar }) {
         <div style={{ fontFamily: "'Barlow Condensed',sans-serif", fontSize: 16, fontWeight: 800, textTransform: "uppercase", minWidth: 140, textAlign: "center", color: F.charcoal }}>{MESES[m - 1]} / {ano}</div>
         <button style={navBtn} onClick={() => mudarMes(1)} title="Próximo mês">›</button>
         <div style={{ background: F.charcoal, color: "#fff", borderRadius: 8, padding: "5px 12px", fontFamily: "'Barlow Condensed',sans-serif", fontSize: 15, fontWeight: 800 }}>Total do mês: {totalMes.toLocaleString("pt-BR")}</div>
-      </div>
-
-      {/* Tabela de preenchimento */}
-      <div className="table-scroll" style={{ marginBottom: 16 }}>
-        <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 640 }}>
-          <thead>
-            <tr>
-              <th style={{ ...th, textAlign: "left" }}>Lançamento</th>
-              {semanas.map(sem => <th key={sem.id} style={th} title={`${fmtDate(sem.ini)} a ${fmtDate(sem.quinta)}`}>{sem.rotulo}</th>)}
-              <th style={th}>Total do mês</th>
-            </tr>
-          </thead>
-          <tbody>
-            {GRUPOS_LANCAMENTO.map(g => [
-              <tr key={g.id}>
-                <td style={{ ...td, textAlign: "left", fontWeight: 800, color: F.charcoal, background: F.offWhite, fontFamily: "'Barlow Condensed',sans-serif", textTransform: "uppercase", letterSpacing: 0.3 }}>{g.nome}</td>
-                {semanas.map(sem => <td key={sem.id} style={{ ...td, background: F.offWhite, fontWeight: 800 }}>{totalGrupoSemana(g, sem).toLocaleString("pt-BR")}</td>)}
-                <td style={{ ...td, background: F.offWhite, fontWeight: 800 }}>{soma(semanas.map(sem => totalGrupoSemana(g, sem))).toLocaleString("pt-BR")}</td>
-              </tr>,
-              ...(g.tipos.length > 1 || podeEditar ? g.tipos.map(t => {
-                const k = `${g.id}-${t}`;
-                return (
-                  <tr key={k}>
-                    <td style={{ ...td, textAlign: "left", paddingLeft: 18, color: F.gray3, fontWeight: 700 }}>{t}</td>
-                    {semanas.map(sem => (
-                      <td key={sem.id} style={{ ...td, width: 96 }}>
-                        {podeEditar
-                          ? <input type="number" min="0" step="1" style={{ ...fi, padding: "3px 6px", fontSize: 12.5, textAlign: "right" }} value={valoresDe(sem)[k] ?? ""} placeholder="—"
-                              onChange={e => onSalvar(sem.id, { ...valoresDe(sem), [k]: e.target.value === "" ? "" : Math.max(0, Math.floor(Number(e.target.value) || 0)) })} />
-                          : (valor(sem, k) ?? "—").toLocaleString("pt-BR")}
-                      </td>
-                    ))}
-                    <td style={td}>{soma(semanas.map(sem => valor(sem, k))).toLocaleString("pt-BR")}</td>
-                  </tr>
-                );
-              }) : []),
-            ])}
-          </tbody>
-        </table>
       </div>
 
       {/* Gráficos por grupo: barras por empresa e tendência */}
@@ -1259,6 +1223,53 @@ function QuantidadeLancamentos({ registros, podeEditar, onSalvar }) {
             </div>
           );
         })}
+      </div>
+      {/* Quantidades (tabela de preenchimento), recolhível */}
+      <div style={{ marginTop: 16, borderTop: `1px solid ${F.gray6}`, paddingTop: 10 }}>
+        <button onClick={() => setTabelaAberta(a => !a)} style={{ background: "none", border: "none", cursor: "pointer", padding: 0, display: "flex", alignItems: "center", gap: 8, fontFamily: "'Barlow Condensed',sans-serif", fontSize: 13, fontWeight: 800, textTransform: "uppercase", letterSpacing: 0.5, color: F.charcoal }}>
+          <span style={{ display: "inline-block", transform: tabelaAberta ? "rotate(90deg)" : "none", transition: "transform 0.15s", color: F.red }}>▶</span>
+          Quantidades {tabelaAberta ? "(ocultar)" : podeEditar ? "(mostrar para preencher)" : "(mostrar)"}
+        </button>
+        {tabelaAberta && <>
+        <div className="table-scroll" style={{ marginTop: 10 }}>
+          <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 640 }}>
+            <thead>
+              <tr>
+                <th style={{ ...th, textAlign: "left" }}>Lançamento</th>
+                {semanas.map(sem => <th key={sem.id} style={th} title={`${fmtDate(sem.ini)} a ${fmtDate(sem.quinta)}`}>{sem.rotulo}</th>)}
+                <th style={th}>Total do mês</th>
+              </tr>
+            </thead>
+            <tbody>
+              {GRUPOS_LANCAMENTO.map(g => [
+                <tr key={g.id}>
+                  <td style={{ ...td, textAlign: "left", fontWeight: 800, color: F.charcoal, background: F.offWhite, fontFamily: "'Barlow Condensed',sans-serif", textTransform: "uppercase", letterSpacing: 0.3 }}>{g.nome}</td>
+                  {semanas.map(sem => <td key={sem.id} style={{ ...td, background: F.offWhite, fontWeight: 800 }}>{totalGrupoSemana(g, sem).toLocaleString("pt-BR")}</td>)}
+                  <td style={{ ...td, background: F.offWhite, fontWeight: 800 }}>{soma(semanas.map(sem => totalGrupoSemana(g, sem))).toLocaleString("pt-BR")}</td>
+                </tr>,
+                ...(g.tipos.length > 1 || podeEditar ? g.tipos.map(t => {
+                  const k = `${g.id}-${t}`;
+                  return (
+                    <tr key={k}>
+                      <td style={{ ...td, textAlign: "left", paddingLeft: 18, color: F.gray3, fontWeight: 700 }}>{t}</td>
+                      {semanas.map(sem => (
+                        <td key={sem.id} style={{ ...td, width: 96 }}>
+                          {podeEditar
+                            ? <input type="number" min="0" step="1" style={{ ...fi, padding: "3px 6px", fontSize: 12.5, textAlign: "right" }} value={valoresDe(sem)[k] ?? ""} placeholder="—"
+                                onChange={e => onSalvar(sem.id, { ...valoresDe(sem), [k]: e.target.value === "" ? "" : Math.max(0, Math.floor(Number(e.target.value) || 0)) })} />
+                            : (valor(sem, k) ?? "—").toLocaleString("pt-BR")}
+                        </td>
+                      ))}
+                      <td style={td}>{soma(semanas.map(sem => valor(sem, k))).toLocaleString("pt-BR")}</td>
+                    </tr>
+                  );
+                }) : []),
+              ])}
+            </tbody>
+          </table>
+        </div>
+  
+        </>}
       </div>
       {ultima?.atualizadoPor && <div style={{ fontSize: 11, color: F.gray4, marginTop: 10 }}>Última atualização: {ultima.atualizadoPor} em {new Date(ultima.atualizadoEm).toLocaleString("pt-BR")}</div>}
     </Card>
@@ -2270,7 +2281,6 @@ ${db.planos.length ? `<table>
     return { name: a.nome.length > 14 ? a.nome.slice(0, 14) + "…" : a.nome, score, fill: score ? scoreColor(score) : F.gray6 };
   }).filter(a => a.score > 0);
 
-  const chartEvolucao = auditoriasVisiveis.slice(-8).map(a => ({ name: a.areaNome.slice(0, 8), score: a.score }));
 
   const chartPlanos = [
     { name: "Concluídos", value: planosAprovados.filter(p => p.status === "concluido").length, fill: F.green },
@@ -2602,6 +2612,32 @@ ${db.planos.length ? `<table>
               </div>
             )}
 
+            {/* ── INDICADORES (topo do dashboard) ── */}
+            {view === "dashboard" && perfil !== "gestor" && (
+              <div>
+                {/* Stats */}
+                <div className="resp-grid-5" style={{ display: "grid", gridTemplateColumns: "repeat(5,1fr)", gap: 12, marginBottom: 20 }}>
+                  <StatCard label="Áreas Auditáveis" value={areasAuditaveis.length || "—"}
+                    sub={areasAuditaveis.length ? `${areasAuditaveis.length} área${areasAuditaveis.length !== 1 ? "s" : ""}` : "Nenhuma cadastrada"}
+                    accent={F.green} delay={0} />
+                  <StatCard label="Auditorias Realizadas" value={audsConcluidas.length || "—"}
+                    sub={audsConcluidas.length ? `${audsConcluidas.length} no total` : "Nenhuma realizada"}
+                    accent={F.red} delay={0.05} />
+                  <StatCard label="Planos em Andamento"
+                    value={planosAprovados.filter(p => p.status === "andamento").length || "—"}
+                    sub={planosAprovados.filter(p => p.status === "andamento").length ? `de ${planosAprovados.length} aprovado${planosAprovados.length !== 1 ? "s" : ""}` : "Nenhum em andamento"}
+                    accent={F.blue} delay={0.08} />
+                  <StatCard label="Ações em Atraso" value={db.planos.length ? planosAtrasados.length : "—"}
+                    sub={db.planos.length ? `${db.planos.length} plano${db.planos.length !== 1 ? "s" : ""} no total` : "Nenhum plano"}
+                    accent={planosAtrasados.length > 0 ? F.red : F.amber} delay={0.1} />
+                  <StatCard label="Conformidade Geral"
+                    value={confGeral !== null ? confGeral + "%" : "—"}
+                    sub={confGeral !== null ? scoreLabel(confGeral) : "Sem dados de auditoria"}
+                    accent={confGeral !== null ? scoreColor(confGeral) : F.blue} delay={0.15} />
+                </div>
+              </div>
+            )}
+
             {/* ── KANBAN DE FLUXO ── */}
             {view === "dashboard" && (() => {
               const ETAPAS = [
@@ -2697,7 +2733,6 @@ ${db.planos.length ? `<table>
               const emAndamento = planosArea.filter(p => p.status === "andamento").length;
               const concluidos = planosArea.filter(p => p.status === "concluido").length;
               const abertos = planosArea.filter(p => p.status === "aberto").length;
-              const evolucao = [...minhasAuds].sort((a,b)=>(a.data||"").localeCompare(b.data||"")).slice(-8);
               return (
                 <div>
                   {/* Header da área */}
@@ -2727,27 +2762,7 @@ ${db.planos.length ? `<table>
                       sub={planosAtrasados.length ? "Requer atenção" : "Nenhum atrasado"} accent={planosAtrasados.length > 0 ? F.red : F.green} delay={0.1} />
                   </div>
 
-                  <div className="resp-grid-2" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginBottom: 14 }}>
-                    {/* Evolução de Score */}
-                    <Card className="anim2">
-                      <div style={{ fontFamily: "'Barlow Condensed',sans-serif", fontSize: 14, fontWeight: 800, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 16 }}>Evolução de Score</div>
-                      {evolucao.length > 0 ? (
-                        <ResponsiveContainer width="100%" height={160}>
-                          <LineChart data={evolucao.map(a => ({ name: fmtDate(a.data).slice(0,5), score: a.score }))}>
-                            <XAxis dataKey="name" tick={{ fontSize: 10, fill: F.gray4 }} />
-                            <YAxis tick={{ fontSize: 10, fill: F.gray4 }} domain={[0,100]} />
-                            <Tooltip contentStyle={{ background: F.charcoal, border: "none", borderRadius: 6, color: "#fff", fontSize: 12 }} formatter={v => [v + "%", "Score"]} />
-                            <Line type="monotone" dataKey="score" stroke={F.red} strokeWidth={2.5} dot={{ fill: F.red, r: 4 }} activeDot={{ r: 6 }} />
-                          </LineChart>
-                        </ResponsiveContainer>
-                      ) : (
-                        <div style={{ height: 160, display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: 8 }}>
-                          <div style={{ fontSize: 28, opacity: 0.15 }}>📈</div>
-                          <div style={{ fontSize: 12.5, color: F.gray4 }}>Sem dados de evolução</div>
-                        </div>
-                      )}
-                    </Card>
-
+                  <div className="resp-grid-2" style={{ display: "grid", gridTemplateColumns: "1fr", gap: 14, marginBottom: 14 }}>
                     {/* Status dos planos */}
                     <Card className="anim2">
                       <div style={{ fontFamily: "'Barlow Condensed',sans-serif", fontSize: 14, fontWeight: 800, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 16 }}>Relatórios de Conclusão</div>
@@ -2812,26 +2827,6 @@ ${db.planos.length ? `<table>
             {view === "dashboard" && perfil !== "gestor" && (
               <div>
                 <QuantidadeLancamentos registros={db.lancamentos || []} podeEditar={perfil === "administrador" || perfil === "area-processos"} onSalvar={salvarLancamentos} />
-                {/* Stats */}
-                <div className="resp-grid-5" style={{ display: "grid", gridTemplateColumns: "repeat(5,1fr)", gap: 12, marginBottom: 20 }}>
-                  <StatCard label="Áreas Auditáveis" value={areasAuditaveis.length || "—"}
-                    sub={areasAuditaveis.length ? `${areasAuditaveis.length} área${areasAuditaveis.length !== 1 ? "s" : ""}` : "Nenhuma cadastrada"}
-                    accent={F.green} delay={0} />
-                  <StatCard label="Auditorias Realizadas" value={audsConcluidas.length || "—"}
-                    sub={audsConcluidas.length ? `${audsConcluidas.length} no total` : "Nenhuma realizada"}
-                    accent={F.red} delay={0.05} />
-                  <StatCard label="Planos em Andamento"
-                    value={planosAprovados.filter(p => p.status === "andamento").length || "—"}
-                    sub={planosAprovados.filter(p => p.status === "andamento").length ? `de ${planosAprovados.length} aprovado${planosAprovados.length !== 1 ? "s" : ""}` : "Nenhum em andamento"}
-                    accent={F.blue} delay={0.08} />
-                  <StatCard label="Ações em Atraso" value={db.planos.length ? planosAtrasados.length : "—"}
-                    sub={db.planos.length ? `${db.planos.length} plano${db.planos.length !== 1 ? "s" : ""} no total` : "Nenhum plano"}
-                    accent={planosAtrasados.length > 0 ? F.red : F.amber} delay={0.1} />
-                  <StatCard label="Conformidade Geral"
-                    value={confGeral !== null ? confGeral + "%" : "—"}
-                    sub={confGeral !== null ? scoreLabel(confGeral) : "Sem dados de auditoria"}
-                    accent={confGeral !== null ? scoreColor(confGeral) : F.blue} delay={0.15} />
-                </div>
 
                 {/* Gráficos */}
                 <div className="resp-grid-2" style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 14, marginBottom: 14 }}>
@@ -2888,31 +2883,8 @@ ${db.planos.length ? `<table>
                   </Card>
                 </div>
 
-                {/* Evolução + Tabela */}
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
-                  <Card className="anim3">
-                    <div style={{
-                      fontFamily: "'Barlow Condensed',sans-serif", fontSize: 14,
-                      fontWeight: 800, textTransform: "uppercase", letterSpacing: 0.5,
-                      marginBottom: 16, color: F.charcoal
-                    }}>Evolução de Score</div>
-                    {chartEvolucao.length > 0 ? (
-                      <ResponsiveContainer width="100%" height={160}>
-                        <LineChart data={chartEvolucao}>
-                          <XAxis dataKey="name" tick={{ fontSize: 10, fill: F.gray4 }} />
-                          <YAxis tick={{ fontSize: 10, fill: F.gray4 }} domain={[0, 100]} />
-                          <Tooltip contentStyle={{ background: F.charcoal, border: "none", borderRadius: 6, color: "#fff", fontSize: 12 }} formatter={(v) => [v + "%", "Score"]} />
-                          <Line type="monotone" dataKey="score" stroke={F.red} strokeWidth={2.5} dot={{ fill: F.red, r: 4 }} activeDot={{ r: 6 }} />
-                        </LineChart>
-                      </ResponsiveContainer>
-                    ) : (
-                      <div style={{ height: 160, display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: 8 }}>
-                        <div style={{ fontSize: 28, opacity: 0.15 }}>📈</div>
-                        <div style={{ fontSize: 12.5, color: F.gray4 }}>Sem dados de evolução</div>
-                      </div>
-                    )}
-                  </Card>
-
+                {/* Últimas auditorias */}
+                <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 14 }}>
                   <Card className="anim3">
                     <div style={{
                       display: "flex", justifyContent: "space-between",
