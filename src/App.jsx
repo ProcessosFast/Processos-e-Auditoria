@@ -1803,6 +1803,7 @@ export default function App() {
     return () => document.removeEventListener("input", handleInput, true);
   }, []);
   const [diaCalendario, setDiaCalendario] = useState(null);
+  const [diaAuditorias, setDiaAuditorias] = useState(null);
   const [calMes, setCalMes] = useState(() => { const d = new Date(); return { ano: d.getFullYear(), mes: d.getMonth() }; });
   const [viewRelatorioAudId, setViewRelatorioAudId] = useState(null);
   const planosIdsRef = useRef(new Set());
@@ -2417,7 +2418,7 @@ ${db.planos.length ? `<table>
                 <div style={{ fontSize: 9, color: F.gray3, textTransform: "uppercase", letterSpacing: 0.5 }}>{PERFIL_LABEL[perfil] || perfil}</div>
               </div>
               <button
-                onClick={() => setUsuarioLogado(null)}
+                onClick={() => { setUsuarioLogado(null); setDiaAuditorias(null); }}
                 title="Sair"
                 style={{ background: "none", border: "none", color: F.gray4, cursor: "pointer", fontSize: 16, padding: "2px 4px", flexShrink: 0, transition: "color 0.15s" }}
                 onMouseEnter={e => e.currentTarget.style.color = F.red}
@@ -3475,11 +3476,63 @@ ${db.planos.length ? `<table>
             })()}
 
             {/* ── AUDITORIAS ── */}
-            {view === "auditorias" && (
+            {view === "auditorias" && (() => {
+              // Programadas: atividades com data prevista no dia escolhido em que a pessoa é responsável
+              const dia = diaAuditorias || hojeDia;
+              const programadas = [];
+              Object.entries(db.cronograma || {}).forEach(([folha, itens]) => Object.entries(itens || {}).forEach(([id, r]) => {
+                if (r?.prevista !== dia || !CAMPOS_RESPONSAVEL.some(c => r[c] === usuarioLogado.id)) return;
+                const g = CRONOGRAMA_ITENS.find(gr => gr.itens.some(i => i.id === id));
+                if (g) programadas.push({ folha, g, item: g.itens.find(i => i.id === id), r, st: statusCronograma(r, hojeDia) });
+              }));
+              const realizadas = (perfil === "auditor" ? auditoriasVisiveis.filter(a => a.auditorId === usuarioLogado.id || a.auditorNome === usuarioLogado.nome) : auditoriasVisiveis)
+                .slice().sort((a, b) => (b.data || "").localeCompare(a.data || ""));
+              const mudarDia = delta => { const d = new Date(dia + "T00:00"); d.setDate(d.getDate() + delta); setDiaAuditorias(ymdLocal(d)); };
+              const navBtn = { background: F.offWhite, border: `1px solid ${F.gray6}`, borderRadius: 6, padding: "4px 11px", cursor: "pointer", fontSize: 14, color: F.gray3 };
+              const titulo = { fontFamily: "'Barlow Condensed',sans-serif", fontSize: 15, fontWeight: 800, textTransform: "uppercase", letterSpacing: 0.5, color: F.charcoal };
+              return (
+              <div>
+                {perfil !== "gestor" && (
+                  <Card style={{ marginBottom: 16 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", marginBottom: 12 }}>
+                      <div style={{ ...titulo, flex: 1, minWidth: 220 }}>Programadas para {dia === hojeDia ? "hoje" : "o dia"}</div>
+                      <button style={navBtn} onClick={() => mudarDia(-1)} title="Dia anterior">‹</button>
+                      <div style={{ fontFamily: "'Barlow Condensed',sans-serif", fontSize: 15, fontWeight: 800, minWidth: 190, textAlign: "center", textTransform: "capitalize" }}>{new Date(dia + "T00:00").toLocaleDateString("pt-BR", { weekday: "long" })}, {fmtDate(dia)}</div>
+                      <button style={navBtn} onClick={() => mudarDia(1)} title="Próximo dia">›</button>
+                      {dia !== hojeDia && <Btn variant="ghost" onClick={() => setDiaAuditorias(null)}>Hoje</Btn>}
+                    </div>
+                    {programadas.length === 0 ? (
+                      <div style={{ textAlign: "center", padding: "22px 0", fontSize: 13, color: F.gray4 }}>Nenhuma auditoria programada com o seu nome neste dia.</div>
+                    ) : (
+                      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                        {programadas.map(x => {
+                          const res = { ok: ["Conforme", F.green], nok: ["Não conforme", F.red], na: ["N/A", F.gray4] }[x.r.resultado];
+                          return (
+                            <div key={x.folha + x.item.id} style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap", border: `1px solid ${F.gray6}`, borderLeft: `4px solid ${x.st.cor}`, borderRadius: 7, padding: "9px 12px" }}>
+                              <div style={{ flex: 1, minWidth: 240, fontSize: 13, color: F.charcoal, lineHeight: 1.45 }}>
+                                <strong>{x.g.cat}</strong>{x.folha === "bonus" && <span style={{ color: F.amber, fontWeight: 700 }}> · Bônus</span>} — {x.item.texto}
+                                <div style={{ fontSize: 11.5, color: F.gray4, marginTop: 2 }}>
+                                  {CAMPOS_RESPONSAVEL.map(c => db.usuarios.find(u => u.id === x.r[c])?.nome).filter(Boolean).join(", ")}
+                                  {x.r.previstaConclusao ? ` · conclusão prevista ${fmtDate(x.r.previstaConclusao)}` : ""}
+                                </div>
+                              </div>
+                              <Tag color={x.st.cor} bg={x.st.bg}>{x.st.label}</Tag>
+                              {x.r.realizada
+                                ? <span style={{ fontSize: 11.5, fontWeight: 700, color: res?.[1] || F.gray3 }}>◎ {res?.[0] || "Auditada"}</span>
+                                : podeExecutar(perfil, "auditar") && <Btn onClick={() => iniciarAuditoria(x.g.id, x.item.id, x.folha)}>◎ Auditar</Btn>}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </Card>
+                )}
+
+                <div style={{ ...titulo, marginBottom: 10 }}>Realizadas{perfil === "auditor" ? " por você" : ""}</div>
               <Card>
                 <DataTable
                   cols={["Área", "Auditor", "Data", "Ciclo", "Score Individual", "Média do Ciclo", "NCs", "Ciência", "Rel. Final", ...(podeExecutar(perfil, "excluir") ? [""] : [])]}
-                  rows={auditoriasVisiveis.map(a => {
+                  rows={realizadas.map(a => {
                     const ncc = a.ncs?.filter(n => n.clas === "nc").length || 0;
                     const parceirosCiclo = a.cicloNome && a.cicloNome !== "—"
                       ? db.auditorias.filter(x => x.areaId === a.areaId && x.cicloNome === a.cicloNome)
@@ -3490,6 +3543,7 @@ ${db.planos.length ? `<table>
                     return <>
                       <TD>
                         <strong>{a.areaNome}</strong>
+                        {a.aprovacao?.status && (() => { const [l, c, bg] = { pendente: ["Aguardando aprovação", F.amber, F.amberDim], aprovada: ["Aprovada", F.green, F.greenDim], reprovada: ["Reprovada", F.red, F.redDim] }[a.aprovacao.status] || []; return l ? <span style={{ marginLeft: 6 }}><Tag color={c} bg={bg}>{l}</Tag></span> : null; })()}
                         {a.atividadeTexto && <div style={{ fontSize: 11.5, color: F.gray3, lineHeight: 1.4, marginTop: 2 }}>{a.atividadeTexto}</div>}
                         {a.local && <div style={{ fontSize: 11, color: F.gray4 }}>{a.local}</div>}
                         {a.processosAuditados?.length > 0 && (
@@ -3549,7 +3603,9 @@ ${db.planos.length ? `<table>
                   }}
                 />
               </Card>
-            )}
+              </div>
+              );
+            })()}
 
             {/* ── ELABORAR PLANO DE AÇÃO ── */}
             {/* ── PLANOS ── */}
