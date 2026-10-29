@@ -114,7 +114,7 @@ const PERMISSOES = {
     acoes: new Set(["criar","excluir","aprovar","exportar","auditar","atualizar-status","gerir-ciclos","comentar-auditoria","relatorio-final"])
   },
   "area-processos": {
-    views: ["dashboard","cronograma","bonus","auditorias","relatorio-conclusao","planos","ncs","ciclos","usuarios","despesas"],
+    views: ["dashboard","cronograma","bonus","auditorias","relatorio-conclusao","planos","ncs","ciclos","usuarios","despesas","rodadas"],
     acoes: new Set(["criar","excluir","aprovar","exportar","atualizar-status","gerir-ciclos"])
   },
   auditor: {
@@ -122,7 +122,7 @@ const PERMISSOES = {
     acoes: new Set(["auditar","exportar","gerir-ciclos","relatorio-final","comentar-auditoria","consolidar"])
   },
   gestor: {
-    views: ["dashboard","relatorio-conclusao","planos","auditorias"],
+    views: ["dashboard","relatorio-conclusao","planos","auditorias","rodadas"],
     acoes: new Set(["atualizar-status"])
   }
 };
@@ -2016,6 +2016,16 @@ ${db.planos.length ? `<table>
   const areasAuditaveis = AREAS_CRONOGRAMA.filter(a => !a.naoAuditada && !a.noa);
   const audsConcluidas = auditoriasVisiveis.filter(a => a.status === "concluida");
   const planosAprovados = planosVisiveis.filter(p => p.aprovacao === "aprovado");
+
+  // Lembrete: atividades com data prevista hoje, ainda não realizadas, em que a pessoa logada é responsável
+  const hojeDia = new Date().toISOString().split("T")[0];
+  const atividadesDoDia = [];
+  Object.entries(db.cronograma || {}).forEach(([folha, itens]) => Object.entries(itens || {}).forEach(([id, r]) => {
+    if (r?.prevista !== hojeDia || r.realizada || !CAMPOS_RESPONSAVEL.some(c => r[c] === usuarioLogado.id)) return;
+    const g = CRONOGRAMA_ITENS.find(gr => gr.itens.some(i => i.id === id));
+    if (g) atividadesDoDia.push({ folha, areaId: g.id, area: g.cat, item: g.itens.find(i => i.id === id) });
+  }));
+  const audsAguardandoAprovacao = perfil === "administrador" ? db.auditorias.filter(a => a.aprovacao?.status === "pendente") : [];
   const planosPendAprov = planosVisiveis.filter(p => p.aprovacao === "pendente");
   const planosPendentes = planosAprovados.filter(p => p.status !== "concluido");
   const planosAtrasados = planosPendentes.filter(isAtrasado);
@@ -2170,6 +2180,25 @@ ${db.planos.length ? `<table>
   }
 
   // Exclui a auditoria e desfaz o que ela marcou: resultado no cronograma e planos gerados
+  // Abre a auditoria de uma atividade do cronograma (mês "AAAA-MM" ou "bonus")
+  function iniciarAuditoria(areaId, atividadeId, mes) {
+    setAudStep(1); setChecklist([]);
+    const hoje = new Date().toISOString().split("T")[0];
+    const ciclo = db.ciclos.find(c => c.ini?.slice(0, 7) === mes) || db.ciclos.find(c => c.ini && c.fim && c.ini <= hoje && hoje <= c.fim);
+    setAudForm({ areaId, atividadeId, cronMes: mes, auditorId: usuarioLogado.id, data: hoje, cicloId: ciclo?.id || "" });
+    openModal("auditoria");
+  }
+
+  // Administrador aprova ou reprova o que o auditor registrou
+  function decidirAuditoria(aud, status, obs) {
+    upd("auditorias", arr => arr.map(a => a.id === aud.id ? { ...a, aprovacao: { status, obs: U(obs || ""), por: usuarioLogado.nome, em: new Date().toISOString() } } : a));
+    const destino = db.usuarios.find(u => u.id === aud.auditorId) || db.usuarios.find(u => u.nome === aud.auditorNome);
+    if (destino) enviarNotificacao(destino.id, status === "aprovada" ? "Auditoria aprovada" : "Auditoria reprovada",
+      `${aud.areaNome}${aud.atividadeTexto ? " — " + aud.atividadeTexto.slice(0, 60) : ""}${obs ? ": " + obs : ""}`, "auditoria", { auditoriaId: aud.id, areaNome: aud.areaNome });
+    closeModal("aprovarAuditoria");
+    showToast(status === "aprovada" ? "Auditoria aprovada!" : "Auditoria reprovada — o auditor foi avisado.", status === "aprovada" ? "ok" : "err");
+  }
+
   function excluirAuditoria(a) {
     const planos = db.planos.filter(p => p.auditoriaId === a.id).length;
     if (!window.confirm(`Excluir a auditoria de ${a.areaNome} (${fmtDate(a.data)})?${planos ? ` Os ${planos} plano(s) de ação gerados por ela também serão excluídos.` : ""} A marcação no cronograma será desfeita.`)) return;
@@ -2232,7 +2261,8 @@ ${db.planos.length ? `<table>
       mes: audForm.cronMes && audForm.cronMes !== "bonus" ? audForm.cronMes : (audForm.data || new Date().toISOString()).slice(0, 7),
       bonus: audForm.cronMes === "bonus",
       atividadeId: audForm.atividadeId || "", atividadeTexto: CRONOGRAMA_ITENS.flatMap(g => g.itens).find(i => i.id === audForm.atividadeId)?.texto || "",
-      auditorNome: auditor?.nome || "—", data: audForm.data,
+      auditorId: audForm.auditorId || "", auditorNome: auditor?.nome || "—", data: audForm.data,
+      aprovacao: { status: "pendente" },
       local: audForm.local, cicloNome: ciclo?.nome || "—",
       score, obs: U(audForm.obs), status: "concluida",
       processosAuditados: audForm.processosAuditados || [],
@@ -2256,6 +2286,8 @@ ${db.planos.length ? `<table>
     });
 
     upd("auditorias", a => [...a, auditoria]);
+    db.usuarios.filter(u => u.perfil === "administrador" && u.id !== usuarioLogado.id).forEach(u =>
+      enviarNotificacao(u.id, "Auditoria aguardando aprovação", `${auditoria.areaNome}${auditoria.atividadeTexto ? " — " + auditoria.atividadeTexto.slice(0, 60) : ""} · ${auditoria.auditorNome}`, "auditoria", { auditoriaId: audId, areaNome: auditoria.areaNome }));
 
     // Atividades respondidas ganham data realizada e vínculo com a auditoria
     const mesAud = audForm.cronMes || (audForm.data || new Date().toISOString()).slice(0, 7);
@@ -2541,6 +2573,43 @@ ${db.planos.length ? `<table>
           {/* CONTENT */}
           <div style={{ padding: isMobile ? "16px 12px" : "24px 28px", flex: 1, minWidth: 0 }}>
 
+            {/* ── LEMBRETE DO DIA (todas as telas) ── */}
+            {(atividadesDoDia.length > 0 || audsAguardandoAprovacao.length > 0) && (
+              <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 18 }}>
+                {atividadesDoDia.length > 0 && (
+                  <div style={{ background: F.redDim, border: `1.5px solid ${F.redBorder}`, borderRadius: 10, padding: "10px 14px", display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+                    <div style={{ fontFamily: "'Barlow Condensed',sans-serif", fontSize: 13, fontWeight: 800, textTransform: "uppercase", letterSpacing: 0.5, color: F.red, flexShrink: 0 }}>
+                      📌 Hoje você tem {atividadesDoDia.length} auditoria{atividadesDoDia.length !== 1 ? "s" : ""}
+                    </div>
+                    <div style={{ display: "flex", gap: 6, flexWrap: "wrap", flex: 1 }}>
+                      {atividadesDoDia.map(x => (
+                        <button key={x.folha + x.item.id} onClick={() => podeExecutar(perfil, "auditar") ? iniciarAuditoria(x.areaId, x.item.id, x.folha) : setView(x.folha === "bonus" ? "bonus" : "cronograma")} title={x.item.texto}
+                          style={{ background: "#fff", border: `1px solid ${F.redBorder}`, borderRadius: 6, padding: "4px 10px", fontSize: 11.5, color: F.charcoal, cursor: "pointer", fontFamily: "'Barlow',sans-serif", maxWidth: 360, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                          <strong>{x.area}:</strong> {x.item.texto}{x.folha === "bonus" ? " (bônus)" : ""} <span style={{ color: F.red, fontWeight: 700 }}>◎ Auditar</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {audsAguardandoAprovacao.length > 0 && (
+                  <div style={{ background: F.greenDim, border: `1.5px solid ${F.green}55`, borderRadius: 10, padding: "10px 14px", display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+                    <div style={{ fontFamily: "'Barlow Condensed',sans-serif", fontSize: 13, fontWeight: 800, textTransform: "uppercase", letterSpacing: 0.5, color: F.green, flexShrink: 0 }}>
+                      ✓ {audsAguardandoAprovacao.length} auditoria{audsAguardandoAprovacao.length !== 1 ? "s" : ""} aguardando sua aprovação
+                    </div>
+                    <div style={{ display: "flex", gap: 6, flexWrap: "wrap", flex: 1 }}>
+                      {audsAguardandoAprovacao.slice(0, 6).map(a => (
+                        <button key={a.id} onClick={() => openModal("aprovarAuditoria", a)} title={a.atividadeTexto || a.areaNome}
+                          style={{ background: "#fff", border: `1px solid ${F.green}55`, borderRadius: 6, padding: "4px 10px", fontSize: 11.5, color: F.charcoal, cursor: "pointer", fontFamily: "'Barlow',sans-serif", maxWidth: 360, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                          <strong>{a.areaNome}</strong> · {a.auditorNome} · {fmtDate(a.data)}
+                        </button>
+                      ))}
+                      {audsAguardandoAprovacao.length > 6 && <span style={{ fontSize: 11.5, color: F.gray3, alignSelf: "center" }}>+{audsAguardandoAprovacao.length - 6} — veja no Dashboard</span>}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* ── RESUMO DO GESTOR ── */}
             {perfil === "gestor" && (
               <div style={{ marginBottom: 20 }}>
@@ -2647,11 +2716,14 @@ ${db.planos.length ? `<table>
                   itens: db.ciclos.filter(c => c.status === "ativo" && c.ini && c.ini <= new Date().toISOString().split("T")[0]).filter(c => !db.auditorias.find(a => a.cicloNome === c.nome)).map(c => ({ titulo: c.nome, sub: `Início: ${fmtDate(c.ini)} · Nenhuma auditoria iniciada`, id: c.id })),
                   acaoPerfis: ["auditor"], acao: "Ciclo ativo — iniciar auditorias das áreas" },
                 { id: "auditoria",    label: "Auditoria",         icon: "◎", cor: F.red,    perfisResponsaveis: ["auditor","administrador"],
-                  itens: db.auditorias.filter(a => !a.relatorioFinal?.status).map(a => ({ titulo: a.areaNome, sub: `Score: ${a.score}% · ${fmtDate(a.data)}`, id: a.id })),
-                  acaoPerfis: ["auditor","administrador"], acao: "Elaborar relatório final" },
+                  itens: atividadesDoDia.map(x => ({ titulo: `${x.area}: ${x.item.texto.slice(0, 50)}${x.item.texto.length > 50 ? "…" : ""}`, sub: x.folha === "bonus" ? "Bônus · hoje" : "Hoje", id: x.folha + x.item.id, onClick: podeExecutar(perfil, "auditar") ? () => iniciarAuditoria(x.areaId, x.item.id, x.folha) : null })),
+                  acaoPerfis: ["auditor","administrador"], acao: "Auditorias programadas para hoje" },
                 { id: "aprovacao",    label: "Aprovação",         icon: "✓", cor: F.green,  perfisResponsaveis: ["administrador"],
-                  itens: db.planos.filter(p => p.aprovacao === "pendente").map(p => ({ titulo: p.desc?.slice(0,40) + (p.desc?.length > 40 ? "…" : ""), sub: p.areaNome, id: p.id })),
-                  acaoPerfis: ["administrador"], acao: "Aprovar ou rejeitar plano" },
+                  itens: [
+                    ...audsAguardandoAprovacao.map(a => ({ titulo: `${a.areaNome}${a.atividadeTexto ? ": " + a.atividadeTexto.slice(0, 40) + (a.atividadeTexto.length > 40 ? "…" : "") : ""}`, sub: `Auditoria · ${a.auditorNome} · ${fmtDate(a.data)}`, id: a.id, onClick: () => openModal("aprovarAuditoria", a) })),
+                    ...db.planos.filter(p => p.aprovacao === "pendente").map(p => ({ titulo: p.desc?.slice(0,40) + (p.desc?.length > 40 ? "…" : ""), sub: `Plano de ação · ${p.areaNome}`, id: p.id, onClick: () => setView("planos") })),
+                  ],
+                  acaoPerfis: ["administrador"], acao: "Aprovar auditorias e planos" },
                 { id: "execucao",     label: "Execução",          icon: "◷", cor: F.blue,   perfisResponsaveis: ["gestor"],
                   itens: planosAprovados.filter(p => p.status !== "concluido").map(p => ({ titulo: p.desc?.slice(0,40) + (p.desc?.length > 40 ? "…" : ""), sub: `${p.areaNome} · ${fmtDate(p.prazo)}`, id: p.id })),
                   acaoPerfis: ["gestor"], acao: "Executar e atualizar status" },
@@ -2705,7 +2777,7 @@ ${db.planos.length ? `<table>
                               {etapa.itens.length === 0 ? (
                                 <div style={{ color: F.gray5, fontSize: 11, textAlign: "center", padding: "16px 0" }}>Nenhum item</div>
                               ) : etapa.itens.slice(0,4).map((item, i) => (
-                                <div key={i} style={{ background: eMinha ? F.redDim : F.offWhite, borderRadius: 6, padding: "7px 9px", border: `1px solid ${eMinha ? F.redBorder : F.gray6}` }}>
+                                <div key={i} onClick={item.onClick || undefined} title={item.onClick ? "Clique para abrir" : undefined} style={{ background: eMinha ? F.redDim : F.offWhite, borderRadius: 6, padding: "7px 9px", border: `1px solid ${eMinha ? F.redBorder : F.gray6}`, cursor: item.onClick ? "pointer" : "default" }}>
                                   <div style={{ fontSize: 11.5, fontWeight: 600, color: F.charcoal, lineHeight: 1.3, marginBottom: 2 }}>{item.titulo}</div>
                                   <div style={{ fontSize: 10, color: F.gray4 }}>{item.sub}</div>
                                 </div>
@@ -3819,13 +3891,7 @@ ${db.planos.length ? `<table>
                 dados={db.cronograma || {}}
                 usuarios={db.usuarios}
                 auditorias={db.auditorias}
-                onAuditar={podeExecutar(perfil, "auditar") ? (areaId, atividadeId, mes) => {
-                  setAudStep(1); setChecklist([]);
-                  const hoje = new Date().toISOString().split("T")[0];
-                  const ciclo = db.ciclos.find(c => c.ini?.slice(0, 7) === mes) || db.ciclos.find(c => c.ini && c.fim && c.ini <= hoje && hoje <= c.fim);
-                  setAudForm({ areaId, atividadeId, cronMes: mes, auditorId: usuarioLogado.id, data: hoje, cicloId: ciclo?.id || "" });
-                  openModal("auditoria");
-                } : null}
+                onAuditar={podeExecutar(perfil, "auditar") ? iniciarAuditoria : null}
                 podeEditar={perfil === "administrador"}
                 onChange={(mes, itemId, campo, valor) => setDb(d => {
                   const cron = { ...(d.cronograma || {}) };
@@ -3866,13 +3932,7 @@ ${db.planos.length ? `<table>
                 dados={db.cronograma || {}}
                 usuarios={db.usuarios}
                 auditorias={db.auditorias}
-                onAuditar={podeExecutar(perfil, "auditar") ? (areaId, atividadeId, mes) => {
-                  setAudStep(1); setChecklist([]);
-                  const hoje = new Date().toISOString().split("T")[0];
-                  const ciclo = db.ciclos.find(c => c.ini?.slice(0, 7) === mes) || db.ciclos.find(c => c.ini && c.fim && c.ini <= hoje && hoje <= c.fim);
-                  setAudForm({ areaId, atividadeId, cronMes: mes, auditorId: usuarioLogado.id, data: hoje, cicloId: ciclo?.id || "" });
-                  openModal("auditoria");
-                } : null}
+                onAuditar={podeExecutar(perfil, "auditar") ? iniciarAuditoria : null}
                 podeEditar={perfil === "administrador"}
                 onChange={(mes, itemId, campo, valor) => setDb(d => {
                   const cron = d.cronograma || {};
@@ -4031,6 +4091,9 @@ ${db.planos.length ? `<table>
       />
 
       {/* AUDITORIA */}
+      {modals.aprovarAuditoria && (
+        <AprovarAuditoriaModal auditoria={modals.aprovarAuditoria} onClose={() => closeModal("aprovarAuditoria")} onDecidir={decidirAuditoria} />
+      )}
       <AuditoriaModal
         open={!!modals.auditoria} onClose={() => { closeModal("auditoria"); setAudStep(1); }}
         step={audStep} setStep={setAudStep}
@@ -4758,6 +4821,46 @@ function HistoricoModal({ open, onClose, plano }) {
           ))}
         </div>
       )}
+    </Modal>
+  );
+}
+
+function AprovarAuditoriaModal({ auditoria, onClose, onDecidir }) {
+  const [obs, setObs] = useState("");
+  const RES = { ok: ["Conforme", F.green, F.greenDim], nok: ["Não conforme", F.red, F.redDim], na: ["N/A", F.gray4, F.gray6] };
+  const itens = auditoria.itensVerificados?.length ? auditoria.itensVerificados : (auditoria.ncs || []).map(n => ({ q: n.q, resp: "nok", obs: n.obs, evidencia: n.evidencia, chamado: n.chamado }));
+  return (
+    <Modal open onClose={onClose} title="Aprovar auditoria" width={760}
+      footer={<>
+        <Btn variant="ghost" onClick={onClose}>Fechar</Btn>
+        <Btn variant="danger" onClick={() => { if (!obs.trim()) { alert("Informe o motivo da reprovação."); return; } onDecidir(auditoria, "reprovada", obs); }}>✕ Reprovar</Btn>
+        <Btn onClick={() => onDecidir(auditoria, "aprovada", obs)}>✓ Aprovar</Btn>
+      </>}>
+      <div style={{ display: "flex", gap: 12, alignItems: "flex-start", marginBottom: 12 }}>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontFamily: "'Barlow Condensed',sans-serif", fontSize: 18, fontWeight: 900, color: F.charcoal }}>{auditoria.areaNome}</div>
+          {auditoria.atividadeTexto && <div style={{ fontSize: 13, color: F.charcoal, marginTop: 2 }}>{auditoria.atividadeTexto}</div>}
+          <div style={{ fontSize: 12, color: F.gray4, marginTop: 4 }}>{auditoria.auditorNome} · {fmtDate(auditoria.data)}{auditoria.cicloNome && auditoria.cicloNome !== "—" ? ` · Ciclo ${auditoria.cicloNome}` : ""}</div>
+        </div>
+        <div style={{ fontFamily: "'Barlow Condensed',sans-serif", fontSize: 26, fontWeight: 900, color: scoreColor(auditoria.score) }}>{auditoria.score}%</div>
+      </div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 14 }}>
+        {itens.map((it, i) => {
+          const [lbl, c, bg] = RES[it.resp] || ["Sem resposta", F.gray4, F.gray6];
+          return (
+            <div key={i} style={{ border: `1px solid ${F.gray6}`, borderLeft: `4px solid ${c}`, borderRadius: 7, padding: "9px 12px", fontSize: 12, color: F.gray3, lineHeight: 1.5 }}>
+              <div style={{ display: "flex", gap: 8 }}><div style={{ flex: 1, fontSize: 13, color: F.charcoal }}>{it.q}</div><Tag color={c} bg={bg}>{lbl}</Tag></div>
+              {it.obs && <div style={{ marginTop: 5, whiteSpace: "pre-wrap" }}><strong style={{ color: F.gray4 }}>Detalhamento: </strong>{it.obs}</div>}
+              {it.evidencia && <div style={{ marginTop: 3, whiteSpace: "pre-wrap" }}><strong style={{ color: F.gray4 }}>Evidência: </strong>{it.evidencia.startsWith("http") ? <a href={it.evidencia} target="_blank" rel="noreferrer" style={{ color: F.red, fontWeight: 600 }}>↗ Acessar documento</a> : it.evidencia}</div>}
+              {it.chamado && <div style={{ marginTop: 3 }}><strong style={{ color: F.gray4 }}>Chamado / SharePoint: </strong>{it.chamado}</div>}
+            </div>
+          );
+        })}
+        {auditoria.obs && <div style={{ fontSize: 12, color: F.gray3, whiteSpace: "pre-wrap" }}><strong style={{ color: F.gray4 }}>Observações gerais: </strong>{auditoria.obs}</div>}
+      </div>
+      <FG label="Observação da aprovação (obrigatória para reprovar)">
+        <textarea style={{ ...fi, minHeight: 70, resize: "vertical" }} value={obs} onChange={e => setObs(e.target.value)} placeholder="Comentário para o auditor..." />
+      </FG>
     </Modal>
   );
 }

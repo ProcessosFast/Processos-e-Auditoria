@@ -79,6 +79,7 @@
   <div class="nav-section" data-perfis="todos">Início</div>
   <a href="#acesso" data-perfis="todos">Acesso e Login</a>
   <a href="#perfis" data-perfis="todos">Perfis de Usuário</a>
+  <a href="#lembrete" data-perfis="administrador auditor">Lembrete do Dia</a>
   <a href="#menu" data-perfis="todos">Menu do Portal</a>
   <a href="#dashboard" data-perfis="todos">Dashboard</a>
 
@@ -126,13 +127,20 @@
   </table>
 </section>
 
+<section id="lembrete" data-perfis="administrador auditor">
+  <h1>Lembrete do Dia</h1>
+  <p>No topo de <strong>todas as telas</strong> aparece um lembrete:</p>
+  <div class="card card-red"><strong>📌 Hoje você tem N auditorias:</strong> atividades do cronograma (mensal ou bônus) com data prevista hoje em que você é responsável e que ainda não foram realizadas. Clique em uma para abrir a auditoria. Ao finalizar, ela sai do lembrete.</div>
+  <div class="card card-green"><strong>✓ Auditorias aguardando sua aprovação</strong> (só administradores): clique para abrir, conferir o que foi preenchido e aprovar ou reprovar.</div>
+</section>
+
 <section id="menu" data-perfis="todos">
   <h1>Menu do Portal</h1>
   <table>
     <thead><tr><th>Seção</th><th>Itens</th></tr></thead>
     <tbody>
       <tr><td><strong>Visão Geral</strong></td><td>Dashboard · Cronograma de Auditoria</td></tr>
-      <tr><td><strong>Operação</strong></td><td>Auditorias Bônus · Auditorias · Rodadas de Auditoria ↗ (abre o robô de auditoria em nova aba) · Relatório de Conclusão · Planos de Ação · Não Conformidades</td></tr>
+      <tr><td><strong>Operação</strong></td><td>Auditorias Bônus · Auditorias · Rodadas de Auditoria ↗ (abre o robô de auditoria em nova aba; todos os perfis) · Relatório de Conclusão · Planos de Ação · Não Conformidades</td></tr>
       <tr><td><strong>Controles</strong></td><td>Despesas Fixas (planilhas de controle)</td></tr>
       <tr><td><strong>Gestão</strong></td><td>Ciclos · Usuários</td></tr>
     </tbody>
@@ -149,7 +157,12 @@
   </div>
   <div class="card card-red">
     <h3>2. Fluxo de Auditoria</h3>
-    <p>Etapas do processo (Auditoria → Aprovação → Execução → Ciência). As colunas marcadas com <strong>"Sua ação"</strong> mostram onde você tem pendências.</p>
+    <p>Etapas do processo. As colunas marcadas com <strong>"Sua ação"</strong> mostram onde você tem pendências.</p>
+    <ul>
+      <li><strong>Auditoria:</strong> as atividades com data prevista <strong>hoje</strong> em que você é responsável — clique para abrir a auditoria.</li>
+      <li><strong>Aprovação</strong> (só administradores): auditorias finalizadas aguardando aprovação e planos de ação pendentes.</li>
+      <li><strong>Execução</strong> e <strong>Ciência</strong>: etapas do gestor da área.</li>
+    </ul>
   </div>
   <div class="card card-blue">
     <h3>3. Quantidade de lançamentos</h3>
@@ -234,7 +247,8 @@
     <span class="badge badge-gray">Comunicação inadequada</span><span class="badge badge-gray">Indisciplina operacional</span>
     <span class="badge badge-gray">Falha de governança</span><span class="badge badge-gray">Falha de controle</span>
   </div>
-  <div class="card card-amber" style="margin-top:14px;"><strong>Excluir uma auditoria</strong> (Auditorias → ✕): o portal pede confirmação e desfaz tudo o que ela gerou — o resultado e a data realizada no cronograma e os planos de ação criados por ela.</div>
+  <div class="card card-green" style="margin-top:14px;"><strong>Aprovação:</strong> ao finalizar, a auditoria fica <strong>aguardando aprovação</strong> e os administradores são avisados. O administrador abre a auditoria (Dashboard → Aprovação ou pelo lembrete), confere resultado, detalhamento, evidência e nº do chamado de cada item e clica em <strong>✓ Aprovar</strong> ou <strong>✕ Reprovar</strong> (com motivo). Quem fez a auditoria recebe notificação.</div>
+  <div class="card card-amber"><strong>Excluir uma auditoria</strong> (Auditorias → ✕): o portal pede confirmação e desfaz tudo o que ela gerou — o resultado e a data realizada no cronograma e os planos de ação criados por ela.</div>
 </section>
 
 <section id="consolidar" data-perfis="auditor">
