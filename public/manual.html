@@ -87,7 +87,6 @@
   <a href="#cronograma" data-perfis="administrador area-processos auditor">Cronograma de Auditoria</a>
   <a href="#bonus" data-perfis="administrador area-processos auditor">Auditorias Bônus</a>
   <a href="#auditoria" data-perfis="administrador auditor">Realizar Auditoria</a>
-  <a href="#consolidar" data-perfis="auditor">Consolidação</a>
   <a href="#relatorio-final" data-perfis="administrador auditor">Relatório Final</a>
   <a href="#relatorio-conclusao" data-perfis="todos">Relatório de Conclusão</a>
   <a href="#planos" data-perfis="administrador area-processos auditor gestor">Planos de Ação</a>
@@ -121,7 +120,7 @@
     <thead><tr><th>Perfil</th><th>O que faz</th></tr></thead>
     <tbody>
       <tr><td><span class="badge badge-red">Administrador</span></td><td>Gerencia todo o portal: é o único que altera o cronograma (responsáveis, datas e observações), elabora o relatório semanal, aprova planos de ação, cadastra usuários e preenche a quantidade de lançamentos e as Despesas Fixas</td></tr>
-      <tr><td><span class="badge badge-green">Auditor</span></td><td>Vê no cronograma apenas as atividades em que é responsável e as audita pelo botão ◎ Auditar; consolida auditorias e elabora o relatório final</td></tr>
+      <tr><td><span class="badge badge-green">Auditor</span></td><td>Vê no cronograma apenas as atividades em que é responsável e as audita pelo botão ◎ Auditar; elabora o relatório final</td></tr>
       <tr><td><span class="badge badge-blue">Gestor da Área</span></td><td>Acompanha as auditorias e os planos da sua área, registra ciência e atualiza o status dos planos</td></tr>
     </tbody>
   </table>
@@ -251,21 +250,6 @@
   <div class="card card-amber"><strong>Excluir uma auditoria</strong> (Auditorias → ✕): o portal pede confirmação e desfaz tudo o que ela gerou — o resultado e a data realizada no cronograma e os planos de ação criados por ela.</div>
 </section>
 
-<section id="consolidar" data-perfis="auditor">
-  <h1>Consolidação de Auditorias</h1>
-  <p><strong>Caminho:</strong> ⊕ Consolidar Auditorias</p>
-  <p>Quando dois auditores auditam a mesma área no mesmo ciclo, você consolida em um único relatório.</p>
-  <div class="card card-red">
-    <strong>⚠ Disparidade maior que 20%:</strong> se a diferença entre os scores for acima de 20%, aparece o botão <strong>"↺ Refazer Auditoria"</strong> para uma nova rodada.
-  </div>
-  <ol>
-    <li>Veja os scores individuais e os itens não conformes dos dois auditores</li>
-    <li>Preencha <strong>Conclusões</strong> (obrigatório), Recomendações e Observações</li>
-    <li>Clique em <strong>"✓ Consolidar e Gerar Relatório Final"</strong></li>
-  </ol>
-  <div class="tip">💡 A consolidação já salva o Relatório Final — não é necessário elaborar em separado.</div>
-</section>
-
 <section id="relatorio-final" data-perfis="administrador auditor">
   <h1>Relatório Final de Auditoria</h1>
   <p><strong>Caminho:</strong> Auditorias → coluna "Rel. Final" → botão <strong>"Elaborar"</strong></p>
@@ -298,7 +282,7 @@
   </div>
   <div class="card">
     <h3>Relatórios finais</h3>
-    <p>Relatórios elaborados pelo Auditor após a consolidação: score, itens não conformes com evidências, conclusões, recomendações e ciência do auditado.</p>
+    <p>Relatórios finais elaborados pelo Auditor: score, itens não conformes com evidências, conclusões, recomendações e ciência do auditado.</p>
   </div>
 </section>
 

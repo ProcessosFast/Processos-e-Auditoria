@@ -118,7 +118,7 @@ const PERMISSOES = {
     acoes: new Set(["criar","excluir","aprovar","exportar","atualizar-status","gerir-ciclos"])
   },
   auditor: {
-    views: ["dashboard","cronograma","bonus","auditorias","rodadas","relatorio-conclusao","consolidar","planos","ncs","ciclos"],
+    views: ["dashboard","cronograma","bonus","auditorias","rodadas","relatorio-conclusao","planos","ncs","ciclos"],
     acoes: new Set(["auditar","exportar","gerir-ciclos","relatorio-final","comentar-auditoria","consolidar"])
   },
   gestor: {
