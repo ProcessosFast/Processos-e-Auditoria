@@ -2142,7 +2142,7 @@ ${db.planos.length ? `<table>
     { id: "relatorio-conclusao", icon: "📋", label: "Relatório de Conclusão", section: "Operação", badge: perfil === "administrador" ? semanasDoMes(ymdLocal(new Date()).slice(0, 7)).filter(sem => sem.quinta <= ymdLocal(new Date()) && !(db.relatoriosSemanais || []).some(r => r.id === sem.id)).length || 0 : 0 },
     { id: "planos", icon: "◷", label: "Planos de Ação", section: "Operação", badge: planosPendAprov.length || planosAtrasados.length },
     { id: "ncs", icon: "⚑", label: "Não Conformidades", section: "Operação" },
-    { id: "despesas", icon: "◧", label: "Despesas Fixas", section: "Gestão" },
+    { id: "despesas", icon: "◧", label: "Despesas Fixas", section: "Controles" },
     { id: "ciclos", icon: "◈", label: "Ciclos", section: "Gestão" },
     { id: "usuarios", icon: "○", label: "Usuários", section: "Gestão" },
   ].filter(item => podeAcessar(perfil, item.id));
