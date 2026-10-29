@@ -1612,7 +1612,7 @@ export default function App() {
   const [cienciaAuditoriaId, setCienciaAuditoriaId] = useState(null);
   const [relatorioFinalAudId, setRelatorioFinalAudId] = useState(null);
   const [consolidandoPar, setConsolidandoPar] = useState(null);
-  const [cronogramaView, setCronogramaView] = useState("lista");
+  const [cronogramaView, setCronogramaView] = useState("calendario");
   const [isMobile, setIsMobile] = useState(() => window.innerWidth <= 768);
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
@@ -1648,6 +1648,7 @@ export default function App() {
     document.addEventListener("input", handleInput, true);
     return () => document.removeEventListener("input", handleInput, true);
   }, []);
+  const [diaCalendario, setDiaCalendario] = useState(null);
   const [calMes, setCalMes] = useState(() => { const d = new Date(); return { ano: d.getFullYear(), mes: d.getMonth() }; });
   const [viewRelatorioAudId, setViewRelatorioAudId] = useState(null);
   const planosIdsRef = useRef(new Set());
@@ -2866,20 +2867,22 @@ ${db.planos.length ? `<table>
                     {/* VISTA CALENDÁRIO */}
                     {cronogramaView === "calendario" && (() => {
                       const { ano, mes } = calMes;
-                      const CORES_CICLO = [F.red, F.blue, "#9b6dff", F.amber, "#00875A", "#FF6B35"];
-                      const ciclosComDatas = db.ciclos.filter(c => c.ini && c.fim);
                       const primeiroDia = new Date(ano, mes, 1).getDay();
                       const diasNoMes = new Date(ano, mes + 1, 0).getDate();
                       const MESES = ["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
                       const hoje = new Date().toISOString().split("T")[0];
+                      const diaStr = d => `${ano}-${String(mes+1).padStart(2,"0")}-${String(d).padStart(2,"0")}`;
 
-                      function diaStr(d) {
-                        return `${ano}-${String(mes+1).padStart(2,"0")}-${String(d).padStart(2,"0")}`;
-                      }
-                      function ciclosDoDia(d) {
-                        const ds = diaStr(d);
-                        return ciclosComDatas.map((c, i) => ({ ciclo: c, i })).filter(({ ciclo }) => ds >= ciclo.ini && ds <= ciclo.fim);
-                      }
+                      // Atividades do cronograma (mensal e bônus) programadas para cada dia pela data prevista
+                      const itemPorId = {};
+                      CRONOGRAMA_ITENS.forEach(g => g.itens.forEach(i => { itemPorId[i.id] = { ...i, area: g.cat }; }));
+                      const doDia = {};
+                      Object.entries(db.cronograma || {}).forEach(([folha, itens]) => Object.entries(itens || {}).forEach(([id, r]) => {
+                        if (!r?.prevista || !r.prevista.startsWith(diaStr(1).slice(0, 7)) || !itemPorId[id]) return;
+                        if (perfil === "auditor" && !CAMPOS_RESPONSAVEL.some(c => r[c] === usuarioLogado.id)) return;
+                        (doDia[r.prevista] = doDia[r.prevista] || []).push({ id, folha, r, item: itemPorId[id], st: statusCronograma(r, hoje) });
+                      }));
+                      const selecionado = diaCalendario && diaCalendario.startsWith(diaStr(1).slice(0, 7)) ? diaCalendario : null;
 
                       return (
                         <div>
@@ -2890,48 +2893,56 @@ ${db.planos.length ? `<table>
                             <button onClick={() => setCalMes(m => { const d = new Date(m.ano, m.mes + 1); return { ano: d.getFullYear(), mes: d.getMonth() }; })} style={{ background: F.offWhite, border: `1px solid ${F.gray6}`, borderRadius: 6, padding: "5px 12px", cursor: "pointer", fontSize: 14, color: F.gray3 }}>›</button>
                           </div>
 
-                          {/* Legenda dos ciclos */}
-                          {ciclosComDatas.length > 0 && (
-                            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
-                              {ciclosComDatas.map((c, i) => (
-                                <div key={c.id} style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11, color: F.charcoal }}>
-                                  <div style={{ width: 10, height: 10, borderRadius: 3, background: CORES_CICLO[i % CORES_CICLO.length], flexShrink: 0 }} />
-                                  <span style={{ fontWeight: 600 }}>{c.nome}</span>
-                                  <span style={{ color: F.gray4 }}>{fmtDate(c.ini)} → {fmtDate(c.fim)}</span>
-                                </div>
-                              ))}
-                            </div>
-                          )}
-
                           {/* Grid do calendário */}
-                          <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 3 }}>
+                          <div style={{ display: "grid", gridTemplateColumns: "repeat(7, minmax(0, 1fr))", gap: 3 }}>
                             {["Dom","Seg","Ter","Qua","Qui","Sex","Sáb"].map(d => (
                               <div key={d} style={{ textAlign: "center", fontSize: 10, fontWeight: 700, color: F.gray4, padding: "4px 0", fontFamily: "'Barlow Condensed',sans-serif", textTransform: "uppercase", letterSpacing: 0.5 }}>{d}</div>
                             ))}
-                            {/* Dias vazios antes do primeiro */}
                             {Array.from({ length: primeiroDia }).map((_, i) => <div key={`v${i}`} />)}
-                            {/* Dias do mês */}
                             {Array.from({ length: diasNoMes }, (_, i) => i + 1).map(dia => {
                               const ds = diaStr(dia);
-                              const ciclosDia = ciclosDoDia(dia);
-                              const isHoje = ds === hoje;
+                              const ativs = doDia[ds] || [];
+                              const isHoje = ds === hoje, isSel = ds === selecionado;
                               return (
-                                <div key={dia} style={{ borderRadius: 6, border: `1px solid ${isHoje ? F.red : F.gray6}`, background: isHoje ? F.redDim : "#fff", minHeight: 52, padding: "4px 5px", position: "relative" }}>
+                                <div key={dia} onClick={() => setDiaCalendario(isSel ? null : ds)} style={{ borderRadius: 6, border: `1.5px solid ${isSel ? F.charcoal : isHoje ? F.red : F.gray6}`, background: isHoje ? F.redDim : "#fff", minHeight: 78, padding: "4px 5px", cursor: ativs.length ? "pointer" : "default", minWidth: 0 }}>
                                   <div style={{ fontSize: 11, fontWeight: isHoje ? 700 : 400, color: isHoje ? F.red : F.gray3, marginBottom: 3, textAlign: "right" }}>{dia}</div>
                                   <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-                                    {ciclosDia.slice(0,2).map(({ ciclo, i }) => {
-                                      const isStart = diaStr(dia) === ciclo.ini;
-                                      return (
-                                        <div key={ciclo.id} style={{ background: CORES_CICLO[i % CORES_CICLO.length], borderRadius: 3, height: 5, opacity: 0.85, position: "relative" }}>
-                                          {isStart && <span style={{ position: "absolute", left: 3, top: -14, fontSize: 8.5, fontWeight: 700, color: CORES_CICLO[i % CORES_CICLO.length], whiteSpace: "nowrap", fontFamily: "'Barlow Condensed',sans-serif" }}>{ciclo.nome}</span>}
-                                        </div>
-                                      );
-                                    })}
+                                    {ativs.slice(0, 3).map(a => (
+                                      <div key={a.folha + a.id} title={`${a.item.area} — ${a.item.texto} (${a.st.label})`} style={{ fontSize: 9.5, lineHeight: 1.25, padding: "2px 4px", borderRadius: 3, background: a.st.bg, color: a.st.cor, borderLeft: `3px solid ${a.st.cor}`, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", fontWeight: 600 }}>
+                                        {a.item.area}: {a.item.texto}
+                                      </div>
+                                    ))}
+                                    {ativs.length > 3 && <div style={{ fontSize: 9.5, color: F.gray3, fontWeight: 700 }}>+{ativs.length - 3} atividade{ativs.length - 3 !== 1 ? "s" : ""}</div>}
                                   </div>
                                 </div>
                               );
                             })}
                           </div>
+
+                          {/* Atividades do dia selecionado */}
+                          {selecionado && (
+                            <div style={{ marginTop: 12, border: `1px solid ${F.gray6}`, borderRadius: 8, padding: "10px 12px" }}>
+                              <div style={{ fontFamily: "'Barlow Condensed',sans-serif", fontSize: 14, fontWeight: 800, textTransform: "uppercase", color: F.charcoal, marginBottom: 8 }}>
+                                {new Date(selecionado + "T00:00").toLocaleDateString("pt-BR", { weekday: "long" })}, {fmtDate(selecionado)} · {(doDia[selecionado] || []).length} atividade{(doDia[selecionado] || []).length !== 1 ? "s" : ""}
+                              </div>
+                              {(doDia[selecionado] || []).length === 0 ? <div style={{ fontSize: 12.5, color: F.gray4 }}>Nenhuma atividade programada para este dia.</div> : (
+                                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                                  {doDia[selecionado].map(a => (
+                                    <div key={a.folha + a.id} style={{ display: "flex", gap: 10, alignItems: "flex-start", borderLeft: `4px solid ${a.st.cor}`, background: F.offWhite, borderRadius: 6, padding: "7px 10px" }}>
+                                      <div style={{ flex: 1, fontSize: 12.5, color: F.charcoal, lineHeight: 1.45 }}>
+                                        <strong>{a.item.area}</strong>{a.folha === "bonus" && <span style={{ color: F.amber, fontWeight: 700 }}> · Bônus</span>} — {a.item.texto}
+                                        <div style={{ fontSize: 11.5, color: F.gray3, marginTop: 2 }}>
+                                          {CAMPOS_RESPONSAVEL.map(c => db.usuarios.find(u => u.id === a.r[c])?.nome).filter(Boolean).join(", ") || "Sem responsável"}
+                                          {a.r.previstaConclusao ? ` · conclusão prevista ${fmtDate(a.r.previstaConclusao)}` : ""}
+                                        </div>
+                                      </div>
+                                      <Tag color={a.st.cor} bg={a.st.bg}>{a.st.label}</Tag>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          )}
                         </div>
                       );
                     })()}
