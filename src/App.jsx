@@ -2291,7 +2291,7 @@ ${db.planos.length ? `<table>
   // ── SIDEBAR ──
   const navItems = [
     { id: "dashboard", icon: "▦", label: "Dashboard", section: "Visão Geral" },
-    { id: "cronograma", icon: "▤", label: "Cronograma de Auditoria", section: "Operação" },
+    { id: "cronograma", icon: "▤", label: "Cronograma de Auditoria", section: "Visão Geral" },
     { id: "bonus", icon: "★", label: "Auditorias Bônus", section: "Operação" },
     { id: "areas", icon: "◉", label: "Áreas", section: "Operação" },
     { id: "processos", icon: "⬡", label: "Processos", section: "Operação" },
