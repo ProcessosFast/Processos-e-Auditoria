@@ -1533,7 +1533,6 @@ const USUARIOS_PADRAO = [
   { id: "u-lorraine-silva", nome: "Lorraine Silva", ini: "LS", email: "lorraine.paulo@cscempresarial.com.br", perfil: "auditor", areaId: "", areaNome: "—" },
   { id: "u-gilberto", nome: "Gilberto", ini: "GI", email: "gilberto.souza@cscempresarial.com.br", perfil: "administrador", areaId: "", areaNome: "—" },
   { id: "u-guilherme", nome: "Guilherme", ini: "GU", email: "guilherme@fastdrywall.onmicrosoft.com", perfil: "administrador", areaId: "", areaNome: "—" },
-  { id: "u-area-processos", nome: "Área de Processos", ini: "AP", email: "processos@fastdrywall.com.br", perfil: "area-processos", areaId: "", areaNome: "—" },
   { id: "u-gestor", nome: "Gestor da Área", ini: "GA", email: "gestor@fastdrywall.com.br", perfil: "gestor", areaId: "", areaNome: "—" },
 ];
 
@@ -1552,7 +1551,7 @@ function normalizarDb(dados) {
   const base = { areas: [], processos: [], auditorias: [], planos: [], ciclos: [], usuarios: [], modulos: [], notificacoes: [], consolidacoes: [], relatoriosSemanais: [], lancamentos: [], cronograma: {}, ...dados };
   // Perfil "auditor-lider" foi unificado em "auditor"; login é só por e-mail
   base.usuarios = base.usuarios
-    .filter(u => !["u-auditor-lider", "u-comite", "u-auditor"].includes(u.id))
+    .filter(u => !["u-auditor-lider", "u-comite", "u-auditor", "u-area-processos"].includes(u.id))
     .map(({ senhaHash, trocarSenha, ...u }) => u.perfil === "auditor-lider" ? { ...u, perfil: "auditor" } : u)
     // Gilberto e Guilherme entraram como auditores e passaram a administradores
     .map(u => ["u-gilberto", "u-guilherme"].includes(u.id) && u.perfil === "auditor" ? { ...u, perfil: "administrador" } : u)
@@ -4216,7 +4215,7 @@ function UsuarioModal({ open, onClose, areas, onSave }) {
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
         <FG label="Perfil">
           <select style={fi} value={f.perfil} onChange={e => setF({ ...f, perfil: e.target.value })}>
-            {[["administrador","Administrador"],["area-processos","Área de Processos"],["auditor","Auditor"],["gestor","Gestor de Área"],["diretoria","Diretoria"],["operacional","Operacional"]].map(([v,l]) => <option key={v} value={v}>{l}</option>)}
+            {[["administrador","Administrador"],["auditor","Auditor"],["gestor","Gestor de Área"],["diretoria","Diretoria"],["operacional","Operacional"]].map(([v,l]) => <option key={v} value={v}>{l}</option>)}
           </select>
         </FG>
         <FG label="Área">
