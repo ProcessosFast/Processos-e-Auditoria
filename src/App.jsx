@@ -1127,7 +1127,7 @@ function DespesasFixas({ podeEditar }) {
 const CORES_TIPO = { ECO: "#C0504D", LOG: "#1F497D", MAX: "#00B0F0", Total: "#002060" };
 const GRUPOS_LANCAMENTO = [
   { id: "despesas", nome: "Despesas Gerais ou Fixas", tipos: ["ECO", "LOG", "MAX"] },
-  { id: "aprovacoes", nome: "Aprovações no SAP", tipos: ["ECO", "MAX"], cores: { MAX: "#9BBB59" } },
+  { id: "aprovacoes", nome: "Aprovações no SAP", tipos: ["ECO", "MAX"] },
   { id: "fretes", nome: "Lançamento de Fretes", tipos: ["ECO", "LOG"], tendencia: "LOG" },
   { id: "pn", nome: "Validações", tipos: ["Total"], tendencia: "Total" },
 ];
