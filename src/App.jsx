@@ -110,7 +110,7 @@ function scoreAreaCiclo(areaId, auditorias) {
 // ── PERMISSÕES ───────────────────────────────────────────────────
 const PERMISSOES = {
   administrador: {
-    views: ["dashboard","cronograma","bonus","auditorias","relatorio-conclusao","planos","ncs","ciclos","usuarios","despesas"],
+    views: ["dashboard","cronograma","bonus","auditorias","rodadas","relatorio-conclusao","planos","ncs","ciclos","usuarios","despesas"],
     acoes: new Set(["criar","excluir","aprovar","exportar","auditar","atualizar-status","gerir-ciclos","comentar-auditoria","relatorio-final"])
   },
   "area-processos": {
@@ -118,7 +118,7 @@ const PERMISSOES = {
     acoes: new Set(["criar","excluir","aprovar","exportar","atualizar-status","gerir-ciclos"])
   },
   auditor: {
-    views: ["dashboard","cronograma","bonus","auditorias","relatorio-conclusao","consolidar","planos","ncs","ciclos"],
+    views: ["dashboard","cronograma","bonus","auditorias","rodadas","relatorio-conclusao","consolidar","planos","ncs","ciclos"],
     acoes: new Set(["auditar","exportar","gerir-ciclos","relatorio-final","comentar-auditoria","consolidar"])
   },
   gestor: {
@@ -2296,6 +2296,8 @@ ${db.planos.length ? `<table>
     { id: "areas", icon: "◉", label: "Áreas", section: "Operação" },
     { id: "processos", icon: "⬡", label: "Processos", section: "Operação" },
     { id: "auditorias", icon: "◎", label: "Auditorias", section: "Operação", badge: auditoriasVisiveis.filter(a => a.status === "aberta").length },
+    // Robô de auditoria: site externo, abre em nova aba
+    { id: "rodadas", icon: "↻", label: "Rodadas de Auditoria", section: "Operação", link: "https://auditoria-fast.vercel.app/" },
     { id: "consolidar", icon: "⊕", label: "Consolidar Auditorias", section: "Operação", badge: (() => { const pares = {}; db.auditorias.forEach(a => { if (a.cicloNome && a.cicloNome !== "—") { const k = `${a.areaId}-${a.cicloNome}`; pares[k] = (pares[k] || 0) + 1; } }); return Object.values(pares).filter(v => v >= 2).length; })() || 0 },
     { id: "relatorio-conclusao", icon: "📋", label: "Relatório de Conclusão", section: "Operação", badge: perfil === "administrador" ? semanasDoMes(ymdLocal(new Date()).slice(0, 7)).filter(sem => sem.quinta <= ymdLocal(new Date()) && !(db.relatoriosSemanais || []).some(r => r.id === sem.id)).length || 0 : 0 },
     { id: "planos", icon: "◷", label: "Planos de Ação", section: "Operação", badge: planosPendAprov.length || planosAtrasados.length },
@@ -2348,7 +2350,7 @@ ${db.planos.length ? `<table>
                     fontFamily: "'Barlow Condensed',sans-serif"
                   }}>{item.section}</div>
                 )}
-                <button key={item.id} onClick={() => setView(item.id)} style={{
+                <button key={item.id} onClick={() => item.link ? window.open(item.link, "_blank", "noopener,noreferrer") : setView(item.id)} title={item.link ? "Abre em uma nova aba" : undefined} style={{
                   display: "flex", alignItems: "center", gap: 8,
                   padding: "8px 10px", borderRadius: 6, cursor: "pointer",
                   fontSize: 13, fontWeight: view === item.id ? 600 : 400,
@@ -2359,6 +2361,7 @@ ${db.planos.length ? `<table>
                 }}>
                   <span style={{ width: 14, textAlign: "center", fontSize: 13, flexShrink: 0 }}>{item.icon}</span>
                   <span style={{ flex: 1 }}>{item.label}</span>
+                  {item.link && <span style={{ fontSize: 11, opacity: 0.7 }}>↗</span>}
                   {item.badge > 0 && (
                     <span style={{
                       background: view === item.id ? "rgba(255,255,255,0.25)" : F.red,
@@ -2761,6 +2764,8 @@ ${db.planos.length ? `<table>
                       sub={planosAtrasados.length ? "Requer atenção" : "Nenhum atrasado"} accent={planosAtrasados.length > 0 ? F.red : F.green} delay={0.1} />
                   </div>
 
+                  <QuantidadeLancamentos registros={db.lancamentos || []} podeEditar={false} onSalvar={() => {}} />
+
                   <div className="resp-grid-2" style={{ display: "grid", gridTemplateColumns: "1fr", gap: 14, marginBottom: 14 }}>
                     {/* Status dos planos */}
                     <Card className="anim2">
@@ -2825,7 +2830,7 @@ ${db.planos.length ? `<table>
             {/* ── DASHBOARD ADMIN/AUDITOR ── */}
             {view === "dashboard" && perfil !== "gestor" && (
               <div>
-                <QuantidadeLancamentos registros={db.lancamentos || []} podeEditar={perfil === "administrador" || perfil === "area-processos"} onSalvar={salvarLancamentos} />
+                <QuantidadeLancamentos registros={db.lancamentos || []} podeEditar={perfil === "administrador"} onSalvar={salvarLancamentos} />
 
                 {/* Gráficos */}
                 <div className="resp-grid-2" style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 14, marginBottom: 14 }}>
