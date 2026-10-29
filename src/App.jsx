@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
   Cell, LineChart, Line,
@@ -110,11 +110,11 @@ function scoreAreaCiclo(areaId, auditorias) {
 // ── PERMISSÕES ───────────────────────────────────────────────────
 const PERMISSOES = {
   administrador: {
-    views: ["dashboard","cronograma","bonus","auditorias","relatorio-conclusao","planos","ncs","ciclos","usuarios"],
+    views: ["dashboard","cronograma","bonus","auditorias","relatorio-conclusao","planos","ncs","ciclos","usuarios","despesas"],
     acoes: new Set(["criar","excluir","aprovar","exportar","auditar","atualizar-status","gerir-ciclos","comentar-auditoria","relatorio-final"])
   },
   "area-processos": {
-    views: ["dashboard","cronograma","bonus","auditorias","relatorio-conclusao","planos","ncs","ciclos","usuarios"],
+    views: ["dashboard","cronograma","bonus","auditorias","relatorio-conclusao","planos","ncs","ciclos","usuarios","despesas"],
     acoes: new Set(["criar","excluir","aprovar","exportar","atualizar-status","gerir-ciclos"])
   },
   auditor: {
@@ -829,6 +829,294 @@ function AuditoriasDoMes({ auditorias, semanais = [], podeElaborar, onSalvarSema
           ))}
         </div>
       )}
+    </div>
+  );
+}
+
+// ── DESPESAS FIXAS (planilha editável no banco, hash pa:despesas) ─
+// Itens: meta → { abas: [{ id, nome, nLin, nCol, larg, merges }], estilos }
+//        c:<aba>:<A1> → { v, st?, n? }  (valor, estilo, comentário)
+const API_DESPESAS = "/api/state?doc=despesas";
+
+function colNum(letras) { let n = 0; for (const ch of letras) n = n * 26 + ch.charCodeAt(0) - 64; return n - 1; }
+function colLetra(n) { let s = ""; n++; while (n > 0) { const r = (n - 1) % 26; s = String.fromCharCode(65 + r) + s; n = Math.floor((n - 1) / 26); } return s; }
+function lerRef(ref) { const m = ref.match(/^([A-Z]+)(\d+)$/); return m ? { c: colNum(m[1]), r: Number(m[2]) - 1 } : null; }
+
+// "R$ 4.152,80" → 4152.8 ; texto → null
+function numeroBR(v) {
+  const s = String(v ?? "").replace(/R\$|\s|%/g, "");
+  if (!/^-?[\d.,]+$/.test(s) || !/\d/.test(s)) return null;
+  const n = Number(s.includes(",") ? s.replace(/\./g, "").replace(",", ".") : /^-?\d{1,3}(\.\d{3})+$/.test(s) ? s.replace(/\./g, "") : s);
+  return isNaN(n) ? null : n;
+}
+
+// Conta com + - * / e parênteses, sem eval
+function calcular(expr) {
+  const t = expr.replace(/\s+/g, ""); let i = 0;
+  const fator = () => {
+    if (t[i] === "(") { i++; const v = soma(); if (t[i] !== ")") throw new Error(); i++; return v; }
+    if (t[i] === "-") { i++; return -fator(); }
+    if (t[i] === "+") { i++; return fator(); }
+    const m = t.slice(i).match(/^\d+(\.\d+)?/); if (!m) throw new Error();
+    i += m[0].length; return Number(m[0]);
+  };
+  const produto = () => { let v = fator(); while (t[i] === "*" || t[i] === "/") { const op = t[i++]; const w = fator(); v = op === "*" ? v * w : v / w; } return v; };
+  const soma = () => { let v = produto(); while (t[i] === "+" || t[i] === "-") { const op = t[i++]; const w = produto(); v = op === "+" ? v + w : v - w; } return v; };
+  const v = soma(); if (i !== t.length) throw new Error(); return v;
+}
+
+// Fórmulas: =SOMA(A1:A5), =MÉDIA(...), =MÍNIMO(...), =MÁXIMO(...), referências e contas
+const FUNCOES = {
+  SOMA: l => l.reduce((a, b) => a + b, 0), SUM: l => l.reduce((a, b) => a + b, 0),
+  MEDIA: l => l.length ? l.reduce((a, b) => a + b, 0) / l.length : 0, AVERAGE: l => l.length ? l.reduce((a, b) => a + b, 0) / l.length : 0,
+  MINIMO: l => l.length ? Math.min(...l) : 0, MIN: l => l.length ? Math.min(...l) : 0,
+  MAXIMO: l => l.length ? Math.max(...l) : 0, MAX: l => l.length ? Math.max(...l) : 0,
+};
+function avaliarFormula(formula, valorNum) {
+  let e = formula.slice(1).toUpperCase().replace(/[ÉÍÁ]/g, ch => ({ É: "E", Í: "I", Á: "A" })[ch]).replace(/\$/g, "");
+  const listaDe = arg => {
+    const intervalo = arg.match(/^([A-Z]+\d+):([A-Z]+\d+)$/);
+    if (intervalo) {
+      const a = lerRef(intervalo[1]), b = lerRef(intervalo[2]), out = [];
+      for (let r = Math.min(a.r, b.r); r <= Math.max(a.r, b.r); r++)
+        for (let c = Math.min(a.c, b.c); c <= Math.max(a.c, b.c); c++) { const n = valorNum(colLetra(c) + (r + 1)); if (n !== null) out.push(n); }
+      return out;
+    }
+    if (/^[A-Z]+\d+$/.test(arg)) { const n = valorNum(arg); return n === null ? [] : [n]; }
+    return [avaliarFormula("=" + arg, valorNum)];
+  };
+  for (let guarda = 0; guarda < 50; guarda++) {
+    const m = e.match(/([A-Z]+)\(([^()]*)\)/);
+    if (!m) break;
+    const fn = FUNCOES[m[1]]; if (!fn) throw new Error();
+    const args = m[2] ? m[2].split(/[;,]/).map(a => a.trim()).filter(Boolean) : [];
+    e = e.slice(0, m.index) + `(${fn(args.flatMap(listaDe))})` + e.slice(m.index + m[0].length);
+  }
+  e = e.replace(/[A-Z]+\d+/g, ref => `(${valorNum(ref) ?? 0})`);
+  return calcular(e);
+}
+
+function DespesasFixas({ podeEditar }) {
+  const [itens, setItens] = useState(null);
+  const [erro, setErro] = useState("");
+  const [abaId, setAbaId] = useState(() => { try { return sessionStorage.getItem("portal-fast-aba-despesas") || "a1"; } catch { return "a1"; } });
+  const [sel, setSel] = useState(null);
+  const [rascunho, setRascunho] = useState("");
+  const [notaRasc, setNotaRasc] = useState("");
+  const [busca, setBusca] = useState("");
+  const pend = useRef({}), timer = useRef(null), ultimaEscrita = useRef(0), barra = useRef(null), grade = useRef(null);
+
+  useEffect(() => { try { sessionStorage.setItem("portal-fast-aba-despesas", abaId); } catch {} }, [abaId]);
+
+  useEffect(() => {
+    let parado = false;
+    async function puxar() {
+      const inicio = Date.now();
+      try {
+        const res = await fetch(API_DESPESAS, { cache: "no-store" });
+        if (!res.ok || !(res.headers.get("content-type") || "").includes("json")) throw new Error(res.status === 503 ? "Banco não configurado." : "Não foi possível carregar a planilha.");
+        const { items } = await res.json();
+        // Ignora a leitura se houve edição local enquanto ela estava em andamento
+        if (parado || inicio < ultimaEscrita.current || Object.keys(pend.current).length) return;
+        setItens(items || {}); setErro("");
+      } catch (e) { if (!parado) setErro(e.message); }
+    }
+    puxar();
+    const t = setInterval(puxar, 30000);
+    return () => { parado = true; clearInterval(t); };
+  }, []);
+
+  async function enviar() {
+    const patches = pend.current; pend.current = {};
+    if (!Object.keys(patches).length) return;
+    try {
+      const res = await fetch(API_DESPESAS, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ patches }) });
+      if (!res.ok) throw new Error();
+      ultimaEscrita.current = Date.now(); setErro("");
+    } catch {
+      pend.current = { ...patches, ...pend.current };
+      setErro("Falha ao salvar — tentando de novo...");
+      timer.current = setTimeout(enviar, 5000);
+    }
+  }
+  function gravar(patch) {
+    setItens(it => { const n = { ...it }; Object.entries(patch).forEach(([k, v]) => { if (v === null) delete n[k]; else n[k] = v; }); return n; });
+    Object.assign(pend.current, patch);
+    ultimaEscrita.current = Date.now();
+    clearTimeout(timer.current); timer.current = setTimeout(enviar, 500);
+  }
+
+  const meta = itens?.meta;
+  const aba = meta?.abas.find(a => a.id === abaId) || meta?.abas[0];
+  const chave = ref => `c:${aba.id}:${ref}`;
+  const cel = ref => (itens && aba && itens[chave(ref)]) || null;
+
+  // Valor exibido (fórmulas calculadas), com proteção contra referência circular
+  const exibir = (ref, visitando = new Set()) => {
+    const v = cel(ref)?.v ?? "";
+    if (!String(v).startsWith("=")) return v;
+    if (visitando.has(ref)) return "#CIRCULAR";
+    visitando.add(ref);
+    try {
+      const n = avaliarFormula(v, r => { const x = exibir(r, new Set(visitando)); if (x === "#CIRCULAR" || x === "#ERRO") throw new Error(x); return typeof x === "number" ? x : numeroBR(x); });
+      return isFinite(n) ? Math.round(n * 100) / 100 : "#ERRO";
+    } catch (e) { return e.message === "#CIRCULAR" ? "#CIRCULAR" : "#ERRO"; }
+  };
+  const formatar = x => typeof x === "number" ? x.toLocaleString("pt-BR", { maximumFractionDigits: 2 }) : x;
+
+  function selecionar(ref) {
+    setSel(ref);
+    setRascunho(cel(ref)?.v ?? "");
+    setNotaRasc(cel(ref)?.n ?? "");
+  }
+  function confirmar(valor = rascunho) {
+    if (!sel || !podeEditar) return;
+    const atual = cel(sel) || {};
+    if ((atual.v ?? "") === valor) return;
+    const { v, ...resto } = atual;
+    const novo = valor !== "" ? { ...resto, v: valor } : resto;
+    gravar({ [chave(sel)]: Object.keys(novo).length ? novo : null });
+  }
+  function salvarNota() {
+    if (!sel || !podeEditar) return;
+    const atual = cel(sel) || {};
+    if ((atual.n ?? "") === notaRasc) return;
+    const { n, ...resto } = atual;
+    const novo = notaRasc.trim() ? { ...resto, n: notaRasc } : resto;
+    gravar({ [chave(sel)]: Object.keys(novo).length ? novo : null });
+  }
+  function mover(dr, dc) {
+    const p = lerRef(sel || "A1");
+    const r = Math.max(0, Math.min(aba.nLin - 1, p.r + dr)), c = Math.max(0, Math.min(aba.nCol - 1, p.c + dc));
+    selecionar(colLetra(c) + (r + 1));
+  }
+  function teclaGrade(e) {
+    if (!sel) return;
+    const setas = { ArrowUp: [-1, 0], ArrowDown: [1, 0], ArrowLeft: [0, -1], ArrowRight: [0, 1], Tab: [0, 1] };
+    if (setas[e.key]) { e.preventDefault(); mover(...setas[e.key]); return; }
+    if (!podeEditar) return;
+    if (e.key === "Enter" || e.key === "F2") { e.preventDefault(); barra.current?.focus(); return; }
+    if (e.key === "Delete" || e.key === "Backspace") { e.preventDefault(); setRascunho(""); confirmar(""); return; }
+    if (e.key.length === 1 && !e.ctrlKey && !e.metaKey) { e.preventDefault(); setRascunho(e.key.toUpperCase()); barra.current?.focus(); }
+  }
+  function mudarEstrutura(campo, delta) {
+    const abas = meta.abas.map(a => a.id !== aba.id ? a : campo === "nLin" ? { ...a, nLin: a.nLin + delta } : { ...a, nCol: a.nCol + delta, larg: [...a.larg, 90] });
+    gravar({ meta: { ...meta, abas } });
+  }
+
+  // Grade só é redesenhada quando os dados ou a aba mudam (a seleção é feita por CSS)
+  const corpo = useMemo(() => {
+    if (!aba) return null;
+    const inicio = {}, coberta = new Set();
+    aba.merges.forEach(rg => {
+      const [a, b] = rg.split(":").map(lerRef);
+      inicio[colLetra(a.c) + (a.r + 1)] = { rs: b.r - a.r + 1, cs: b.c - a.c + 1 };
+      for (let r = a.r; r <= b.r; r++) for (let c = a.c; c <= b.c; c++) if (r !== a.r || c !== a.c) coberta.add(colLetra(c) + (r + 1));
+    });
+    const linhas = [];
+    for (let r = 0; r < aba.nLin; r++) {
+      const tds = [<th key="n" style={{ position: "sticky", left: 0, zIndex: 1, background: F.offWhite, color: F.gray4, fontSize: 10, fontWeight: 600, border: `1px solid ${F.gray6}`, padding: "0 4px", textAlign: "center" }}>{r + 1}</th>];
+      for (let c = 0; c < aba.nCol; c++) {
+        const ref = colLetra(c) + (r + 1);
+        if (coberta.has(ref)) continue;
+        const item = itens[`c:${aba.id}:${ref}`];
+        const est = item?.st !== undefined ? meta.estilos[item.st] || {} : {};
+        const m = inicio[ref];
+        const valor = formatar(exibir(ref));
+        tds.push(
+          <td key={ref} data-ref={ref} rowSpan={m?.rs} colSpan={m?.cs} title={item?.n ? `Comentário: ${item.n}` : undefined}
+            style={{ position: "relative", border: `1px solid ${F.gray6}`, padding: "2px 5px", height: 22, fontSize: est.tam ? Math.round(est.tam * 1.05) : 12, fontWeight: est.b ? 700 : 400, fontStyle: est.i ? "italic" : "normal", color: est.cor || F.charcoal, background: est.fundo || "#fff", textAlign: est.al === "centerContinuous" ? "center" : est.al || (typeof exibir(ref) === "number" ? "right" : "left"), whiteSpace: est.q ? "pre-wrap" : "nowrap", overflow: "hidden", textOverflow: "ellipsis", verticalAlign: "middle", cursor: "cell", lineHeight: 1.3 }}>
+            {valor}
+            {item?.n && <span style={{ position: "absolute", top: 0, right: 0, borderTop: `7px solid ${F.red}`, borderLeft: "7px solid transparent" }} />}
+          </td>
+        );
+      }
+      linhas.push(<tr key={r}>{tds}</tr>);
+    }
+    return linhas;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [itens, aba?.id, aba?.nLin, aba?.nCol]);
+
+  const resultadosBusca = useMemo(() => {
+    const q = busca.trim().toUpperCase();
+    if (!itens || q.length < 2) return [];
+    return Object.entries(itens).filter(([k, v]) => k.startsWith("c:") && String(v.v ?? "").toUpperCase().includes(q)).slice(0, 40)
+      .map(([k, v]) => { const [, id, ref] = k.split(":"); return { id, ref, v: v.v, nome: meta.abas.find(a => a.id === id)?.nome }; });
+  }, [busca, itens, meta]);
+
+  if (erro && !itens) return <Card><div style={{ padding: 30, textAlign: "center", color: F.gray3, fontSize: 13 }}>{erro}</div></Card>;
+  if (!itens) return <Card><div style={{ padding: 30, textAlign: "center", color: F.gray4, fontSize: 13 }}>Carregando planilha...</div></Card>;
+  if (!meta) return <Card><div style={{ padding: 30, textAlign: "center", color: F.gray3, fontSize: 13 }}>A planilha ainda não foi carregada no banco.</div></Card>;
+
+  const larguraTotal = 44 + aba.larg.reduce((a, b) => a + b, 0);
+  const selItem = sel ? cel(sel) : null;
+  const btnAba = ativo => ({ padding: "6px 12px", borderRadius: 6, border: `1px solid ${ativo ? F.red : F.gray6}`, background: ativo ? F.red : "#fff", color: ativo ? "#fff" : F.gray3, fontSize: 11.5, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap", fontFamily: "'Barlow',sans-serif" });
+
+  return (
+    <div>
+      <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", marginBottom: 10 }}>
+        <div style={{ fontSize: 12, color: F.gray4, flex: 1, minWidth: 220 }}>
+          {meta.abas.length} abas · importado de “{meta.origem}”{podeEditar ? " · clique numa célula para editar; use “=” para fórmulas (ex.: =SOMA(B2:B10))" : ""}
+          {erro && <span style={{ color: F.red, fontWeight: 700, marginLeft: 8 }}>{erro}</span>}
+        </div>
+        <div style={{ position: "relative" }}>
+          <input style={{ ...fi, width: 240, padding: "6px 10px", fontSize: 12.5 }} value={busca} onChange={e => setBusca(e.target.value)} placeholder="Buscar em todas as abas..." />
+          {resultadosBusca.length > 0 && (
+            <div style={{ position: "absolute", right: 0, top: 36, zIndex: 20, width: 380, maxHeight: 320, overflowY: "auto", background: "#fff", border: `1px solid ${F.gray6}`, borderRadius: 8, boxShadow: "0 8px 24px rgba(0,0,0,0.12)" }}>
+              {resultadosBusca.map(x => (
+                <div key={x.id + x.ref} onClick={() => { setAbaId(x.id); setBusca(""); setTimeout(() => selecionar(x.ref), 0); }} style={{ padding: "7px 10px", borderBottom: `1px solid ${F.gray6}`, cursor: "pointer", fontSize: 12 }}>
+                  <div style={{ fontWeight: 700, color: F.charcoal }}>{x.nome} · {x.ref}</div>
+                  <div style={{ color: F.gray3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{x.v}</div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div style={{ display: "flex", gap: 5, overflowX: "auto", paddingBottom: 6, marginBottom: 10 }}>
+        {meta.abas.map(a => <button key={a.id} style={btnAba(a.id === aba.id)} onClick={() => { setAbaId(a.id); setSel(null); }}>{a.nome}</button>)}
+      </div>
+
+      <Card style={{ padding: 0 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 10px", borderBottom: `1px solid ${F.gray6}`, flexWrap: "wrap" }}>
+          <div style={{ fontFamily: "'Barlow Condensed',sans-serif", fontWeight: 800, fontSize: 14, minWidth: 54, color: F.charcoal }}>{sel || "—"}</div>
+          <input ref={barra} style={{ ...fi, flex: 1, minWidth: 220, padding: "6px 10px", fontSize: 13 }} value={rascunho} disabled={!sel || !podeEditar}
+            onChange={e => setRascunho(e.target.value)} onBlur={() => confirmar()}
+            onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); confirmar(); mover(1, 0); grade.current?.focus(); } if (e.key === "Escape") { setRascunho(cel(sel)?.v ?? ""); grade.current?.focus(); } }}
+            placeholder={sel ? (podeEditar ? "Digite o valor ou uma fórmula começando com =" : "Somente leitura") : "Selecione uma célula"} />
+          {podeEditar && <>
+            <Btn variant="ghost" onClick={() => mudarEstrutura("nLin", 10)}>+ 10 linhas</Btn>
+            <Btn variant="ghost" onClick={() => mudarEstrutura("nCol", 1)}>+ 1 coluna</Btn>
+          </>}
+        </div>
+        {sel && (selItem?.n || podeEditar) && (
+          <div style={{ display: "flex", gap: 8, alignItems: "flex-start", padding: "6px 10px", borderBottom: `1px solid ${F.gray6}`, background: F.offWhite }}>
+            <div style={{ fontSize: 10.5, fontWeight: 700, color: F.gray4, textTransform: "uppercase", paddingTop: 6, minWidth: 80, fontFamily: "'Barlow Condensed',sans-serif" }}>Comentário</div>
+            {podeEditar
+              ? <textarea style={{ ...fi, flex: 1, minHeight: 34, padding: "5px 8px", fontSize: 12.5, resize: "vertical" }} value={notaRasc} onChange={e => setNotaRasc(e.target.value)} onBlur={salvarNota} placeholder="Comentário da célula (opcional)" />
+              : <div style={{ fontSize: 12.5, color: F.charcoal, whiteSpace: "pre-wrap", paddingTop: 5 }}>{selItem?.n}</div>}
+          </div>
+        )}
+        <style>{sel ? `td[data-ref="${sel}"]{outline:2px solid ${F.red};outline-offset:-2px;}` : ""}</style>
+        <div ref={grade} tabIndex={0} onKeyDown={teclaGrade} style={{ overflow: "auto", maxHeight: "68vh", outline: "none" }}
+          onClick={e => { const td = e.target.closest("td[data-ref]"); if (td) { confirmar(); selecionar(td.dataset.ref); grade.current?.focus(); } }}
+          onDoubleClick={() => podeEditar && barra.current?.focus()}>
+          <table style={{ borderCollapse: "collapse", tableLayout: "fixed", width: larguraTotal, fontFamily: "Arial, sans-serif" }}>
+            <colgroup>
+              <col style={{ width: 44 }} />
+              {aba.larg.map((w, i) => <col key={i} style={{ width: w }} />)}
+            </colgroup>
+            <thead>
+              <tr>
+                <th style={{ position: "sticky", top: 0, left: 0, zIndex: 3, background: F.offWhite, border: `1px solid ${F.gray6}` }} />
+                {aba.larg.map((_, i) => <th key={i} style={{ position: "sticky", top: 0, zIndex: 2, background: F.offWhite, color: F.gray4, fontSize: 10, fontWeight: 600, border: `1px solid ${F.gray6}`, height: 20 }}>{colLetra(i)}</th>)}
+              </tr>
+            </thead>
+            <tbody>{corpo}</tbody>
+          </table>
+        </div>
+      </Card>
     </div>
   );
 }
@@ -1854,6 +2142,7 @@ ${db.planos.length ? `<table>
     { id: "relatorio-conclusao", icon: "📋", label: "Relatório de Conclusão", section: "Operação", badge: perfil === "administrador" ? semanasDoMes(ymdLocal(new Date()).slice(0, 7)).filter(sem => sem.quinta <= ymdLocal(new Date()) && !(db.relatoriosSemanais || []).some(r => r.id === sem.id)).length || 0 : 0 },
     { id: "planos", icon: "◷", label: "Planos de Ação", section: "Operação", badge: planosPendAprov.length || planosAtrasados.length },
     { id: "ncs", icon: "⚑", label: "Não Conformidades", section: "Operação" },
+    { id: "despesas", icon: "◧", label: "Despesas Fixas", section: "Gestão" },
     { id: "ciclos", icon: "◈", label: "Ciclos", section: "Gestão" },
     { id: "usuarios", icon: "○", label: "Usuários", section: "Gestão" },
   ].filter(item => podeAcessar(perfil, item.id));
@@ -3456,6 +3745,9 @@ ${db.planos.length ? `<table>
                 })}
               />
             )}
+
+            {/* ── DESPESAS FIXAS ── */}
+            {view === "despesas" && <DespesasFixas podeEditar={perfil === "administrador" || perfil === "area-processos"} />}
 
             {/* ── CICLOS ── */}
             {view === "ciclos" && (

@@ -21,3 +21,6 @@
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+
+# planilhas de origem (dados ficam no banco, não no repositório)
+*.xlsx
