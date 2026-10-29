@@ -1121,6 +1121,67 @@ function DespesasFixas({ podeEditar }) {
   );
 }
 
+// ── QUANTIDADE DE LANÇAMENTOS (dashboard) ────────────────────────
+// Contagem mensal digitada, por grupo e empresa. Cada mês é um registro em db.lancamentos.
+const GRUPOS_LANCAMENTO = [
+  { id: "despesas", nome: "Despesas Gerais e Fixas", tipos: ["ECO", "LOG", "MAX"] },
+  { id: "aprovacoes", nome: "Aprovações", tipos: ["ECO", "MAX"] },
+  { id: "fretes", nome: "Lançamentos de Frete", tipos: ["ECO", "LOG"] },
+  { id: "pn", nome: "Validações de PN", tipos: ["Total"] },
+];
+
+function QuantidadeLancamentos({ registros, podeEditar, onSalvar }) {
+  const [mes, setMes] = useState(() => new Date().toISOString().slice(0, 7));
+  const [ano, m] = mes.split("-").map(Number);
+  const mesDe = delta => { const d = new Date(ano, m - 1 + delta, 1); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`; };
+  const reg = registros.find(r => r.id === mes);
+  const vals = reg?.valores || {};
+  const valsAnt = registros.find(r => r.id === mesDe(-1))?.valores || {};
+  const num = (v, k) => Number(v[k]) || 0;
+  const totalGrupo = (v, g) => g.tipos.reduce((s, t) => s + num(v, `${g.id}-${t}`), 0);
+  const totalGeral = v => GRUPOS_LANCAMENTO.reduce((s, g) => s + totalGrupo(v, g), 0);
+  const variacao = (atual, anterior) => {
+    const d = atual - anterior;
+    if (!anterior && !atual) return null;
+    return <span style={{ fontSize: 11, fontWeight: 700, color: d > 0 ? F.green : d < 0 ? F.red : F.gray4 }}>{d > 0 ? `▲ ${d}` : d < 0 ? `▼ ${-d}` : "="} vs. mês anterior</span>;
+  };
+  const navBtn = { background: F.offWhite, border: `1px solid ${F.gray6}`, borderRadius: 6, padding: "4px 11px", cursor: "pointer", fontSize: 14, color: F.gray3 };
+
+  return (
+    <Card style={{ marginBottom: 20 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", marginBottom: 14 }}>
+        <div style={{ flex: 1, minWidth: 200, fontFamily: "'Barlow Condensed',sans-serif", fontSize: 15, fontWeight: 800, textTransform: "uppercase", letterSpacing: 0.5, color: F.charcoal }}>Quantidade de lançamentos</div>
+        <button style={navBtn} onClick={() => setMes(mesDe(-1))} title="Mês anterior">‹</button>
+        <div style={{ fontFamily: "'Barlow Condensed',sans-serif", fontSize: 16, fontWeight: 800, textTransform: "uppercase", minWidth: 140, textAlign: "center", color: F.charcoal }}>{MESES[m - 1]} / {ano}</div>
+        <button style={navBtn} onClick={() => setMes(mesDe(1))} title="Próximo mês">›</button>
+        <div style={{ background: F.charcoal, color: "#fff", borderRadius: 8, padding: "5px 12px", fontFamily: "'Barlow Condensed',sans-serif", fontSize: 15, fontWeight: 800 }}>Total: {totalGeral(vals).toLocaleString("pt-BR")}</div>
+      </div>
+      <div className="resp-grid-4" style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: 12 }}>
+        {GRUPOS_LANCAMENTO.map(g => (
+          <div key={g.id} style={{ border: `1px solid ${F.gray6}`, borderTop: `3px solid ${F.red}`, borderRadius: 8, padding: "10px 12px" }}>
+            <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.5, color: F.gray3, fontFamily: "'Barlow Condensed',sans-serif" }}>{g.nome}</div>
+            <div style={{ fontFamily: "'Barlow Condensed',sans-serif", fontSize: 28, fontWeight: 900, color: F.charcoal, lineHeight: 1.1, margin: "4px 0 2px" }}>{totalGrupo(vals, g).toLocaleString("pt-BR")}</div>
+            <div style={{ minHeight: 16, marginBottom: 8 }}>{variacao(totalGrupo(vals, g), totalGrupo(valsAnt, g))}</div>
+            {g.tipos.map(t => {
+              const k = `${g.id}-${t}`;
+              return (
+                <div key={t} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 5 }}>
+                  <div style={{ width: 46, fontSize: 12, fontWeight: 700, color: F.gray3 }}>{t}</div>
+                  {podeEditar
+                    ? <input type="number" min="0" step="1" style={{ ...fi, padding: "5px 8px", fontSize: 13, textAlign: "right" }} value={vals[k] ?? ""} placeholder="0"
+                        onChange={e => onSalvar(mes, { ...vals, [k]: e.target.value === "" ? "" : Math.max(0, Math.floor(Number(e.target.value) || 0)) })} />
+                    : <div style={{ flex: 1, textAlign: "right", fontSize: 14, fontWeight: 700, color: F.charcoal }}>{num(vals, k).toLocaleString("pt-BR")}</div>}
+                </div>
+              );
+            })}
+          </div>
+        ))}
+      </div>
+      {reg?.atualizadoPor && <div style={{ fontSize: 11, color: F.gray4, marginTop: 10 }}>Atualizado por {reg.atualizadoPor} em {new Date(reg.atualizadoEm).toLocaleString("pt-BR")}</div>}
+    </Card>
+  );
+}
+
 function DetalheAtividade({ item }) {
   if (!item.objetivo && !item.controle && !item.metodologia) return null;
   const campos = [["Objetivo", item.objetivo], ["Controle interno", item.controle], ["Periodicidade", item.periodicidade], ["Metodologia", item.metodologia]].filter(c => c[1]);
@@ -1394,7 +1455,7 @@ const EMAILS_USUARIOS = {
 };
 // Completa campos que faltam e restaura usuários e ciclos padrão
 function normalizarDb(dados) {
-  const base = { areas: [], processos: [], auditorias: [], planos: [], ciclos: [], usuarios: [], modulos: [], notificacoes: [], consolidacoes: [], relatoriosSemanais: [], cronograma: {}, ...dados };
+  const base = { areas: [], processos: [], auditorias: [], planos: [], ciclos: [], usuarios: [], modulos: [], notificacoes: [], consolidacoes: [], relatoriosSemanais: [], lancamentos: [], cronograma: {}, ...dados };
   // Perfil "auditor-lider" foi unificado em "auditor"; login é só por e-mail
   base.usuarios = base.usuarios
     .filter(u => !["u-auditor-lider", "u-comite", "u-auditor"].includes(u.id))
@@ -1421,7 +1482,7 @@ function normalizarDb(dados) {
 //   o:<coleção>                    → ordem dos ids
 //   l:<coleção>:<id>               → um registro
 //   m:cronograma:<mês>|<atividade> → uma linha do cronograma
-const COLECOES = ["areas", "processos", "auditorias", "planos", "ciclos", "usuarios", "modulos", "notificacoes", "consolidacoes", "relatoriosSemanais"];
+const COLECOES = ["areas", "processos", "auditorias", "planos", "ciclos", "usuarios", "modulos", "notificacoes", "consolidacoes", "relatoriosSemanais", "lancamentos"];
 const SINC_KEY = "portal-fast-sincronizado";
 const BACKUP_KEY = "portal-fast-backup-antes-do-banco";
 
@@ -2029,6 +2090,10 @@ ${db.planos.length ? `<table>
       return { ...d, cronograma, auditorias: d.auditorias.filter(x => x.id !== a.id), planos: d.planos.filter(p => p.auditoriaId !== a.id) };
     });
     showToast("Auditoria excluída.");
+  }
+
+  function salvarLancamentos(mes, valores) {
+    upd("lancamentos", arr => [...(arr || []).filter(x => x.id !== mes), { id: mes, valores, atualizadoPor: usuarioLogado.nome, atualizadoEm: new Date().toISOString() }]);
   }
 
   function salvarRelatorioSemanal(r) {
@@ -2663,6 +2728,7 @@ ${db.planos.length ? `<table>
             {/* ── DASHBOARD ADMIN/AUDITOR ── */}
             {view === "dashboard" && perfil !== "gestor" && (
               <div>
+                <QuantidadeLancamentos registros={db.lancamentos || []} podeEditar={perfil === "administrador" || perfil === "area-processos"} onSalvar={salvarLancamentos} />
                 {/* Stats */}
                 <div className="resp-grid-5" style={{ display: "grid", gridTemplateColumns: "repeat(5,1fr)", gap: 12, marginBottom: 20 }}>
                   <StatCard label="Áreas Auditáveis" value={areasAuditaveis.length || "—"}
