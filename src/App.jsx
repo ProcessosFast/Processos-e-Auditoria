@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useMemo } from "react";
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
-  Cell, LineChart, Line,
+  Cell, LineChart, Line, ComposedChart, CartesianGrid, LabelList,
   PieChart, Pie, Legend
 } from "recharts";
 
@@ -1122,62 +1122,145 @@ function DespesasFixas({ podeEditar }) {
 }
 
 // ── QUANTIDADE DE LANÇAMENTOS (dashboard) ────────────────────────
-// Contagem mensal digitada, por grupo e empresa. Cada mês é um registro em db.lancamentos.
+// Contagem semanal digitada (semana de sexta a quinta, como o relatório semanal),
+// por grupo e empresa. Cada semana é um registro em db.lancamentos (id sem-<quinta>).
+const CORES_TIPO = { ECO: "#C0504D", LOG: "#1F497D", MAX: "#00B0F0", Total: "#002060" };
 const GRUPOS_LANCAMENTO = [
-  { id: "despesas", nome: "Despesas Gerais e Fixas", tipos: ["ECO", "LOG", "MAX"] },
-  { id: "aprovacoes", nome: "Aprovações", tipos: ["ECO", "MAX"] },
-  { id: "fretes", nome: "Lançamentos de Frete", tipos: ["ECO", "LOG"] },
-  { id: "pn", nome: "Validações de PN", tipos: ["Total"] },
+  { id: "despesas", nome: "Despesas Gerais ou Fixas", tipos: ["ECO", "LOG", "MAX"] },
+  { id: "aprovacoes", nome: "Aprovações no SAP", tipos: ["ECO", "MAX"], cores: { MAX: "#9BBB59" } },
+  { id: "fretes", nome: "Lançamento de Fretes", tipos: ["ECO", "LOG"], tendencia: "LOG" },
+  { id: "pn", nome: "Validações", tipos: ["Total"], tendencia: "Total" },
 ];
 
-function QuantidadeLancamentos({ registros, podeEditar, onSalvar }) {
-  const [mes, setMes] = useState(() => new Date().toISOString().slice(0, 7));
+// Semanas do mês: cada quinta-feira do mês fecha uma semana que começa na sexta anterior
+function semanasLancamento(mes) {
   const [ano, m] = mes.split("-").map(Number);
-  const mesDe = delta => { const d = new Date(ano, m - 1 + delta, 1); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`; };
-  const reg = registros.find(r => r.id === mes);
-  const vals = reg?.valores || {};
-  const valsAnt = registros.find(r => r.id === mesDe(-1))?.valores || {};
-  const num = (v, k) => Number(v[k]) || 0;
-  const totalGrupo = (v, g) => g.tipos.reduce((s, t) => s + num(v, `${g.id}-${t}`), 0);
-  const totalGeral = v => GRUPOS_LANCAMENTO.reduce((s, g) => s + totalGrupo(v, g), 0);
-  const variacao = (atual, anterior) => {
-    const d = atual - anterior;
-    if (!anterior && !atual) return null;
-    return <span style={{ fontSize: 11, fontWeight: 700, color: d > 0 ? F.green : d < 0 ? F.red : F.gray4 }}>{d > 0 ? `▲ ${d}` : d < 0 ? `▼ ${-d}` : "="} vs. mês anterior</span>;
-  };
+  const out = [];
+  for (let dia = 1; dia <= new Date(ano, m, 0).getDate(); dia++) {
+    const d = new Date(ano, m - 1, dia);
+    if (d.getDay() !== 4) continue;
+    const ini = new Date(ano, m - 1, dia - 6);
+    const abrev = MESES[m - 1].slice(0, 3).toLowerCase();
+    const rotulo = ini.getMonth() === d.getMonth()
+      ? `${String(ini.getDate()).padStart(2, "0")}-${String(dia).padStart(2, "0")} (${abrev})`
+      : `${String(ini.getDate()).padStart(2, "0")}/${String(ini.getMonth() + 1).padStart(2, "0")}-${String(dia).padStart(2, "0")}/${String(m).padStart(2, "0")}`;
+    out.push({ id: `sem-${ymdLocal(d)}`, ini: ymdLocal(ini), quinta: ymdLocal(d), rotulo });
+  }
+  return out;
+}
+
+// Reta de tendência (mínimos quadrados) sobre os pontos preenchidos
+function tendenciaLinear(valores) {
+  const pts = valores.map((y, x) => ({ x, y })).filter(p => p.y !== null);
+  if (pts.length < 2) return valores.map(() => null);
+  const n = pts.length, sx = pts.reduce((s, p) => s + p.x, 0), sy = pts.reduce((s, p) => s + p.y, 0);
+  const sxy = pts.reduce((s, p) => s + p.x * p.y, 0), sxx = pts.reduce((s, p) => s + p.x * p.x, 0);
+  const b = (n * sxy - sx * sy) / (n * sxx - sx * sx), a = (sy - b * sx) / n;
+  return valores.map((_, x) => Math.round((a + b * x) * 10) / 10);
+}
+
+function QuantidadeLancamentos({ registros, podeEditar, onSalvar }) {
+  const [mes, setMes] = useState(() => { try { return sessionStorage.getItem("portal-fast-mes-lancamentos") || new Date().toISOString().slice(0, 7); } catch { return new Date().toISOString().slice(0, 7); } });
+  useEffect(() => { try { sessionStorage.setItem("portal-fast-mes-lancamentos", mes); } catch {} }, [mes]);
+  const [ano, m] = mes.split("-").map(Number);
+  const mudarMes = delta => { const d = new Date(ano, m - 1 + delta, 1); setMes(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`); };
+  const semanas = semanasLancamento(mes);
+  const valoresDe = sem => registros.find(r => r.id === sem.id)?.valores || {};
+  const valor = (sem, k) => { const v = valoresDe(sem)[k]; return v === "" || v === undefined || v === null ? null : Number(v); };
+  const soma = lista => lista.reduce((s, v) => s + (v || 0), 0);
+  const totalGrupoSemana = (g, sem) => soma(g.tipos.map(t => valor(sem, `${g.id}-${t}`)));
+  const totalMes = soma(semanas.flatMap(sem => GRUPOS_LANCAMENTO.map(g => totalGrupoSemana(g, sem))));
+  const ultima = registros.filter(r => semanas.some(s => s.id === r.id) && r.atualizadoEm).sort((a, b) => b.atualizadoEm.localeCompare(a.atualizadoEm))[0];
+
   const navBtn = { background: F.offWhite, border: `1px solid ${F.gray6}`, borderRadius: 6, padding: "4px 11px", cursor: "pointer", fontSize: 14, color: F.gray3 };
+  const th = { fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.5, color: F.gray4, padding: "7px 8px", borderBottom: `1.5px solid ${F.gray6}`, fontFamily: "'Barlow Condensed',sans-serif", whiteSpace: "nowrap", textAlign: "right" };
+  const td = { padding: "4px 8px", borderBottom: `1px solid ${F.gray6}`, fontSize: 12.5, textAlign: "right" };
 
   return (
     <Card style={{ marginBottom: 20 }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", marginBottom: 14 }}>
-        <div style={{ flex: 1, minWidth: 200, fontFamily: "'Barlow Condensed',sans-serif", fontSize: 15, fontWeight: 800, textTransform: "uppercase", letterSpacing: 0.5, color: F.charcoal }}>Quantidade de lançamentos</div>
-        <button style={navBtn} onClick={() => setMes(mesDe(-1))} title="Mês anterior">‹</button>
+      <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", marginBottom: 12 }}>
+        <div style={{ flex: 1, minWidth: 200 }}>
+          <div style={{ fontFamily: "'Barlow Condensed',sans-serif", fontSize: 15, fontWeight: 800, textTransform: "uppercase", letterSpacing: 0.5, color: F.charcoal }}>Quantidade de lançamentos</div>
+          <div style={{ fontSize: 11.5, color: F.gray4 }}>Por semana, de sexta a quinta</div>
+        </div>
+        <button style={navBtn} onClick={() => mudarMes(-1)} title="Mês anterior">‹</button>
         <div style={{ fontFamily: "'Barlow Condensed',sans-serif", fontSize: 16, fontWeight: 800, textTransform: "uppercase", minWidth: 140, textAlign: "center", color: F.charcoal }}>{MESES[m - 1]} / {ano}</div>
-        <button style={navBtn} onClick={() => setMes(mesDe(1))} title="Próximo mês">›</button>
-        <div style={{ background: F.charcoal, color: "#fff", borderRadius: 8, padding: "5px 12px", fontFamily: "'Barlow Condensed',sans-serif", fontSize: 15, fontWeight: 800 }}>Total: {totalGeral(vals).toLocaleString("pt-BR")}</div>
+        <button style={navBtn} onClick={() => mudarMes(1)} title="Próximo mês">›</button>
+        <div style={{ background: F.charcoal, color: "#fff", borderRadius: 8, padding: "5px 12px", fontFamily: "'Barlow Condensed',sans-serif", fontSize: 15, fontWeight: 800 }}>Total do mês: {totalMes.toLocaleString("pt-BR")}</div>
       </div>
-      <div className="resp-grid-4" style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: 12 }}>
-        {GRUPOS_LANCAMENTO.map(g => (
-          <div key={g.id} style={{ border: `1px solid ${F.gray6}`, borderTop: `3px solid ${F.red}`, borderRadius: 8, padding: "10px 12px" }}>
-            <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.5, color: F.gray3, fontFamily: "'Barlow Condensed',sans-serif" }}>{g.nome}</div>
-            <div style={{ fontFamily: "'Barlow Condensed',sans-serif", fontSize: 28, fontWeight: 900, color: F.charcoal, lineHeight: 1.1, margin: "4px 0 2px" }}>{totalGrupo(vals, g).toLocaleString("pt-BR")}</div>
-            <div style={{ minHeight: 16, marginBottom: 8 }}>{variacao(totalGrupo(vals, g), totalGrupo(valsAnt, g))}</div>
-            {g.tipos.map(t => {
-              const k = `${g.id}-${t}`;
-              return (
-                <div key={t} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 5 }}>
-                  <div style={{ width: 46, fontSize: 12, fontWeight: 700, color: F.gray3 }}>{t}</div>
-                  {podeEditar
-                    ? <input type="number" min="0" step="1" style={{ ...fi, padding: "5px 8px", fontSize: 13, textAlign: "right" }} value={vals[k] ?? ""} placeholder="0"
-                        onChange={e => onSalvar(mes, { ...vals, [k]: e.target.value === "" ? "" : Math.max(0, Math.floor(Number(e.target.value) || 0)) })} />
-                    : <div style={{ flex: 1, textAlign: "right", fontSize: 14, fontWeight: 700, color: F.charcoal }}>{num(vals, k).toLocaleString("pt-BR")}</div>}
+
+      {/* Tabela de preenchimento */}
+      <div className="table-scroll" style={{ marginBottom: 16 }}>
+        <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 640 }}>
+          <thead>
+            <tr>
+              <th style={{ ...th, textAlign: "left" }}>Lançamento</th>
+              {semanas.map(sem => <th key={sem.id} style={th} title={`${fmtDate(sem.ini)} a ${fmtDate(sem.quinta)}`}>{sem.rotulo}</th>)}
+              <th style={th}>Total do mês</th>
+            </tr>
+          </thead>
+          <tbody>
+            {GRUPOS_LANCAMENTO.map(g => [
+              <tr key={g.id}>
+                <td style={{ ...td, textAlign: "left", fontWeight: 800, color: F.charcoal, background: F.offWhite, fontFamily: "'Barlow Condensed',sans-serif", textTransform: "uppercase", letterSpacing: 0.3 }}>{g.nome}</td>
+                {semanas.map(sem => <td key={sem.id} style={{ ...td, background: F.offWhite, fontWeight: 800 }}>{totalGrupoSemana(g, sem).toLocaleString("pt-BR")}</td>)}
+                <td style={{ ...td, background: F.offWhite, fontWeight: 800 }}>{soma(semanas.map(sem => totalGrupoSemana(g, sem))).toLocaleString("pt-BR")}</td>
+              </tr>,
+              ...(g.tipos.length > 1 || podeEditar ? g.tipos.map(t => {
+                const k = `${g.id}-${t}`;
+                return (
+                  <tr key={k}>
+                    <td style={{ ...td, textAlign: "left", paddingLeft: 18, color: F.gray3, fontWeight: 700 }}>{t}</td>
+                    {semanas.map(sem => (
+                      <td key={sem.id} style={{ ...td, width: 96 }}>
+                        {podeEditar
+                          ? <input type="number" min="0" step="1" style={{ ...fi, padding: "3px 6px", fontSize: 12.5, textAlign: "right" }} value={valoresDe(sem)[k] ?? ""} placeholder="—"
+                              onChange={e => onSalvar(sem.id, { ...valoresDe(sem), [k]: e.target.value === "" ? "" : Math.max(0, Math.floor(Number(e.target.value) || 0)) })} />
+                          : (valor(sem, k) ?? "—").toLocaleString("pt-BR")}
+                      </td>
+                    ))}
+                    <td style={td}>{soma(semanas.map(sem => valor(sem, k))).toLocaleString("pt-BR")}</td>
+                  </tr>
+                );
+              }) : []),
+            ])}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Gráficos por grupo: barras por empresa e tendência */}
+      <div className="resp-grid-2" style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 14 }}>
+        {GRUPOS_LANCAMENTO.map(g => {
+          const comDados = semanas.filter(sem => g.tipos.some(t => valor(sem, `${g.id}-${t}`) !== null));
+          const tend = g.tendencia ? tendenciaLinear(comDados.map(sem => valor(sem, `${g.id}-${g.tendencia}`))) : [];
+          const dados = comDados.map((sem, i) => ({ semana: sem.rotulo, ...Object.fromEntries(g.tipos.map(t => [t, valor(sem, `${g.id}-${t}`) ?? 0])), tendencia: tend[i] ?? null }));
+          return (
+            <div key={g.id} style={{ border: `1px solid ${F.gray6}`, borderRadius: 8, overflow: "hidden" }}>
+              <div style={{ background: F.red, color: "#fff", padding: "7px 12px", fontWeight: 800, fontSize: 15, fontFamily: "'Barlow',sans-serif" }}>{g.nome}</div>
+              {dados.length === 0 ? <div style={{ padding: "40px 0", textAlign: "center", fontSize: 12.5, color: F.gray4 }}>Sem lançamentos neste mês.</div> : (
+                <div style={{ height: 230, padding: "10px 6px 0" }}>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <ComposedChart data={dados} margin={{ top: 18, right: 10, left: -10, bottom: 0 }}>
+                      <CartesianGrid vertical={false} stroke={F.gray6} />
+                      <XAxis dataKey="semana" tick={{ fontSize: 11 }} />
+                      <YAxis tick={{ fontSize: 11 }} />
+                      <Tooltip />
+                      {g.tipos.length > 1 && <Legend wrapperStyle={{ fontSize: 11 }} />}
+                      {g.tipos.map(t => (
+                        <Bar key={t} dataKey={t} name={t === "Total" ? g.nome : t} fill={(g.cores || {})[t] || CORES_TIPO[t]} maxBarSize={48}>
+                          <LabelList dataKey={t} position="top" style={{ fontSize: 11, fill: F.charcoal }} />
+                        </Bar>
+                      ))}
+                      {g.tendencia && <Line dataKey="tendencia" name={`Linear (${g.tendencia === "Total" ? g.nome : g.tendencia})`} stroke={g.tendencia === "LOG" ? F.red : "#4472C4"} strokeDasharray="3 3" dot={false} strokeWidth={1.5} legendType="plainline" />}
+                    </ComposedChart>
+                  </ResponsiveContainer>
                 </div>
-              );
-            })}
-          </div>
-        ))}
+              )}
+            </div>
+          );
+        })}
       </div>
-      {reg?.atualizadoPor && <div style={{ fontSize: 11, color: F.gray4, marginTop: 10 }}>Atualizado por {reg.atualizadoPor} em {new Date(reg.atualizadoEm).toLocaleString("pt-BR")}</div>}
+      {ultima?.atualizadoPor && <div style={{ fontSize: 11, color: F.gray4, marginTop: 10 }}>Última atualização: {ultima.atualizadoPor} em {new Date(ultima.atualizadoEm).toLocaleString("pt-BR")}</div>}
     </Card>
   );
 }
@@ -2092,8 +2175,8 @@ ${db.planos.length ? `<table>
     showToast("Auditoria excluída.");
   }
 
-  function salvarLancamentos(mes, valores) {
-    upd("lancamentos", arr => [...(arr || []).filter(x => x.id !== mes), { id: mes, valores, atualizadoPor: usuarioLogado.nome, atualizadoEm: new Date().toISOString() }]);
+  function salvarLancamentos(semanaId, valores) {
+    upd("lancamentos", arr => [...(arr || []).filter(x => x.id !== semanaId), { id: semanaId, valores, atualizadoPor: usuarioLogado.nome, atualizadoEm: new Date().toISOString() }]);
   }
 
   function salvarRelatorioSemanal(r) {
