@@ -1159,7 +1159,75 @@ function tendenciaLinear(valores) {
   return valores.map((_, x) => Math.round((a + b * x) * 10) / 10);
 }
 
-function QuantidadeLancamentos({ registros, podeEditar, onSalvar }) {
+// ── PERÍODO DO DASHBOARD ─────────────────────────────────────────
+// Período escolhido no topo do dashboard; filtra auditorias e lançamentos pela data
+const ultimoDiaMes = (ano, m) => new Date(ano, m, 0).getDate();
+function periodoPreset(tipo, mesRef) {
+  const hoje = new Date();
+  const a = hoje.getFullYear(), m = hoje.getMonth() + 1;
+  const mm = n => String(n).padStart(2, "0");
+  if (tipo === "mesEsp" && mesRef) { const [y, n] = mesRef.split("-").map(Number); return { tipo, mes: mesRef, ini: `${mesRef}-01`, fim: `${mesRef}-${ultimoDiaMes(y, n)}` }; }
+  if (tipo === "trimestre") { const d = new Date(a, m - 3, 1); return { tipo, ini: ymdLocal(d), fim: `${a}-${mm(m)}-${ultimoDiaMes(a, m)}` }; }
+  if (tipo === "ano") return { tipo, ini: `${a}-01-01`, fim: `${a}-12-31` };
+  if (tipo === "tudo") return { tipo, ini: "2000-01-01", fim: "2099-12-31" };
+  return { tipo: "mes", ini: `${a}-${mm(m)}-01`, fim: `${a}-${mm(m)}-${ultimoDiaMes(a, m)}` };
+}
+function rotuloPeriodo(p) {
+  if (p.tipo === "tudo") return "todo o período";
+  if (p.tipo === "mes" || p.tipo === "mesEsp") { const [y, n] = p.ini.split("-").map(Number); return `${MESES[n - 1]} / ${y}`; }
+  return `${fmtDate(p.ini)} a ${fmtDate(p.fim)}`;
+}
+
+function SeletorPeriodo({ periodo, onChange }) {
+  const OPCOES = [["mes", "Mês atual"], ["mesEsp", "Escolher mês"], ["trimestre", "Últimos 3 meses"], ["ano", "Ano atual"], ["tudo", "Tudo"], ["personalizado", "Personalizado"]];
+  const sel = { ...fi, width: "auto", padding: "5px 8px", fontSize: 12.5 };
+  const data = { ...fi, width: 140, padding: "4px 8px", fontSize: 12.5 };
+  const valida = v => /^\d{4}-\d{2}-\d{2}$/.test(v) && v >= "2000";
+  return (
+    <Card style={{ marginBottom: 16, padding: "10px 14px" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+        <div style={{ fontFamily: "'Barlow Condensed',sans-serif", fontSize: 14, fontWeight: 800, textTransform: "uppercase", letterSpacing: 0.5, color: F.charcoal }}>Período</div>
+        <select style={sel} value={periodo.tipo} onChange={e => {
+          const t = e.target.value;
+          if (t === "personalizado") onChange({ ...periodo, tipo: t });
+          else if (t === "mesEsp") onChange(periodoPreset(t, periodo.ini.slice(0, 7)));
+          else onChange(periodoPreset(t));
+        }}>
+          {OPCOES.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+        </select>
+        {periodo.tipo === "mesEsp" && (
+          <input type="month" style={{ ...data, width: 160 }} value={periodo.mes || periodo.ini.slice(0, 7)}
+            onChange={e => /^\d{4}-\d{2}$/.test(e.target.value) && onChange(periodoPreset("mesEsp", e.target.value))} />
+        )}
+        {periodo.tipo === "personalizado" && <>
+          <span style={{ fontSize: 12.5, color: F.gray3 }}>de</span>
+          <input type="date" style={data} value={periodo.ini} max={periodo.fim} onChange={e => valida(e.target.value) && onChange({ ...periodo, ini: e.target.value })} />
+          <span style={{ fontSize: 12.5, color: F.gray3 }}>até</span>
+          <input type="date" style={data} value={periodo.fim} min={periodo.ini} onChange={e => valida(e.target.value) && onChange({ ...periodo, fim: e.target.value })} />
+        </>}
+        <div style={{ fontSize: 12, color: F.gray4 }}>Mostrando: <strong style={{ color: F.charcoal }}>{rotuloPeriodo(periodo)}</strong></div>
+      </div>
+    </Card>
+  );
+}
+
+// Semanas (de sexta a quinta) cuja quinta-feira cai dentro do período
+function semanasDoPeriodo(ini, fim, registros) {
+  // "Tudo" ou períodos longos: limita aos meses que têm lançamentos (ou ao mês atual)
+  const ids = registros.map(r => r.id?.slice(4)).filter(Boolean).sort();
+  const hoje = ymdLocal(new Date());
+  const de = ini < "2020-01-01" ? (ids[0] || hoje) : ini;
+  const ate = fim > "2090-01-01" ? ([ids[ids.length - 1], hoje].filter(Boolean).sort().pop()) : fim;
+  const out = [];
+  let [a, m] = de.slice(0, 7).split("-").map(Number);
+  while (`${a}-${String(m).padStart(2, "0")}` <= ate.slice(0, 7) && out.length < 120) {
+    out.push(...semanasLancamento(`${a}-${String(m).padStart(2, "0")}`).filter(s => s.quinta >= de && s.quinta <= ate));
+    m++; if (m > 12) { m = 1; a++; }
+  }
+  return out;
+}
+
+function QuantidadeLancamentos({ registros, podeEditar, onSalvar, periodo }) {
   // Quantidades começam recolhidas; a preferência fica salva neste navegador
   const [tabelaAberta, setTabelaAberta] = useState(() => { try { return localStorage.getItem("portal-fast-lancamentos-aberto") === "1"; } catch { return false; } });
   useEffect(() => { try { localStorage.setItem("portal-fast-lancamentos-aberto", tabelaAberta ? "1" : "0"); } catch {} }, [tabelaAberta]);
@@ -1167,7 +1235,8 @@ function QuantidadeLancamentos({ registros, podeEditar, onSalvar }) {
   useEffect(() => { try { sessionStorage.setItem("portal-fast-mes-lancamentos", mes); } catch {} }, [mes]);
   const [ano, m] = mes.split("-").map(Number);
   const mudarMes = delta => { const d = new Date(ano, m - 1 + delta, 1); setMes(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`); };
-  const semanas = semanasLancamento(mes);
+  // Com período definido no dashboard, as semanas seguem o período; senão, o mês navegável
+  const semanas = periodo ? semanasDoPeriodo(periodo.ini, periodo.fim, registros) : semanasLancamento(mes);
   const valoresDe = sem => registros.find(r => r.id === sem.id)?.valores || {};
   const valor = (sem, k) => { const v = valoresDe(sem)[k]; return v === "" || v === undefined || v === null ? null : Number(v); };
   const soma = lista => lista.reduce((s, v) => s + (v || 0), 0);
@@ -1186,10 +1255,14 @@ function QuantidadeLancamentos({ registros, podeEditar, onSalvar }) {
           <div style={{ fontFamily: "'Barlow Condensed',sans-serif", fontSize: 15, fontWeight: 800, textTransform: "uppercase", letterSpacing: 0.5, color: F.charcoal }}>Quantidade de lançamentos</div>
           <div style={{ fontSize: 11.5, color: F.gray4 }}>Por semana, de sexta a quinta</div>
         </div>
-        <button style={navBtn} onClick={() => mudarMes(-1)} title="Mês anterior">‹</button>
-        <div style={{ fontFamily: "'Barlow Condensed',sans-serif", fontSize: 16, fontWeight: 800, textTransform: "uppercase", minWidth: 140, textAlign: "center", color: F.charcoal }}>{MESES[m - 1]} / {ano}</div>
-        <button style={navBtn} onClick={() => mudarMes(1)} title="Próximo mês">›</button>
-        <div style={{ background: F.charcoal, color: "#fff", borderRadius: 8, padding: "5px 12px", fontFamily: "'Barlow Condensed',sans-serif", fontSize: 15, fontWeight: 800 }}>Total do mês: {totalMes.toLocaleString("pt-BR")}</div>
+        {periodo ? (
+          <div style={{ fontFamily: "'Barlow Condensed',sans-serif", fontSize: 16, fontWeight: 800, textTransform: "uppercase", textAlign: "center", color: F.charcoal }}>{rotuloPeriodo(periodo)}</div>
+        ) : <>
+          <button style={navBtn} onClick={() => mudarMes(-1)} title="Mês anterior">‹</button>
+          <div style={{ fontFamily: "'Barlow Condensed',sans-serif", fontSize: 16, fontWeight: 800, textTransform: "uppercase", minWidth: 140, textAlign: "center", color: F.charcoal }}>{MESES[m - 1]} / {ano}</div>
+          <button style={navBtn} onClick={() => mudarMes(1)} title="Próximo mês">›</button>
+        </>}
+        <div style={{ background: F.charcoal, color: "#fff", borderRadius: 8, padding: "5px 12px", fontFamily: "'Barlow Condensed',sans-serif", fontSize: 15, fontWeight: 800 }}>Total {periodo && !(periodo.tipo === "mes" || periodo.tipo === "mesEsp") ? "do período" : "do mês"}: {totalMes.toLocaleString("pt-BR")}</div>
       </div>
 
       {/* Gráficos por grupo: barras por empresa e tendência */}
@@ -1201,7 +1274,7 @@ function QuantidadeLancamentos({ registros, podeEditar, onSalvar }) {
           return (
             <div key={g.id} style={{ border: `1px solid ${F.gray6}`, borderRadius: 8, overflow: "hidden" }}>
               <div style={{ background: F.red, color: "#fff", padding: "7px 12px", fontWeight: 800, fontSize: 15, fontFamily: "'Barlow',sans-serif" }}>{g.nome}</div>
-              {dados.length === 0 ? <div style={{ padding: "40px 0", textAlign: "center", fontSize: 12.5, color: F.gray4 }}>Sem lançamentos neste mês.</div> : (
+              {dados.length === 0 ? <div style={{ padding: "40px 0", textAlign: "center", fontSize: 12.5, color: F.gray4 }}>Sem lançamentos {periodo && !(periodo.tipo === "mes" || periodo.tipo === "mesEsp") ? "no período" : "neste mês"}.</div> : (
                 <div style={{ height: 230, padding: "10px 6px 0" }}>
                   <ResponsiveContainer width="100%" height="100%">
                     <ComposedChart data={dados} margin={{ top: 18, right: 10, left: -10, bottom: 0 }}>
@@ -1237,7 +1310,7 @@ function QuantidadeLancamentos({ registros, podeEditar, onSalvar }) {
               <tr>
                 <th style={{ ...th, textAlign: "left" }}>Lançamento</th>
                 {semanas.map(sem => <th key={sem.id} style={th} title={`${fmtDate(sem.ini)} a ${fmtDate(sem.quinta)}`}>{sem.rotulo}</th>)}
-                <th style={th}>Total do mês</th>
+                <th style={th}>Total {periodo && !(periodo.tipo === "mes" || periodo.tipo === "mesEsp") ? "do período" : "do mês"}</th>
               </tr>
             </thead>
             <tbody>
@@ -1806,6 +1879,11 @@ export default function App() {
   const [diaAuditorias, setDiaAuditorias] = useState(null);
   const [mesRealizadas, setMesRealizadas] = useState(() => { try { return sessionStorage.getItem("portal-fast-mes-realizadas") || new Date().toISOString().slice(0, 7); } catch { return new Date().toISOString().slice(0, 7); } });
   useEffect(() => { try { sessionStorage.setItem("portal-fast-mes-realizadas", mesRealizadas); } catch {} }, [mesRealizadas]);
+  const [periodoDash, setPeriodoDash] = useState(() => {
+    try { const s = JSON.parse(sessionStorage.getItem("portal-fast-periodo-dash") || "null"); if (s?.ini && s?.fim && s?.tipo) return s; } catch {}
+    return periodoPreset("mes");
+  });
+  useEffect(() => { try { sessionStorage.setItem("portal-fast-periodo-dash", JSON.stringify(periodoDash)); } catch {} }, [periodoDash]);
   const [calMes, setCalMes] = useState(() => { const d = new Date(); return { ano: d.getFullYear(), mes: d.getMonth() }; });
   const [viewRelatorioAudId, setViewRelatorioAudId] = useState(null);
   const planosIdsRef = useRef(new Set());
@@ -2034,6 +2112,13 @@ ${db.planos.length ? `<table>
   const planosAtrasados = planosPendentes.filter(isAtrasado);
   const confGeral = (() => {
     const scores = areasAuditaveis.map(a => scoreAreaCiclo(a.id, auditoriasVisiveis)).filter(s => s !== null);
+    return scores.length ? Math.round(scores.reduce((s, x) => s + x, 0) / scores.length) : null;
+  })();
+  // Dashboard: só as auditorias com data dentro do período escolhido
+  const audsDash = auditoriasVisiveis.filter(a => a.data && a.data >= periodoDash.ini && a.data <= periodoDash.fim);
+  const audsConcluidasDash = audsDash.filter(a => a.status === "concluida");
+  const confDash = (() => {
+    const scores = areasAuditaveis.map(a => scoreAreaCiclo(a.id, audsDash)).filter(s => s !== null);
     return scores.length ? Math.round(scores.reduce((s, x) => s + x, 0) / scores.length) : null;
   })();
 
@@ -2311,7 +2396,7 @@ ${db.planos.length ? `<table>
 
   // ── CHART DATA ──
   const chartConf = areasAuditaveis.map(a => {
-    const score = scoreAreaCiclo(a.id, auditoriasVisiveis) || 0;
+    const score = scoreAreaCiclo(a.id, audsDash) || 0;
     return { name: a.nome.length > 14 ? a.nome.slice(0, 14) + "…" : a.nome, score, fill: score ? scoreColor(score) : F.gray6 };
   }).filter(a => a.score > 0);
 
@@ -2686,6 +2771,9 @@ ${db.planos.length ? `<table>
               </div>
             )}
 
+            {/* ── PERÍODO DO DASHBOARD ── */}
+            {view === "dashboard" && <SeletorPeriodo periodo={periodoDash} onChange={setPeriodoDash} />}
+
             {/* ── INDICADORES (topo do dashboard) ── */}
             {view === "dashboard" && perfil !== "gestor" && (
               <div>
@@ -2694,8 +2782,8 @@ ${db.planos.length ? `<table>
                   <StatCard label="Áreas Auditáveis" value={areasAuditaveis.length || "—"}
                     sub={areasAuditaveis.length ? `${areasAuditaveis.length} área${areasAuditaveis.length !== 1 ? "s" : ""}` : "Nenhuma cadastrada"}
                     accent={F.green} delay={0} />
-                  <StatCard label="Auditorias Realizadas" value={audsConcluidas.length || "—"}
-                    sub={audsConcluidas.length ? `${audsConcluidas.length} no total` : "Nenhuma realizada"}
+                  <StatCard label="Auditorias Realizadas" value={audsConcluidasDash.length || "—"}
+                    sub={audsConcluidasDash.length ? "no período" : "Nenhuma no período"}
                     accent={F.red} delay={0.05} />
                   <StatCard label="Planos em Andamento"
                     value={planosAprovados.filter(p => p.status === "andamento").length || "—"}
@@ -2705,9 +2793,9 @@ ${db.planos.length ? `<table>
                     sub={db.planos.length ? `${db.planos.length} plano${db.planos.length !== 1 ? "s" : ""} no total` : "Nenhum plano"}
                     accent={planosAtrasados.length > 0 ? F.red : F.amber} delay={0.1} />
                   <StatCard label="Conformidade Geral"
-                    value={confGeral !== null ? confGeral + "%" : "—"}
-                    sub={confGeral !== null ? scoreLabel(confGeral) : "Sem dados de auditoria"}
-                    accent={confGeral !== null ? scoreColor(confGeral) : F.blue} delay={0.15} />
+                    value={confDash !== null ? confDash + "%" : "—"}
+                    sub={confDash !== null ? scoreLabel(confDash) : "Sem auditorias no período"}
+                    accent={confDash !== null ? scoreColor(confDash) : F.blue} delay={0.15} />
                 </div>
               </div>
             )}
@@ -2804,7 +2892,8 @@ ${db.planos.length ? `<table>
 
             {/* ── DASHBOARD GESTOR ── */}
             {view === "dashboard" && perfil === "gestor" && (() => {
-              const minhasAuds = auditoriasVisiveis;
+              const minhasAuds = [...audsDash].sort((a, b) => (a.data || "").localeCompare(b.data || ""));
+              const confGeral = confDash;
               const ultimaAud = [...minhasAuds].sort((a,b) => (b.data||"").localeCompare(a.data||""))[0];
               const planosArea = planosAprovados;
               const emAndamento = planosArea.filter(p => p.status === "andamento").length;
@@ -2839,7 +2928,7 @@ ${db.planos.length ? `<table>
                       sub={planosAtrasados.length ? "Requer atenção" : "Nenhum atrasado"} accent={planosAtrasados.length > 0 ? F.red : F.green} delay={0.1} />
                   </div>
 
-                  <QuantidadeLancamentos registros={db.lancamentos || []} podeEditar={false} onSalvar={() => {}} />
+                  <QuantidadeLancamentos registros={db.lancamentos || []} podeEditar={false} onSalvar={() => {}} periodo={periodoDash} />
 
                   <div className="resp-grid-2" style={{ display: "grid", gridTemplateColumns: "1fr", gap: 14, marginBottom: 14 }}>
                     {/* Status dos planos */}
@@ -2905,7 +2994,7 @@ ${db.planos.length ? `<table>
             {/* ── DASHBOARD ADMIN/AUDITOR ── */}
             {view === "dashboard" && perfil !== "gestor" && (
               <div>
-                <QuantidadeLancamentos registros={db.lancamentos || []} podeEditar={perfil === "administrador"} onSalvar={salvarLancamentos} />
+                <QuantidadeLancamentos registros={db.lancamentos || []} podeEditar={perfil === "administrador"} onSalvar={salvarLancamentos} periodo={periodoDash} />
 
                 {/* Gráficos */}
                 <div className="resp-grid-2" style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 14, marginBottom: 14 }}>
@@ -2978,10 +3067,10 @@ ${db.planos.length ? `<table>
                         border: "none", cursor: "pointer", fontFamily: "'Barlow',sans-serif", fontWeight: 600
                       }}>Ver todas →</button>
                     </div>
-                    {auditoriasVisiveis.length > 0 ? (
+                    {audsDash.length > 0 ? (
                       <DataTable
                         cols={["Área", "Score", "Data"]}
-                        rows={[...auditoriasVisiveis].reverse().slice(0, 5).map(a => (
+                        rows={[...audsDash].sort((a, b) => (b.data || "").localeCompare(a.data || "")).slice(0, 5).map(a => (
                           <>
                             <TD><strong style={{ fontSize: 12.5 }}>{a.areaNome}</strong></TD>
                             <TD><strong style={{ color: scoreColor(a.score), fontFamily: "'Barlow Condensed',sans-serif", fontSize: 15 }}>{a.score}%</strong></TD>
