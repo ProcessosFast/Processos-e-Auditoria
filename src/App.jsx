@@ -1387,6 +1387,69 @@ function mesesAte(mes, ate) {
   return meses;
 }
 
+// Exporta as linhas do cronograma em Excel (.xlsx); a biblioteca só é carregada ao clicar
+const COR_STATUS_EXCEL = { realizado: "FFD1FADF", atrasado: "FFFEE4E2", pendente: "FFDBEAFE", "sem-data": "FFEAECF0" };
+async function exportarCronogramaExcel({ linhas, dados, usuarios, auditorias, titulo, arquivo }) {
+  const { default: ExcelJS } = await import("exceljs/dist/exceljs.min.js");
+  const hoje = new Date().toISOString().split("T")[0];
+  // Data em UTC para o Excel não deslocar o dia por causa do fuso
+  const dataExcel = s => { if (!s) return null; const [y, m, d] = s.split("-").map(Number); return new Date(Date.UTC(y, m - 1, d)); };
+  const nome = id => usuarios.find(u => u.id === id)?.nome;
+  const wb = new ExcelJS.Workbook();
+  wb.creator = "Portal de Auditoria Fast";
+  wb.created = new Date();
+  const ws = wb.addWorksheet("Cronograma", { views: [{ state: "frozen", ySplit: 1 }] });
+  ws.columns = [
+    { header: "Área", key: "area", width: 24 },
+    { header: "Atividade", key: "texto", width: 60 },
+    { header: "Objetivo", key: "objetivo", width: 45 },
+    { header: "Controle interno", key: "controle", width: 22 },
+    { header: "Metodologia", key: "metodologia", width: 22 },
+    { header: "Periodicidade", key: "periodicidade", width: 14 },
+    { header: "Responsáveis", key: "resp", width: 30 },
+    { header: "Prevista", key: "prevista", width: 12, style: { numFmt: "dd/mm/yyyy" } },
+    { header: "Conclusão prevista", key: "previstaConclusao", width: 12, style: { numFmt: "dd/mm/yyyy" } },
+    { header: "Realizada", key: "realizada", width: 12, style: { numFmt: "dd/mm/yyyy" } },
+    { header: "Status", key: "status", width: 18 },
+    { header: "Resultado da auditoria", key: "resultado", width: 20 },
+    { header: "Observações", key: "obs", width: 50 },
+  ];
+  linhas.forEach(({ item, g }) => {
+    const r = dados[item.id] || {};
+    const st = statusCronograma(r, hoje);
+    const aud = r.auditoriaId && (auditorias || []).find(a => a.id === r.auditoriaId);
+    const row = ws.addRow({
+      area: g.cat, texto: item.texto, objetivo: item.objetivo || "", controle: item.controle || "", metodologia: item.metodologia || "", periodicidade: item.periodicidade || "",
+      resp: CAMPOS_RESPONSAVEL.map(c => nome(r[c])).filter(Boolean).join(", "),
+      prevista: dataExcel(r.prevista), previstaConclusao: dataExcel(r.previstaConclusao), realizada: dataExcel(r.realizada),
+      status: st.label,
+      resultado: r.auditoriaId ? `${{ ok: "Conforme", nok: "Não conforme", na: "N/A" }[r.resultado] || "Auditada"}${aud ? ` (${fmtDate(aud.data)})` : ""}` : "",
+      obs: r.obs || "",
+    });
+    row.alignment = { vertical: "top", wrapText: true };
+    const cor = COR_STATUS_EXCEL[st.key];
+    if (cor) row.getCell("status").fill = { type: "pattern", pattern: "solid", fgColor: { argb: cor } };
+  });
+  const cab = ws.getRow(1);
+  cab.font = { bold: true, color: { argb: "FFFFFFFF" } };
+  cab.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFD21217" } };
+  cab.alignment = { vertical: "middle", wrapText: true };
+  cab.height = 30;
+  ws.autoFilter = { from: { row: 1, column: 1 }, to: { row: 1, column: ws.columns.length } };
+  ws.headerFooter.oddHeader = titulo;
+
+  const buf = await wb.xlsx.writeBuffer();
+  const url = URL.createObjectURL(new Blob([buf], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }));
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = arquivo;
+  // Alguns navegadores só baixam se o link estiver na página
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
 // somenteDe: id do auditor — mostra só as atividades em que ele é um dos responsáveis
 function CronogramaAuditoria({ dados, usuarios, auditorias, podeEditar, onChange, onAuditar, onRepetirResponsaveis, somenteDe, bonus }) {
   const GRUPOS = CRONOGRAMA_ITENS.map(g => ({ ...g, itens: g.itens.filter(i => i.bonus === !!bonus) })).filter(g => g.itens.length);
@@ -1513,6 +1576,26 @@ function CronogramaAuditoria({ dados, usuarios, auditorias, podeEditar, onChange
     return out;
   };
 
+  // Exporta o que está na tela: mês (ou bônus), filtros e ordem atuais
+  const [exportando, setExportando] = useState(false);
+  async function exportarExcel() {
+    const linhas = modo === "data"
+      ? ordemRef.current.lista.filter(x => passaFiltro(x.item))
+      : GRUPOS.flatMap(g => g.itens.filter(passaFiltro).map(item => ({ item, g })));
+    if (!linhas.length) { window.alert("Nenhuma atividade com esses filtros para exportar."); return; }
+    setExportando(true);
+    try {
+      await exportarCronogramaExcel({
+        linhas, dados: doMes, usuarios, auditorias,
+        titulo: bonus ? "Auditorias Bônus" : `Cronograma de Auditoria — ${MESES[m - 1]} / ${ano}`,
+        arquivo: bonus ? "auditorias-bonus.xlsx" : `cronograma-auditoria-${mes}.xlsx`,
+      });
+    } catch (e) {
+      console.error(e);
+      window.alert(`Não foi possível gerar o Excel: ${e?.message || e}`);
+    } finally { setExportando(false); }
+  }
+
   const btnModo = ativo => ({ padding: "5px 12px", borderRadius: 6, border: "none", fontSize: 11.5, fontWeight: 600, cursor: "pointer", fontFamily: "'Barlow',sans-serif", background: ativo ? F.red : F.offWhite, color: ativo ? "#fff" : F.gray3 });
 
   return (
@@ -1544,6 +1627,7 @@ function CronogramaAuditoria({ dados, usuarios, auditorias, podeEditar, onChange
             <option value="">Todos os responsáveis</option>
             {responsaveis.map(u => <option key={u.id} value={u.id}>{u.nome}</option>)}
           </select>}
+          <Btn variant="ghost" onClick={exportarExcel} disabled={exportando}>{exportando ? "Gerando…" : "⬇ Exportar Excel"}</Btn>
         </div>
       </div>
 
