@@ -2321,7 +2321,40 @@ ${db.planos.length ? `<table>
     if (!auto) { closeModal("plano"); showToast("Relatório criado! Aguardando aprovação do administrador."); }
   }
 
+  // Altera um campo do plano e registra a mudança no histórico
+  function editarPlano(id, patch, acao) {
+    const evt = { data: new Date().toISOString(), acao, autor: usuarioLogado?.nome || "Sistema" };
+    upd("planos", arr => arr.map(p => p.id === id ? { ...p, ...patch, historico: [...(p.historico || []), evt] } : p));
+  }
+  function relatarPlano(id, texto) {
+    const evt = { data: new Date().toISOString(), acao: "Relato", texto, autor: usuarioLogado?.nome || "Sistema" };
+    upd("planos", arr => arr.map(p => p.id === id ? { ...p, historico: [...(p.historico || []), evt] } : p));
+    showToast("Relato registrado no histórico!");
+  }
+  const NOMES_STATUS_PLANO = { aberto: "Aberto", andamento: "Em Andamento", concluido: "Concluído" };
+  const inpPlano = { background: F.offWhite, border: `1.5px solid ${F.gray6}`, borderRadius: 5, color: F.charcoal, fontSize: 12, padding: "3px 7px", fontFamily: "'Barlow',sans-serif" };
+  // Campos editáveis do plano: responsável e prazo (quem aprova), status (quem atualiza status)
+  const campoRespPlano = p => podeExecutar(perfil, "aprovar") ? (
+    <select style={{ ...inpPlano, cursor: "pointer", maxWidth: 170, borderColor: p.respId ? F.gray6 : F.amber }} value={p.respId || ""} onChange={e => {
+      const u = db.usuarios.find(x => x.id === e.target.value);
+      editarPlano(p.id, { respId: u?.id || "", respNome: u?.nome || "" }, u ? `Responsável definido: ${u.nome}` : "Responsável removido");
+    }}>
+      <option value="">Atribuir responsável...</option>
+      {db.usuarios.map(u => <option key={u.id} value={u.id}>{u.nome}</option>)}
+    </select>
+  ) : <span style={{ fontSize: 12.5, color: p.respNome ? F.charcoal : F.amber }}>{p.respNome || "⚠ Pendente"}</span>;
+  const campoPrazoPlano = p => podeExecutar(perfil, "aprovar")
+    ? <input type="date" style={{ ...inpPlano, borderColor: p.prazo ? F.gray6 : F.amber }} value={p.prazo || ""} onChange={e => e.target.value && editarPlano(p.id, { prazo: e.target.value }, `Prazo de conclusão alterado para ${fmtDate(e.target.value)}`)} />
+    : <span>{fmtDate(p.prazo)}</span>;
+  const campoStatusPlano = p => podeExecutar(perfil, "atualizar-status") ? (
+    <select value={p.status} onChange={e => editarPlano(p.id, { status: e.target.value }, `Status alterado para ${NOMES_STATUS_PLANO[e.target.value]}`)} style={{ ...inpPlano, cursor: "pointer" }}>
+      {Object.entries(NOMES_STATUS_PLANO).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+    </select>
+  ) : <span style={{ fontSize: 12, color: F.gray3 }}>{NOMES_STATUS_PLANO[p.status]}</span>;
+
   function aprovarPlano(id) {
+    const plano = db.planos.find(p => p.id === id);
+    if (!plano?.respId || !plano?.prazo) { showToast("Defina o responsável e o prazo de conclusão antes de aprovar.", "err"); return; }
     const evt = { data: new Date().toISOString(), acao: "Relatório aprovado", autor: usuarioLogado?.nome || "Sistema" };
     upd("planos", arr => arr.map(p => p.id === id ? { ...p, aprovacao: "aprovado", aprovadoPor: usuarioLogado?.nome || "—", aprovadoEm: new Date().toISOString(), historico: [...(p.historico || []), evt] } : p));
     showToast("Relatório aprovado!");
@@ -3958,32 +3991,20 @@ ${db.planos.length ? `<table>
                       </div>
                     </div>
                     <DataTable
-                      cols={["Ação", "Área", "Responsável", "Prazo", "Clas.", "Causa Raiz", "Origem", ...(podeExecutar(perfil, "aprovar") ? ["Aprovar / Rejeitar"] : [])]}
+                      cols={["Ação", "Área", "Responsável", "Prazo de conclusão", "Status", "Clas.", "Causa Raiz", "Origem", "", ...(podeExecutar(perfil, "aprovar") ? ["Aprovar / Rejeitar"] : [])]}
                       rows={planosPendAprov.map(p => {
                         const cmap = { nc: [F.red, F.redDim, "NC"], mel: [F.blue, F.blueDim, "Melhoria"], obs: [F.gray3, F.gray6, "Obs"] };
                         const [cc, cbg, clbl] = cmap[p.clas] || [F.gray3, F.gray6, "—"];
-                        const iniciais = p.respNome ? p.respNome.split(" ").map(w => w[0]).join("").slice(0,2).toUpperCase() : null;
                         return <>
                           <TD style={{ maxWidth: 220 }}><span style={{ fontSize: 12.5 }}>{p.desc}</span></TD>
                           <TD style={{ color: F.gray3 }}>{p.areaNome}</TD>
-                          <TD>
-                            {iniciais
-                              ? <div style={{ display: "flex", alignItems: "center", gap: 7 }}><div style={{ width: 24, height: 24, background: F.red, borderRadius: 5, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 9, fontWeight: 700, color: "#fff" }}>{iniciais}</div><span style={{ fontSize: 12 }}>{p.respNome}</span></div>
-                              : podeExecutar(perfil, "aprovar")
-                                ? <select style={{ ...fi, fontSize: 11.5, padding: "4px 8px", borderColor: F.amber }} value={p.respId || ""} onChange={e => {
-                                    const u = db.usuarios.find(x => x.id === e.target.value);
-                                    upd("planos", arr => arr.map(x => x.id === p.id ? { ...x, respId: u?.id || "", respNome: u?.nome || "" } : x));
-                                  }}>
-                                    <option value="">Atribuir responsável...</option>
-                                    {db.usuarios.map(u => <option key={u.id} value={u.id}>{u.nome}</option>)}
-                                  </select>
-                                : <span style={{ fontSize: 12, color: F.amber }}>⚠ Pendente</span>
-                            }
-                          </TD>
-                          <TD style={{ color: F.gray3 }}>{fmtDate(p.prazo)}</TD>
+                          <TD>{campoRespPlano(p)}</TD>
+                          <TD style={{ color: F.gray3 }}>{campoPrazoPlano(p)}</TD>
+                          <TD>{campoStatusPlano(p)}</TD>
                           <TD><Tag color={cc} bg={cbg}>{clbl}</Tag></TD>
                           <TD style={{ fontSize: 12, color: p.causaRaiz ? F.charcoal : F.gray5 }}>{p.causaRaiz || "—"}</TD>
                           <TD><Tag>{p.origem === "auditoria" ? "Auditoria" : "Manual"}</Tag></TD>
+                          <TD><button onClick={() => setHistoricoPlanId(p.id)} style={{ fontSize: 11, color: F.gray3, background: "none", border: "none", cursor: "pointer", fontFamily: "'Barlow',sans-serif", whiteSpace: "nowrap" }}>⊙ Histórico</button></TD>
                           {podeExecutar(perfil, "aprovar") && (
                             <TD>
                               <div style={{ display: "flex", gap: 6 }}>
@@ -4007,7 +4028,7 @@ ${db.planos.length ? `<table>
                     </div>
                   )}
                   <DataTable
-                    cols={["Ação", "Área", "Responsável", "Prazo", "Clas.", "Causa Raiz", "Status", "", ...(podeExecutar(perfil, "excluir") ? [""] : [])]}
+                    cols={["Ação", "Área", "Responsável", "Prazo de conclusão", "Clas.", "Causa Raiz", "Status", "", ...(podeExecutar(perfil, "excluir") ? [""] : [])]}
                     rows={[
                       ...planosAprovados.map(p => {
                         const at = isAtrasado(p);
@@ -4015,6 +4036,7 @@ ${db.planos.length ? `<table>
                         const [cc, cbg, clbl] = cmap[p.clas] || [F.gray3, F.gray6, "—"];
                         const temExtPendente = p.extensao?.status === "pendente";
                         const iniciais = p.respNome ? p.respNome.split(" ").map(w => w[0]).join("").slice(0,2).toUpperCase() : null;
+                        const editaCampos = podeExecutar(perfil, "aprovar");
                         return <>
                           <TD style={{ maxWidth: 200 }}>
                             <span style={{ fontSize: 12.5 }}>{p.desc}</span>
@@ -4031,7 +4053,7 @@ ${db.planos.length ? `<table>
                           </TD>
                           <TD style={{ color: F.gray3 }}>{p.areaNome}</TD>
                           <TD>
-                            {iniciais ? (
+                            {editaCampos ? campoRespPlano(p) : iniciais ? (
                               <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
                                 <div style={{ width: 26, height: 26, background: F.red, borderRadius: 6, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 9, fontWeight: 700, color: "#fff", flexShrink: 0 }}>{iniciais}</div>
                                 <span style={{ fontSize: 12.5, color: F.charcoal }}>{p.respNome}</span>
@@ -4039,33 +4061,18 @@ ${db.planos.length ? `<table>
                             ) : <span style={{ fontSize: 12, color: F.gray4 }}>—</span>}
                           </TD>
                           <TD style={{ color: at ? F.red : F.charcoal }}>
-                            {fmtDate(p.extensao?.status === "aprovada" ? p.prazo : p.prazo)}
+                            {campoPrazoPlano(p)}
                             {at && <div style={{ fontSize: 10, color: F.red, fontWeight: 600 }}>Atrasado</div>}
                           </TD>
                           <TD><Tag color={cc} bg={cbg}>{clbl}</Tag></TD>
                           <TD style={{ fontSize: 12, color: p.causaRaiz ? F.charcoal : F.gray5 }}>{p.causaRaiz || "—"}</TD>
-                          <TD>
-                            {podeExecutar(perfil, "atualizar-status") ? (
-                              <select value={p.status} onChange={e => {
-                                const ns = e.target.value;
-                                const nomes = { aberto: "Aberto", andamento: "Em Andamento", concluido: "Concluído" };
-                                const evt = { data: new Date().toISOString(), acao: `Status alterado para ${nomes[ns]}`, autor: usuarioLogado?.nome || "Sistema" };
-                                upd("planos", arr => arr.map(x => x.id === p.id ? { ...x, status: ns, historico: [...(x.historico || []), evt] } : x));
-                              }} style={{ background: F.offWhite, border: `1.5px solid ${F.gray6}`, borderRadius: 5, color: F.charcoal, fontSize: 12, padding: "3px 7px", cursor: "pointer", fontFamily: "'Barlow',sans-serif" }}>
-                                <option value="aberto">Aberto</option>
-                                <option value="andamento">Em Andamento</option>
-                                <option value="concluido">Concluído</option>
-                              </select>
-                            ) : (
-                              <span style={{ fontSize: 12, color: F.gray3 }}>{{ aberto: "Aberto", andamento: "Em Andamento", concluido: "Concluído" }[p.status]}</span>
-                            )}
-                          </TD>
+                          <TD>{campoStatusPlano(p)}</TD>
                           <TD>
                             <div style={{ display: "flex", gap: 5, alignItems: "center" }}>
                               {at && podeExecutar(perfil, "atualizar-status") && (
                                 <button onClick={() => setJustificandoPlano(p)} style={{ fontSize: 10.5, color: F.amber, background: F.amberDim, border: `1px solid ${F.amber}44`, borderRadius: 5, padding: "3px 8px", cursor: "pointer", fontWeight: 600, fontFamily: "'Barlow',sans-serif", whiteSpace: "nowrap" }}>Justificar Atraso</button>
                               )}
-                              <button onClick={() => setHistoricoPlanId(p.id)} style={{ fontSize: 11, color: F.gray4, background: "none", border: "none", cursor: "pointer", fontFamily: "'Barlow',sans-serif" }}>⊙</button>
+                              <button onClick={() => setHistoricoPlanId(p.id)} style={{ fontSize: 11, color: F.gray3, background: "none", border: "none", cursor: "pointer", fontFamily: "'Barlow',sans-serif", whiteSpace: "nowrap" }}>⊙ Histórico{(p.historico || []).some(e => e.texto) ? ` (${p.historico.filter(e => e.texto).length})` : ""}</button>
                             </div>
                           </TD>
                           {podeExecutar(perfil, "excluir") && <TD><button onClick={() => upd("planos", arr => arr.filter(x => x.id !== p.id))} style={{ background: "none", border: "none", color: F.gray4, cursor: "pointer", fontSize: 16, padding: "2px 6px" }}>✕</button></TD>}
@@ -4336,6 +4343,7 @@ ${db.planos.length ? `<table>
         open={!!historicoPlanId}
         onClose={() => setHistoricoPlanId(null)}
         plano={db.planos.find(p => p.id === historicoPlanId) || null}
+        onRelatar={relatarPlano}
       />
 
       {/* AUDITORIA */}
@@ -5049,11 +5057,24 @@ function JustificativaModal({ open, onClose, plano, onSave }) {
   );
 }
 
-function HistoricoModal({ open, onClose, plano }) {
+function HistoricoModal({ open, onClose, plano, onRelatar }) {
+  const [relato, setRelato] = useState("");
+  useEffect(() => { setRelato(""); }, [plano?.id]);
   if (!plano) return null;
   const eventos = [...(plano.historico || [])].reverse();
+  const registrar = () => { if (!relato.trim()) return; onRelatar(plano.id, relato.trim()); setRelato(""); };
   return (
-    <Modal open={open} onClose={onClose} title={`Histórico — ${plano.desc?.slice(0, 40)}${plano.desc?.length > 40 ? "…" : ""}`} width={520}>
+    <Modal open={open} onClose={onClose} title={`Histórico — ${plano.desc?.slice(0, 40)}${plano.desc?.length > 40 ? "…" : ""}`} width={560}>
+      {onRelatar && (
+        <div style={{ marginBottom: 14, paddingBottom: 14, borderBottom: `1.5px solid ${F.gray6}` }}>
+          <FG label="Novo relato">
+            <textarea style={{ ...fi, minHeight: 70, resize: "vertical" }} value={relato} onChange={e => setRelato(e.target.value)} placeholder="O que foi feito, andamento, dificuldades, próximos passos..." />
+          </FG>
+          <div style={{ display: "flex", justifyContent: "flex-end" }}>
+            <Btn onClick={registrar} disabled={!relato.trim()}>+ Registrar relato</Btn>
+          </div>
+        </div>
+      )}
       {eventos.length === 0 ? (
         <div style={{ textAlign: "center", padding: "30px 0", color: F.gray4, fontSize: 13 }}>Nenhum evento registrado.</div>
       ) : (
@@ -5063,6 +5084,7 @@ function HistoricoModal({ open, onClose, plano }) {
               <div style={{ width: 8, height: 8, borderRadius: "50%", background: F.red, flexShrink: 0, marginTop: 5 }} />
               <div style={{ flex: 1 }}>
                 <div style={{ fontSize: 13, fontWeight: 600, color: F.charcoal }}>{e.acao}</div>
+                {e.texto && <div style={{ fontSize: 12.5, color: F.charcoal, marginTop: 4, whiteSpace: "pre-wrap", background: F.offWhite, borderRadius: 6, padding: "7px 10px" }}>{e.texto}</div>}
                 <div style={{ fontSize: 11, color: F.gray4, marginTop: 2 }}>{e.autor} · {fmtDate(e.data?.split("T")[0])} {e.data ? new Date(e.data).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }) : ""}</div>
               </div>
             </div>
