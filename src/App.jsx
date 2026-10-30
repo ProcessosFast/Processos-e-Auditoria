@@ -1804,6 +1804,8 @@ export default function App() {
   }, []);
   const [diaCalendario, setDiaCalendario] = useState(null);
   const [diaAuditorias, setDiaAuditorias] = useState(null);
+  const [mesRealizadas, setMesRealizadas] = useState(() => { try { return sessionStorage.getItem("portal-fast-mes-realizadas") || new Date().toISOString().slice(0, 7); } catch { return new Date().toISOString().slice(0, 7); } });
+  useEffect(() => { try { sessionStorage.setItem("portal-fast-mes-realizadas", mesRealizadas); } catch {} }, [mesRealizadas]);
   const [calMes, setCalMes] = useState(() => { const d = new Date(); return { ano: d.getFullYear(), mes: d.getMonth() }; });
   const [viewRelatorioAudId, setViewRelatorioAudId] = useState(null);
   const planosIdsRef = useRef(new Set());
@@ -3485,8 +3487,12 @@ ${db.planos.length ? `<table>
                 const g = CRONOGRAMA_ITENS.find(gr => gr.itens.some(i => i.id === id));
                 if (g) programadas.push({ folha, g, item: g.itens.find(i => i.id === id), r, st: statusCronograma(r, hojeDia) });
               }));
+              // Realizadas: só as do mês escolhido (navegação por mês)
               const realizadas = (perfil === "auditor" ? auditoriasVisiveis.filter(a => a.auditorId === usuarioLogado.id || a.auditorNome === usuarioLogado.nome) : auditoriasVisiveis)
+                .filter(a => (a.mes || a.data || "").slice(0, 7) === mesRealizadas)
                 .slice().sort((a, b) => (b.data || "").localeCompare(a.data || ""));
+              const [anoReal, mReal] = mesRealizadas.split("-").map(Number);
+              const mudarMesRealizadas = delta => { const d = new Date(anoReal, mReal - 1 + delta, 1); setMesRealizadas(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`); };
               const mudarDia = delta => { const d = new Date(dia + "T00:00"); d.setDate(d.getDate() + delta); setDiaAuditorias(ymdLocal(d)); };
               const navBtn = { background: F.offWhite, border: `1px solid ${F.gray6}`, borderRadius: 6, padding: "4px 11px", cursor: "pointer", fontSize: 14, color: F.gray3 };
               const titulo = { fontFamily: "'Barlow Condensed',sans-serif", fontSize: 15, fontWeight: 800, textTransform: "uppercase", letterSpacing: 0.5, color: F.charcoal };
@@ -3528,10 +3534,14 @@ ${db.planos.length ? `<table>
                   </Card>
                 )}
 
-                <div style={{ ...titulo, marginBottom: 10 }}>Realizadas{perfil === "auditor" ? " por você" : ""}</div>
+                <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", marginBottom: 10 }}>
+                  <div style={{ ...titulo, flex: 1, minWidth: 220 }}>Realizadas em {MESES[mReal - 1]} / {anoReal}{perfil === "auditor" ? " por você" : ""} ({realizadas.length})</div>
+                  <button style={navBtn} onClick={() => mudarMesRealizadas(-1)} title="Mês anterior">‹</button>
+                  <button style={navBtn} onClick={() => mudarMesRealizadas(1)} title="Próximo mês">›</button>
+                </div>
               <Card>
                 <DataTable
-                  cols={["Área", "Auditor", "Data", "Ciclo", "Score Individual", "Média do Ciclo", "NCs", "Ciência", "Rel. Final", ...(podeExecutar(perfil, "excluir") ? [""] : [])]}
+                  cols={["Área", "Auditor", "Data", "Ciclo", "Média do Ciclo", "NCs", "Ciência", "Rel. Final", ...(podeExecutar(perfil, "excluir") ? [""] : [])]}
                   rows={realizadas.map(a => {
                     const ncc = a.ncs?.filter(n => n.clas === "nc").length || 0;
                     const parceirosCiclo = a.cicloNome && a.cicloNome !== "—"
@@ -3558,10 +3568,6 @@ ${db.planos.length ? `<table>
                       <TD style={{ color: F.gray3 }}>{a.auditorNome}</TD>
                       <TD style={{ color: F.gray3 }}>{fmtDate(a.data)}</TD>
                       <TD>{a.cicloNome !== "—" ? <Tag>{a.cicloNome}</Tag> : "—"}</TD>
-                      <TD>
-                        <strong style={{ fontFamily: "'Barlow Condensed',sans-serif", fontSize: 16, color: scoreColor(a.score) }}>{a.score}%</strong>
-                        {parceirosCiclo.length > 1 && <div style={{ fontSize: 10, color: F.gray4 }}>{parceirosCiclo.length} auditores</div>}
-                      </TD>
                       <TD>
                         {mediaCiclo !== null
                           ? <><strong style={{ fontFamily: "'Barlow Condensed',sans-serif", fontSize: 16, color: scoreColor(mediaCiclo) }}>{mediaCiclo}%</strong><div style={{ fontSize: 10, color: F.gray4 }}>{scoreLabel(mediaCiclo)}</div></>
@@ -3597,7 +3603,7 @@ ${db.planos.length ? `<table>
                     </>;
                   })}
                   empty={{
-                    icon: "◎", title: "Nenhuma auditoria registrada",
+                    icon: "◎", title: `Nenhuma auditoria realizada em ${MESES[mReal - 1].toLowerCase()} de ${anoReal}`,
                     sub: "Crie uma nova auditoria para iniciar o ciclo de avaliação.",
                     action: <Btn style={{ marginTop: 10 }} onClick={() => { if (areasAuditaveis.length === 0) { showToast("Cadastre ao menos uma área.", "err"); return; } setAudStep(1); setAudForm({ data: new Date().toISOString().split("T")[0] }); setChecklist([]); openModal("auditoria"); }}>+ Criar Primeira Auditoria</Btn>
                   }}
@@ -3918,11 +3924,23 @@ ${db.planos.length ? `<table>
             )}
 
             {/* ── NCS ── */}
-            {view === "ncs" && (
+            {view === "ncs" && (() => {
+              // Só as NCs das auditorias do mês escolhido (mesmo mês da lista de realizadas)
+              const [anoNc, mNc] = mesRealizadas.split("-").map(Number);
+              const mudarMesNc = delta => { const d = new Date(anoNc, mNc - 1 + delta, 1); setMesRealizadas(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`); };
+              const audsMes = db.auditorias.filter(a => (a.mes || a.data || "").slice(0, 7) === mesRealizadas).sort((a, b) => (b.data || "").localeCompare(a.data || ""));
+              const totalNcs = audsMes.reduce((n, a) => n + (a.ncs || []).length, 0);
+              const navBtn = { background: F.offWhite, border: `1px solid ${F.gray6}`, borderRadius: 6, padding: "4px 11px", cursor: "pointer", fontSize: 14, color: F.gray3 };
+              return <>
+              <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", marginBottom: 10 }}>
+                <div style={{ flex: 1, minWidth: 220, fontFamily: "'Barlow Condensed',sans-serif", fontSize: 15, fontWeight: 800, textTransform: "uppercase", letterSpacing: 0.5, color: F.charcoal }}>Não conformidades de {MESES[mNc - 1]} / {anoNc} ({totalNcs})</div>
+                <button style={navBtn} onClick={() => mudarMesNc(-1)} title="Mês anterior">‹</button>
+                <button style={navBtn} onClick={() => mudarMesNc(1)} title="Próximo mês">›</button>
+              </div>
               <Card>
                 <DataTable
                   cols={["Item", "Área", "Tipo", "Evidência", "Data"]}
-                  rows={db.auditorias.flatMap(a => (a.ncs || []).map(n => {
+                  rows={audsMes.flatMap(a => (a.ncs || []).map(n => {
                     const cmap = { nc: [F.red, F.redDim, "NC"], mel: [F.blue, F.blueDim, "Melhoria"], obs: [F.gray3, F.gray6, "Obs"] };
                     const [cc, cbg, lbl] = cmap[n.clas] || [F.gray3, F.gray6, "—"];
                     return <>
@@ -3935,10 +3953,11 @@ ${db.planos.length ? `<table>
                       <TD style={{ color: F.gray4 }}>{fmtDate(a.data)}</TD>
                     </>;
                   }))}
-                  empty={{ icon: "⚑", title: "Nenhuma não conformidade", sub: "As NCs das auditorias aparecerão aqui." }}
+                  empty={{ icon: "⚑", title: `Nenhuma não conformidade em ${MESES[mNc - 1].toLowerCase()} de ${anoNc}`, sub: "As NCs das auditorias do mês aparecerão aqui." }}
                 />
               </Card>
-            )}
+              </>;
+            })()}
 
             {/* ── CRONOGRAMA DE AUDITORIA ── */}
             {view === "cronograma" && (
